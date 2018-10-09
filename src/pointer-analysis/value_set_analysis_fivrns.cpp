@@ -20,9 +20,10 @@ Author: Daniel Kroening, kroening@kroening.com
 #include <langapi/language_util.h>
 
 void value_set_analysis_fivrnst::initialize(
+  const irep_idt &function,
   const goto_programt &goto_program)
 {
-  baset::initialize(goto_program);
+  baset::initialize(function, goto_program);
   add_vars(goto_program);
 }
 
