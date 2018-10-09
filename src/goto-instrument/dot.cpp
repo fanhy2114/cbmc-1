@@ -44,10 +44,8 @@ protected:
   std::list<exprt> function_calls;
   std::list<exprt> clusters;
 
-  void write_dot_subgraph(
-    std::ostream &,
-    const std::string &,
-    const goto_programt &);
+  void
+  write_dot_subgraph(std::ostream &, const irep_idt &, const goto_programt &);
 
   void do_dot_function_calls(std::ostream &);
 
@@ -70,15 +68,15 @@ protected:
 /// \return true on error, false otherwise
 void dott::write_dot_subgraph(
   std::ostream &out,
-  const std::string &name,
+  const irep_idt &function,
   const goto_programt &goto_program)
 {
   clusters.push_back(exprt("cluster"));
-  clusters.back().set("name", name);
+  clusters.back().set("name", function);
   clusters.back().set("nr", subgraphscount);
 
-  out << "subgraph \"cluster_" << name << "\" {\n";
-  out << "label=\"" << name << "\";\n";
+  out << "subgraph \"cluster_" << function << "\" {\n";
+  out << "label=\"" << function << "\";\n";
 
   const goto_programt::instructionst &instructions =
     goto_program.instructions;
@@ -111,7 +109,7 @@ void dott::write_dot_subgraph(
           tmp.str("Goto");
         else
         {
-          std::string t = from_expr(ns, it->function, it->guard);
+          std::string t = from_expr(ns, function, it->guard);
           while(t[ t.size()-1 ]=='\n')
             t = t.substr(0, t.size()-1);
           tmp << escape(t) << "?";
@@ -119,14 +117,14 @@ void dott::write_dot_subgraph(
       }
       else if(it->is_assume())
       {
-        std::string t = from_expr(ns, it->function, it->guard);
+        std::string t = from_expr(ns, function, it->guard);
         while(t[ t.size()-1 ]=='\n')
           t = t.substr(0, t.size()-1);
         tmp << "Assume\\n(" << escape(t) << ")";
       }
       else if(it->is_assert())
       {
-        std::string t = from_expr(ns, it->function, it->guard);
+        std::string t = from_expr(ns, function, it->guard);
         while(t[ t.size()-1 ]=='\n')
           t = t.substr(0, t.size()-1);
         tmp << "Assert\\n(" << escape(t) << ")";
@@ -145,7 +143,7 @@ void dott::write_dot_subgraph(
         tmp.str("Atomic End");
       else if(it->is_function_call())
       {
-        std::string t = from_expr(ns, it->function, it->code);
+        std::string t = from_expr(ns, function, it->code);
         while(t[ t.size()-1 ]=='\n')
           t = t.substr(0, t.size()-1);
         tmp.str(escape(t));
@@ -162,7 +160,7 @@ void dott::write_dot_subgraph(
               it->is_return() ||
               it->is_other())
       {
-        std::string t = from_expr(ns, it->function, it->code);
+        std::string t = from_expr(ns, function, it->code);
         while(t[ t.size()-1 ]=='\n')
           t = t.substr(0, t.size()-1);
         tmp.str(escape(t));
@@ -266,7 +264,7 @@ void dott::output(std::ostream &out)
 
   forall_goto_functions(it, goto_model.goto_functions)
     if(it->second.body_available())
-      write_dot_subgraph(out, id2string(it->first), it->second.body);
+      write_dot_subgraph(out, it->first, it->second.body);
 
   do_dot_function_calls(out);
 
