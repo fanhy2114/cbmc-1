@@ -97,6 +97,7 @@ protected:
   };
 
   void ignore_command();
+  void datatype_declaration();
   exprt expression();
   exprt function_application();
   typet sort();
