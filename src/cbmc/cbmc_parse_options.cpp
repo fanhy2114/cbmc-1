@@ -448,7 +448,7 @@ int cbmc_parse_optionst::doit()
   }
 
   eval_verbosity(
-    cmdline.get_value("verbosity"), messaget::M_STATISTICS, ui_message_handler);
+    cmdline.get_value("verbosity"), messaget::M_STATUS, ui_message_handler);
 
   //
   // Print a banner
