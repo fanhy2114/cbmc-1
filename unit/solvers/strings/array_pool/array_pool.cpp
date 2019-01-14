@@ -11,8 +11,7 @@ Author: Diffblue Ltd.
 
 #include <solvers/strings/string_constraint_generator.h>
 
-SCENARIO(
-  "array_pool", "[core][solvers][strings][string_constraint_generator]")
+SCENARIO("array_pool", "[core][solvers][strings][string_constraint_generator]")
 {
   const std::size_t pointer_width = 16;
   const auto char_type = unsignedbv_typet(8);
@@ -43,15 +42,15 @@ SCENARIO(
     WHEN("Looking for the address of the first element of a constant array")
     {
       const array_typet array_type(char_type, from_integer(3, length_type));
-      const exprt array = [array_type, char_type]{
+      const exprt array = [array_type, char_type] {
         array_exprt a(array_type);
         a.operands().push_back(from_integer('f', char_type));
         a.operands().push_back(from_integer('o', char_type));
         a.operands().push_back(from_integer('o', char_type));
         return a;
       }();
-        const exprt first_element =
-          index_exprt(array, from_integer(0, length_type));
+      const exprt first_element =
+        index_exprt(array, from_integer(0, length_type));
       const exprt pointer = address_of_exprt(first_element, pointer_type);
       const array_string_exprt associated_array =
         pool.find(pointer, array_type.size());
@@ -90,8 +89,9 @@ SCENARIO(
       const array_string_exprt associated_array =
         pool.find(if_expr, pointer_length);
 
-      THEN("Arrays associated to the subexpressions are the subexpressions of "
-           "the associated array")
+      THEN(
+        "Arrays associated to the subexpressions are the subexpressions of "
+        "the associated array")
       {
         const symbol_exprt pointer_length1("pointer_length1", length_type);
         const array_string_exprt associated_to_true =
