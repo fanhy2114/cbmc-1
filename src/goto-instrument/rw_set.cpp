@@ -220,9 +220,14 @@ void rw_set_functiont::compute_rec(const exprt &function)
 
       forall_goto_program_instructions(i_it, body)
       {
-        *this+=rw_set_loct(ns, value_sets, i_it
+        *this += rw_set_loct(
+          ns,
+          value_sets,
+          id,
+          i_it
 #ifdef LOCAL_MAY
-        , local_may
+          ,
+          local_may
 #endif
         ); // NOLINT(whitespace/parens)
       }

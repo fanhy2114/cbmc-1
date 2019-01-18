@@ -60,9 +60,14 @@ void introduce_temporaries(
        instruction.is_assert() ||
        instruction.is_assume())
     {
-      rw_set_loct rw_set(ns, value_sets, i_it
+      rw_set_loct rw_set(
+        ns,
+        value_sets,
+        function,
+        i_it
 #ifdef LOCAL_MAY
-      , local_may
+        ,
+        local_may
 #endif
       ); // NOLINT(whitespace/parens)
       if(rw_set.empty())

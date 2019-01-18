@@ -121,26 +121,31 @@ public:
   _rw_set_loct(
     const namespacet &_ns,
     value_setst &_value_sets,
+    const irep_idt &_function,
     goto_programt::const_targett _target,
-    local_may_aliast &may):
-    rw_set_baset(_ns),
-    value_sets(_value_sets),
-    target(_target),
-    local_may(may)
+    local_may_aliast &may)
+    : rw_set_baset(_ns),
+      value_sets(_value_sets),
+      function(_function),
+      target(_target),
+      local_may(may)
 #else
   _rw_set_loct(
     const namespacet &_ns,
     value_setst &_value_sets,
-    goto_programt::const_targett _target):
-    rw_set_baset(_ns),
-    value_sets(_value_sets),
-    target(_target)
+    const irep_idt &_function,
+    goto_programt::const_targett _target)
+    : rw_set_baset(_ns),
+      value_sets(_value_sets),
+      function(_function),
+      target(_target)
 #endif
   {
   }
 
 protected:
   value_setst &value_sets;
+  const irep_idt function;
   const goto_programt::const_targett target;
 
 #ifdef LOCAL_MAY
@@ -180,15 +185,17 @@ public:
   rw_set_loct(
     const namespacet &_ns,
     value_setst &_value_sets,
+    const irep_idt &_function,
     goto_programt::const_targett _target,
-    local_may_aliast &may):
-    _rw_set_loct(_ns, _value_sets, _target, may)
+    local_may_aliast &may)
+    : _rw_set_loct(_ns, _value_sets, _function, _target, may)
 #else
   rw_set_loct(
     const namespacet &_ns,
     value_setst &_value_sets,
-    goto_programt::const_targett _target):
-    _rw_set_loct(_ns, _value_sets, _target)
+    const irep_idt &_function,
+    goto_programt::const_targett _target)
+    : _rw_set_loct(_ns, _value_sets, _function, _target)
 #endif
   {
     compute();
@@ -239,17 +246,18 @@ public:
   rw_set_with_trackt(
     const namespacet &_ns,
     value_setst &_value_sets,
+    const irep_idt &_function,
     goto_programt::const_targett _target,
-    local_may_aliast &may):
-    _rw_set_loct(_ns, _value_sets, _target, may),
-    dereferencing(false)
+    local_may_aliast &may)
+    : _rw_set_loct(_ns, _value_sets, _function, _target, may),
+      dereferencing(false)
 #else
   rw_set_with_trackt(
     const namespacet &_ns,
     value_setst &_value_sets,
-    goto_programt::const_targett _target):
-    _rw_set_loct(_ns, _value_sets, _target),
-    dereferencing(false)
+    const irep_idt &_function,
+    goto_programt::const_targett _target)
+    : _rw_set_loct(_ns, _value_sets, _function, _target), dereferencing(false)
 #endif
   {
     compute();
