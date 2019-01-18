@@ -248,6 +248,7 @@ protected:
   void change_impact(const irep_idt &function);
 
   void change_impact(
+    const irep_idt &function,
     const goto_programt &old_goto_program,
     const goto_programt &new_goto_program,
     const unified_difft::goto_program_difft &diff,
@@ -255,11 +256,13 @@ protected:
     goto_program_change_impactt &new_impact);
 
   void propogate_dep_back(
+    const irep_idt &function,
     const dependence_grapht::nodet &d_node,
     const dependence_grapht &dep_graph,
     goto_functions_change_impactt &change_impact,
     bool del);
   void propogate_dep_forward(
+    const irep_idt &function,
     const dependence_grapht::nodet &d_node,
     const dependence_grapht &dep_graph,
     goto_functions_change_impactt &change_impact,
@@ -336,6 +339,7 @@ void change_impactt::change_impact(const irep_idt &function)
     new_fit->second.body;
 
   change_impact(
+    function,
     old_goto_program,
     new_goto_program,
     diff,
@@ -344,6 +348,7 @@ void change_impactt::change_impact(const irep_idt &function)
 }
 
 void change_impactt::change_impact(
+  const irep_idt &function,
   const goto_programt &old_goto_program,
   const goto_programt &new_goto_program,
   const unified_difft::goto_program_difft &diff,
@@ -378,17 +383,11 @@ void change_impactt::change_impact(
           if(impact_mode==impact_modet::BACKWARD ||
              impact_mode==impact_modet::BOTH)
             propogate_dep_back(
-              d_node,
-              old_dep_graph,
-              old_change_impact,
-              true);
+              function, d_node, old_dep_graph, old_change_impact, true);
           if(impact_mode==impact_modet::FORWARD ||
              impact_mode==impact_modet::BOTH)
             propogate_dep_forward(
-              d_node,
-              old_dep_graph,
-              old_change_impact,
-              true);
+              function, d_node, old_dep_graph, old_change_impact, true);
         }
         old_impact[o_it]|=DELETED;
         ++o_it;
@@ -403,17 +402,11 @@ void change_impactt::change_impact(
           if(impact_mode==impact_modet::BACKWARD ||
              impact_mode==impact_modet::BOTH)
             propogate_dep_back(
-              d_node,
-              new_dep_graph,
-              new_change_impact,
-              false);
+              function, d_node, new_dep_graph, new_change_impact, false);
           if(impact_mode==impact_modet::FORWARD ||
              impact_mode==impact_modet::BOTH)
             propogate_dep_forward(
-              d_node,
-              new_dep_graph,
-              new_change_impact,
-              false);
+              function, d_node, new_dep_graph, new_change_impact, false);
         }
         new_impact[n_it]|=NEW;
         ++n_it;
@@ -422,8 +415,8 @@ void change_impactt::change_impact(
   }
 }
 
-
 void change_impactt::propogate_dep_forward(
+  const irep_idt &function,
   const dependence_grapht::nodet &d_node,
   const dependence_grapht &dep_graph,
   goto_functions_change_impactt &change_impact,
@@ -437,20 +430,26 @@ void change_impactt::propogate_dep_forward(
     mod_flagt data_flag = del ? DEL_DATA_DEP : NEW_DATA_DEP;
     mod_flagt ctrl_flag = del ? DEL_CTRL_DEP : NEW_CTRL_DEP;
 
-    if((change_impact[src->function][src] &data_flag)
-        || (change_impact[src->function][src] &ctrl_flag))
+    if(
+      (change_impact[function][src] & data_flag) ||
+      (change_impact[function][src] & ctrl_flag))
       continue;
     if(it->second.get() == dep_edget::kindt::DATA
         || it->second.get() == dep_edget::kindt::BOTH)
-      change_impact[src->function][src] |= data_flag;
+      change_impact[function][src] |= data_flag;
     else
-      change_impact[src->function][src] |= ctrl_flag;
-    propogate_dep_forward(dep_graph[dep_graph[src].get_node_id()], dep_graph,
-        change_impact, del);
+      change_impact[function][src] |= ctrl_flag;
+    propogate_dep_forward(
+      function,
+      dep_graph[dep_graph[src].get_node_id()],
+      dep_graph,
+      change_impact,
+      del);
   }
 }
 
 void change_impactt::propogate_dep_back(
+  const irep_idt &function,
   const dependence_grapht::nodet &d_node,
   const dependence_grapht &dep_graph,
   goto_functions_change_impactt &change_impact,
@@ -464,19 +463,24 @@ void change_impactt::propogate_dep_back(
     mod_flagt data_flag = del ? DEL_DATA_DEP : NEW_DATA_DEP;
     mod_flagt ctrl_flag = del ? DEL_CTRL_DEP : NEW_CTRL_DEP;
 
-    if((change_impact[src->function][src] &data_flag)
-        || (change_impact[src->function][src] &ctrl_flag))
+    if(
+      (change_impact[function][src] & data_flag) ||
+      (change_impact[function][src] & ctrl_flag))
     {
       continue;
     }
     if(it->second.get() == dep_edget::kindt::DATA
         || it->second.get() == dep_edget::kindt::BOTH)
-      change_impact[src->function][src] |= data_flag;
+      change_impact[function][src] |= data_flag;
     else
-      change_impact[src->function][src] |= ctrl_flag;
+      change_impact[function][src] |= ctrl_flag;
 
-    propogate_dep_back(dep_graph[dep_graph[src].get_node_id()], dep_graph,
-        change_impact, del);
+    propogate_dep_back(
+      function,
+      dep_graph[dep_graph[src].get_node_id()],
+      dep_graph,
+      change_impact,
+      del);
   }
 }
 
