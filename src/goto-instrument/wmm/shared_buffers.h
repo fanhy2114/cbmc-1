@@ -117,6 +117,7 @@ public:
     const unsigned current_thread);
 
   void nondet_flush(
+    const irep_idt &function,
     goto_programt &goto_program,
     goto_programt::targett &t,
     const source_locationt &source_location,

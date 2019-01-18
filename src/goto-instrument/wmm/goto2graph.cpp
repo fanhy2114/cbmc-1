@@ -168,8 +168,9 @@ void instrumentert::cfg_visitort::visit_cfg_function(
 #endif
 
   /* goes through the function */
-  Forall_goto_program_instructions(i_it,
-    instrumenter.goto_functions.function_map[function].body)
+  goto_programt &goto_program =
+    instrumenter.goto_functions.function_map[function].body;
+  Forall_goto_program_instructions(i_it, goto_program)
   {
     goto_programt::instructiont &instruction=*i_it;
 
@@ -243,9 +244,14 @@ void instrumentert::cfg_visitort::visit_cfg_function(
     }
     else if(instruction.is_goto())
     {
-      visit_cfg_goto(i_it, replicate_body, value_sets
+      visit_cfg_goto(
+        goto_program,
+        i_it,
+        replicate_body,
+        value_sets
 #ifdef LOCAL_MAY
-        , local_may
+        ,
+        local_may
 #endif
       ); // NOLINT(whitespace/parens)
     }
@@ -445,11 +451,13 @@ bool instrumentert::cfg_visitort::contains_shared_array(
 
 /// strategy: fwd/bwd alternation
 void inline instrumentert::cfg_visitort::visit_cfg_body(
+  const goto_programt &goto_program,
   goto_programt::const_targett i_it,
   loop_strategyt replicate_body,
   value_setst &value_sets
 #ifdef LOCAL_MAY
-  , local_may_aliast &local_may
+  ,
+  local_may_aliast &local_may
 #endif
 )
 {
@@ -482,7 +490,7 @@ void inline instrumentert::cfg_visitort::visit_cfg_body(
       }
 
       if(duplicate_this)
-        visit_cfg_duplicate(target, i_it);
+        visit_cfg_duplicate(goto_program, target, i_it);
       else
         visit_cfg_backedge(target, i_it);
     }
@@ -490,12 +498,11 @@ void inline instrumentert::cfg_visitort::visit_cfg_body(
 }
 
 void inline instrumentert::cfg_visitort::visit_cfg_duplicate(
+  const goto_programt &goto_program,
   goto_programt::const_targett targ,
   goto_programt::const_targett i_it)
 {
   instrumenter.message.status() << "Duplication..." << messaget::eom;
-  const goto_functionst::goto_functiont &fun=
-    instrumenter.goto_functions.function_map[i_it->function];
 
   bool found_pos=false;
   goto_programt::const_targett new_targ=targ;
@@ -503,8 +510,7 @@ void inline instrumentert::cfg_visitort::visit_cfg_duplicate(
   if(in_pos[targ].empty())
   {
     /* tries to find the next node after the back edge */
-    for(; new_targ!=fun.body.instructions.end();
-      ++new_targ)
+    for(; new_targ != goto_program.instructions.end(); ++new_targ)
     {
       if(in_pos.find(new_targ)!=in_pos.end() && !in_pos[new_targ].empty())
       {
@@ -620,11 +626,13 @@ void inline instrumentert::cfg_visitort::visit_cfg_backedge(
 }
 
 void instrumentert::cfg_visitort::visit_cfg_goto(
+  const goto_programt &goto_program,
   goto_programt::instructionst::iterator i_it,
   loop_strategyt replicate_body,
   value_setst &value_sets
 #ifdef LOCAL_MAY
-  , local_may_aliast &local_may
+  ,
+  local_may_aliast &local_may
 #endif
 )
 {
@@ -640,9 +648,14 @@ void instrumentert::cfg_visitort::visit_cfg_goto(
   if(instruction.is_backwards_goto())
   {
     instrumenter.message.debug() << "backward goto" << messaget::eom;
-    visit_cfg_body(i_it, replicate_body, value_sets
+    visit_cfg_body(
+      goto_program,
+      i_it,
+      replicate_body,
+      value_sets
 #ifdef LOCAL_MAY
-    , local_may
+      ,
+      local_may
 #endif
     ); // NOLINT(whitespace/parens)
   }

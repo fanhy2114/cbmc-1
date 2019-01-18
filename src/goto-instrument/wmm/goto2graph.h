@@ -114,16 +114,20 @@ protected:
     void visit_cfg_thread() const;
     void visit_cfg_propagate(goto_programt::instructionst::iterator i_it);
     void visit_cfg_body(
+      const goto_programt &goto_program,
       goto_programt::const_targett i_it,
       loop_strategyt replicate_body,
       value_setst &value_sets
-      #ifdef LOCAL_MAY
-      , local_may_aliast &local_may
+#ifdef LOCAL_MAY
+      ,
+      local_may_aliast &local_may
       #endif
     ); // deprecated  NOLINT(whitespace/parens)
     void inline visit_cfg_backedge(goto_programt::const_targett targ,
       goto_programt::const_targett i_it);
-    void inline visit_cfg_duplicate(goto_programt::const_targett targ,
+    void inline visit_cfg_duplicate(
+      const goto_programt &goto_program,
+      goto_programt::const_targett targ,
       goto_programt::const_targett i_it);
     void visit_cfg_assign(
       value_setst &value_sets,
@@ -144,13 +148,15 @@ protected:
       bool no_dependenciess,
       loop_strategyt duplicate_body);
     void visit_cfg_goto(
+      const goto_programt &goto_program,
       goto_programt::instructionst::iterator i_it,
       /* forces the duplication of all the loops, with array or not
          otherwise, duplication of loops with array accesses only */
       loop_strategyt replicate_body,
       value_setst &value_sets
-      #ifdef LOCAL_MAY
-      , local_may_aliast &local_may
+#ifdef LOCAL_MAY
+      ,
+      local_may_aliast &local_may
       #endif
     ); // NOLINT(whitespace/parens)
     void visit_cfg_reference_function(irep_idt id_function);
