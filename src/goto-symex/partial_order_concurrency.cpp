@@ -163,10 +163,11 @@ symbol_exprt partial_order_concurrencyt::clock(
 
 void partial_order_concurrencyt::build_clock_type()
 {
-  assert(!numbering.empty());
+//  assert(!numbering.empty());
 
-  std::size_t width = address_bits(numbering.size());
-  clock_type = unsignedbv_typet(width);
+//  std::size_t width = address_bits(numbering.size());
+//  clock_type = unsignedbv_typet(width);
+  clock_type = integer_typet();
 }
 
 exprt partial_order_concurrencyt::before(
