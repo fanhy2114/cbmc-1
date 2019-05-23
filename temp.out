@@ -1,0 +1,3838 @@
+CBMC version 5.10 (cbmc-5.10) 64-bit x86_64 linux
+Parsing ./factorial.c
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: <built-in-additions>
+    * line: 1
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: typedef
+      * #source_location: 
+        * file: <built-in-additions>
+        * line: 1
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: typeof
+      * #source_location: 
+        * file: <built-in-additions>
+        * line: 1
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      0: sizeof
+          * type_arg: int
+              * #source_location: 
+                * file: <built-in-additions>
+                * line: 1
+                * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+          * #source_location: 
+            * file: <built-in-additions>
+            * line: 1
+            * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: nil
+  * value: nil
+  * name: __CPROVER_size_t
+  * base_name: __CPROVER_size_t
+  * #source_location: 
+    * file: <built-in-additions>
+    * line: 1
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: <built-in-additions>
+    * line: 2
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: typedef
+      * #source_location: 
+        * file: <built-in-additions>
+        * line: 2
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: signed
+      * #source_location: 
+        * file: <built-in-additions>
+        * line: 2
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  2: long
+      * #source_location: 
+        * file: <built-in-additions>
+        * line: 2
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  3: int
+      * #source_location: 
+        * file: <built-in-additions>
+        * line: 2
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: nil
+  * value: nil
+  * name: __CPROVER_ssize_t
+  * base_name: __CPROVER_ssize_t
+  * #source_location: 
+    * file: <built-in-additions>
+    * line: 2
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: <built-in-additions>
+    * line: 3
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: const
+      * #source_location: 
+        * file: <built-in-additions>
+        * line: 3
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: unsigned
+      * #source_location: 
+        * file: <built-in-additions>
+        * line: 3
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: nil
+  * value: nil
+  * name: __CPROVER_constant_infinity_uint
+  * base_name: __CPROVER_constant_infinity_uint
+  * #source_location: 
+    * file: <built-in-additions>
+    * line: 3
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: <built-in-additions>
+    * line: 4
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: typedef
+      * #source_location: 
+        * file: <built-in-additions>
+        * line: 4
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: void
+      * #source_location: 
+        * file: <built-in-additions>
+        * line: 4
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: nil
+  * value: nil
+  * name: __CPROVER_integer
+  * base_name: __CPROVER_integer
+  * #source_location: 
+    * file: <built-in-additions>
+    * line: 4
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: <built-in-additions>
+    * line: 5
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: typedef
+      * #source_location: 
+        * file: <built-in-additions>
+        * line: 5
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: void
+      * #source_location: 
+        * file: <built-in-additions>
+        * line: 5
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: nil
+  * value: nil
+  * name: __CPROVER_rational
+  * base_name: __CPROVER_rational
+  * #source_location: 
+    * file: <built-in-additions>
+    * line: 5
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: <built-in-additions>
+    * line: 6
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: thread_local
+      * #source_location: 
+        * file: <built-in-additions>
+        * line: 6
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: unsigned
+      * #source_location: 
+        * file: <built-in-additions>
+        * line: 6
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  2: long
+      * #source_location: 
+        * file: <built-in-additions>
+        * line: 6
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: nil
+  * value: constant
+      * type: signedbv
+          * width: 32
+          * #c_type: signed_int
+      * value: 00000000000000000000000000000000
+      * #source_location: 
+        * file: <built-in-additions>
+        * line: 6
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      * #base: 10
+  * name: __CPROVER_thread_id
+  * base_name: __CPROVER_thread_id
+  * #source_location: 
+    * file: <built-in-additions>
+    * line: 6
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: proper_bool
+  * #source_location: 
+    * file: <built-in-additions>
+    * line: 7
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: array
+      * size: symbol
+          * identifier: __CPROVER_constant_infinity_uint
+          * #source_location: 
+            * file: <built-in-additions>
+            * line: 7
+            * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+          * #id_class: 1
+          * #base_name: __CPROVER_constant_infinity_uint
+      * #source_location: 
+        * file: <built-in-additions>
+        * line: 7
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      0: nil
+  * value: nil
+  * name: __CPROVER_threads_exited
+  * base_name: __CPROVER_threads_exited
+  * #source_location: 
+    * file: <built-in-additions>
+    * line: 7
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: <built-in-additions>
+    * line: 8
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: unsigned
+      * #source_location: 
+        * file: <built-in-additions>
+        * line: 8
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: long
+      * #source_location: 
+        * file: <built-in-additions>
+        * line: 8
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: nil
+  * value: constant
+      * type: signedbv
+          * width: 32
+          * #c_type: signed_int
+      * value: 00000000000000000000000000000000
+      * #source_location: 
+        * file: <built-in-additions>
+        * line: 8
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      * #base: 10
+  * name: __CPROVER_next_thread_id
+  * base_name: __CPROVER_next_thread_id
+  * #source_location: 
+    * file: <built-in-additions>
+    * line: 8
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: <built-in-additions>
+    * line: 9
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: extern
+      * #source_location: 
+        * file: <built-in-additions>
+        * line: 9
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: unsigned
+      * #source_location: 
+        * file: <built-in-additions>
+        * line: 9
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  2: char
+      * #source_location: 
+        * file: <built-in-additions>
+        * line: 9
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: array
+      * size: symbol
+          * identifier: __CPROVER_constant_infinity_uint
+          * #source_location: 
+            * file: <built-in-additions>
+            * line: 9
+            * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+          * #id_class: 1
+          * #base_name: __CPROVER_constant_infinity_uint
+      * #source_location: 
+        * file: <built-in-additions>
+        * line: 9
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      0: nil
+  * value: nil
+  * name: __CPROVER_memory
+  * base_name: __CPROVER_memory
+  * #source_location: 
+    * file: <built-in-additions>
+    * line: 9
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: <built-in-additions>
+    * line: 10
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: const
+      * #source_location: 
+        * file: <built-in-additions>
+        * line: 10
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: void
+      * #source_location: 
+        * file: <built-in-additions>
+        * line: 10
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: frontend_pointer
+      * #source_location: 
+        * file: <built-in-additions>
+        * line: 10
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      0: nil
+  * value: constant
+      * type: signedbv
+          * width: 32
+          * #c_type: signed_int
+      * value: 00000000000000000000000000000000
+      * #source_location: 
+        * file: <built-in-additions>
+        * line: 10
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      * #base: 10
+  * name: __CPROVER_deallocated
+  * base_name: __CPROVER_deallocated
+  * #source_location: 
+    * file: <built-in-additions>
+    * line: 10
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: <built-in-additions>
+    * line: 11
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: const
+      * #source_location: 
+        * file: <built-in-additions>
+        * line: 11
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: void
+      * #source_location: 
+        * file: <built-in-additions>
+        * line: 11
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: frontend_pointer
+      * #source_location: 
+        * file: <built-in-additions>
+        * line: 11
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      0: nil
+  * value: constant
+      * type: signedbv
+          * width: 32
+          * #c_type: signed_int
+      * value: 00000000000000000000000000000000
+      * #source_location: 
+        * file: <built-in-additions>
+        * line: 11
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      * #base: 10
+  * name: __CPROVER_dead_object
+  * base_name: __CPROVER_dead_object
+  * #source_location: 
+    * file: <built-in-additions>
+    * line: 11
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: <built-in-additions>
+    * line: 12
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: const
+      * #source_location: 
+        * file: <built-in-additions>
+        * line: 12
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: void
+      * #source_location: 
+        * file: <built-in-additions>
+        * line: 12
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: frontend_pointer
+      * #source_location: 
+        * file: <built-in-additions>
+        * line: 12
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      0: nil
+  * value: constant
+      * type: signedbv
+          * width: 32
+          * #c_type: signed_int
+      * value: 00000000000000000000000000000000
+      * #source_location: 
+        * file: <built-in-additions>
+        * line: 12
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      * #base: 10
+  * name: __CPROVER_malloc_object
+  * base_name: __CPROVER_malloc_object
+  * #source_location: 
+    * file: <built-in-additions>
+    * line: 12
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: typedef_type
+  * identifier: __CPROVER_size_t
+  * #source_location: 
+    * file: <built-in-additions>
+    * line: 13
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  * #id_class: 2
+  * #base_name: __CPROVER_size_t
+Declarator: declarator
+  * type: nil
+  * value: nil
+  * name: __CPROVER_malloc_size
+  * base_name: __CPROVER_malloc_size
+  * #source_location: 
+    * file: <built-in-additions>
+    * line: 13
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: proper_bool
+  * #source_location: 
+    * file: <built-in-additions>
+    * line: 14
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: nil
+  * value: constant
+      * type: signedbv
+          * width: 32
+          * #c_type: signed_int
+      * value: 00000000000000000000000000000000
+      * #source_location: 
+        * file: <built-in-additions>
+        * line: 14
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      * #base: 10
+  * name: __CPROVER_malloc_is_new_array
+  * base_name: __CPROVER_malloc_is_new_array
+  * #source_location: 
+    * file: <built-in-additions>
+    * line: 14
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: <built-in-additions>
+    * line: 15
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: const
+      * #source_location: 
+        * file: <built-in-additions>
+        * line: 15
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: void
+      * #source_location: 
+        * file: <built-in-additions>
+        * line: 15
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: frontend_pointer
+      * #source_location: 
+        * file: <built-in-additions>
+        * line: 15
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      0: nil
+  * value: constant
+      * type: signedbv
+          * width: 32
+          * #c_type: signed_int
+      * value: 00000000000000000000000000000000
+      * #source_location: 
+        * file: <built-in-additions>
+        * line: 15
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      * #base: 10
+  * name: __CPROVER_memory_leak
+  * base_name: __CPROVER_memory_leak
+  * #source_location: 
+    * file: <built-in-additions>
+    * line: 15
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: void
+  * #source_location: 
+    * file: <built-in-additions>
+    * line: 16
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: code
+      * parameters: 
+        0: declaration
+            * type: typedef_type
+                * identifier: __CPROVER_size_t
+                * #source_location: 
+                  * file: <built-in-additions>
+                  * line: 16
+                  * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+                * #id_class: 2
+                * #base_name: __CPROVER_size_t
+            * is_parameter: 1
+            0: declarator
+                * type: nil
+                * value: nil
+                * name: __CPROVER_allocate::size
+                * base_name: size
+                * #source_location: 
+                  * file: <built-in-additions>
+                  * line: 16
+                  * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+        1: declaration
+            * type: proper_bool
+                * #source_location: 
+                  * file: <built-in-additions>
+                  * line: 16
+                  * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+            * is_parameter: 1
+            0: declarator
+                * type: nil
+                * value: nil
+                * name: __CPROVER_allocate::zero
+                * base_name: zero
+                * #source_location: 
+                  * file: <built-in-additions>
+                  * line: 16
+                  * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      * #source_location: 
+        * file: <built-in-additions>
+        * line: 16
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      0: frontend_pointer
+          * #source_location: 
+            * file: <built-in-additions>
+            * line: 16
+            * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+          0: nil
+  * value: nil
+  * name: __CPROVER_allocate
+  * base_name: __CPROVER_allocate
+  * #source_location: 
+    * file: <built-in-additions>
+    * line: 16
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: <built-in-additions>
+    * line: 17
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: extern
+      * #source_location: 
+        * file: <built-in-additions>
+        * line: 17
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: thread_local
+      * #source_location: 
+        * file: <built-in-additions>
+        * line: 17
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  2: const
+      * #source_location: 
+        * file: <built-in-additions>
+        * line: 17
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  3: char
+      * #source_location: 
+        * file: <built-in-additions>
+        * line: 17
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: array
+      * size: symbol
+          * identifier: __CPROVER_constant_infinity_uint
+          * #source_location: 
+            * file: <built-in-additions>
+            * line: 17
+            * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+          * #id_class: 1
+          * #base_name: __CPROVER_constant_infinity_uint
+      * #source_location: 
+        * file: <built-in-additions>
+        * line: 17
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      0: nil
+  * value: nil
+  * name: __func__
+  * base_name: __func__
+  * #source_location: 
+    * file: <built-in-additions>
+    * line: 17
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: <built-in-additions>
+    * line: 18
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: extern
+      * #source_location: 
+        * file: <built-in-additions>
+        * line: 18
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: thread_local
+      * #source_location: 
+        * file: <built-in-additions>
+        * line: 18
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  2: const
+      * #source_location: 
+        * file: <built-in-additions>
+        * line: 18
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  3: char
+      * #source_location: 
+        * file: <built-in-additions>
+        * line: 18
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: array
+      * size: symbol
+          * identifier: __CPROVER_constant_infinity_uint
+          * #source_location: 
+            * file: <built-in-additions>
+            * line: 18
+            * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+          * #id_class: 1
+          * #base_name: __CPROVER_constant_infinity_uint
+      * #source_location: 
+        * file: <built-in-additions>
+        * line: 18
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      0: nil
+  * value: nil
+  * name: __FUNCTION__
+  * base_name: __FUNCTION__
+  * #source_location: 
+    * file: <built-in-additions>
+    * line: 18
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: <built-in-additions>
+    * line: 19
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: extern
+      * #source_location: 
+        * file: <built-in-additions>
+        * line: 19
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: thread_local
+      * #source_location: 
+        * file: <built-in-additions>
+        * line: 19
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  2: const
+      * #source_location: 
+        * file: <built-in-additions>
+        * line: 19
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  3: char
+      * #source_location: 
+        * file: <built-in-additions>
+        * line: 19
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: array
+      * size: symbol
+          * identifier: __CPROVER_constant_infinity_uint
+          * #source_location: 
+            * file: <built-in-additions>
+            * line: 19
+            * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+          * #id_class: 1
+          * #base_name: __CPROVER_constant_infinity_uint
+      * #source_location: 
+        * file: <built-in-additions>
+        * line: 19
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      0: nil
+  * value: nil
+  * name: __PRETTY_FUNCTION__
+  * base_name: __PRETTY_FUNCTION__
+  * #source_location: 
+    * file: <built-in-additions>
+    * line: 19
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: <built-in-additions>
+    * line: 20
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: int
+      * #source_location: 
+        * file: <built-in-additions>
+        * line: 20
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: thread_local
+      * #source_location: 
+        * file: <built-in-additions>
+        * line: 20
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: nil
+  * value: constant
+      * type: signedbv
+          * width: 32
+          * #c_type: signed_int
+      * value: 00000000000000000000000000000000
+      * #source_location: 
+        * file: <built-in-additions>
+        * line: 20
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      * #base: 10
+  * name: __CPROVER_rounding_mode
+  * base_name: __CPROVER_rounding_mode
+  * #source_location: 
+    * file: <built-in-additions>
+    * line: 20
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags:
+Type: struct
+  * tag: symbol
+      * identifier: tag-__CPROVER_pipet
+      * #source_location: 
+        * file: <built-in-additions>
+        * line: 21
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      * #id_class: 3
+      * #base_name: __CPROVER_pipet
+  * components: 
+    0: declaration
+        * type: c_bool
+            * #source_location: 
+              * file: <built-in-additions>
+              * line: 22
+              * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+        * is_member: 1
+        0: declarator
+            * type: nil
+            * value: nil
+            * name: widowed
+            * base_name: widowed
+            * #source_location: 
+              * file: <built-in-additions>
+              * line: 22
+              * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+    1: declaration
+        * type: char
+            * #source_location: 
+              * file: <built-in-additions>
+              * line: 23
+              * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+        * is_member: 1
+        0: declarator
+            * type: array
+                * size: constant
+                    * type: signedbv
+                        * width: 32
+                        * #c_type: signed_int
+                    * value: 00000000000000000000000000000100
+                    * #source_location: 
+                      * file: <built-in-additions>
+                      * line: 23
+                      * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+                    * #base: 10
+                * #source_location: 
+                  * file: <built-in-additions>
+                  * line: 23
+                  * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+                0: nil
+            * value: nil
+            * name: data
+            * base_name: data
+            * #source_location: 
+              * file: <built-in-additions>
+              * line: 23
+              * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+    2: declaration
+        * type: short
+            * #source_location: 
+              * file: <built-in-additions>
+              * line: 24
+              * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+        * is_member: 1
+        0: declarator
+            * type: nil
+            * value: nil
+            * name: next_avail
+            * base_name: next_avail
+            * #source_location: 
+              * file: <built-in-additions>
+              * line: 24
+              * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+    3: declaration
+        * type: short
+            * #source_location: 
+              * file: <built-in-additions>
+              * line: 25
+              * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+        * is_member: 1
+        0: declarator
+            * type: nil
+            * value: nil
+            * name: next_unread
+            * base_name: next_unread
+            * #source_location: 
+              * file: <built-in-additions>
+              * line: 25
+              * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  * #source_location: 
+    * file: <built-in-additions>
+    * line: 21
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: <built-in-additions>
+    * line: 27
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: extern
+      * #source_location: 
+        * file: <built-in-additions>
+        * line: 27
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: struct
+      * tag: symbol
+          * identifier: tag-__CPROVER_pipet
+          * #source_location: 
+            * file: <built-in-additions>
+            * line: 27
+            * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+          * #id_class: 3
+          * #base_name: __CPROVER_pipet
+      * components: nil
+      * #source_location: 
+        * file: <built-in-additions>
+        * line: 27
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: array
+      * size: symbol
+          * identifier: __CPROVER_constant_infinity_uint
+          * #source_location: 
+            * file: <built-in-additions>
+            * line: 27
+            * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+          * #id_class: 1
+          * #base_name: __CPROVER_constant_infinity_uint
+      * #source_location: 
+        * file: <built-in-additions>
+        * line: 27
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      0: nil
+  * value: nil
+  * name: __CPROVER_pipes
+  * base_name: __CPROVER_pipes
+  * #source_location: 
+    * file: <built-in-additions>
+    * line: 27
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: <built-in-additions>
+    * line: 28
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: extern
+      * #source_location: 
+        * file: <built-in-additions>
+        * line: 28
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: const
+      * #source_location: 
+        * file: <built-in-additions>
+        * line: 28
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  2: int
+      * #source_location: 
+        * file: <built-in-additions>
+        * line: 28
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: nil
+  * value: nil
+  * name: __CPROVER_pipe_offset
+  * base_name: __CPROVER_pipe_offset
+  * #source_location: 
+    * file: <built-in-additions>
+    * line: 28
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: unsigned
+  * #source_location: 
+    * file: <built-in-additions>
+    * line: 29
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: nil
+  * value: constant
+      * type: signedbv
+          * width: 32
+          * #c_type: signed_int
+      * value: 00000000000000000000000000000000
+      * #source_location: 
+        * file: <built-in-additions>
+        * line: 29
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      * #base: 10
+  * name: __CPROVER_pipe_count
+  * base_name: __CPROVER_pipe_count
+  * #source_location: 
+    * file: <built-in-additions>
+    * line: 29
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: void
+  * #source_location: 
+    * file: <built-in-additions>
+    * line: 31
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: code
+      * parameters: 
+        0: declaration
+            * type: void
+                * #source_location: 
+                  * file: <built-in-additions>
+                  * line: 31
+                  * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+            * is_parameter: 1
+            0: declarator
+                * type: nil
+                * value: nil
+      * #source_location: 
+        * file: <built-in-additions>
+        * line: 31
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      0: nil
+  * value: nil
+  * name: __CPROVER_initialize
+  * base_name: __CPROVER_initialize
+  * #source_location: 
+    * file: <built-in-additions>
+    * line: 31
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: gcc_builtin_headers_types.h
+    * line: 1
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: typedef
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 1
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: void
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 1
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: frontend_pointer
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 1
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      0: frontend_pointer
+          * #source_location: 
+            * file: gcc_builtin_headers_types.h
+            * line: 1
+            * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+          0: nil
+  * value: nil
+  * name: __builtin_va_list
+  * base_name: __builtin_va_list
+  * #source_location: 
+    * file: gcc_builtin_headers_types.h
+    * line: 1
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: gcc_builtin_headers_types.h
+    * line: 2
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: typedef
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 2
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: void
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 2
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: frontend_pointer
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 2
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      0: frontend_pointer
+          * #source_location: 
+            * file: gcc_builtin_headers_types.h
+            * line: 2
+            * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+          0: nil
+  * value: nil
+  * name: __builtin_ms_va_list
+  * base_name: __builtin_ms_va_list
+  * #source_location: 
+    * file: gcc_builtin_headers_types.h
+    * line: 2
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: gcc_builtin_headers_types.h
+    * line: 4
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: typedef
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 4
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: int
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 4
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: merged_type
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 4
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      0: vector
+          * size: constant
+              * type: signedbv
+                  * width: 32
+                  * #c_type: signed_int
+              * value: 00000000000000000000000000001000
+              * #source_location: 
+                * file: gcc_builtin_headers_types.h
+                * line: 4
+                * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+              * #base: 10
+          * #source_location: 
+            * file: gcc_builtin_headers_types.h
+            * line: 4
+            * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      1: nil
+  * value: nil
+  * name: __gcc_m64
+  * base_name: __gcc_m64
+  * #source_location: 
+    * file: gcc_builtin_headers_types.h
+    * line: 4
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: gcc_builtin_headers_types.h
+    * line: 6
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: typedef
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 6
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: char
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 6
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: merged_type
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 6
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      0: vector
+          * size: constant
+              * type: signedbv
+                  * width: 32
+                  * #c_type: signed_int
+              * value: 00000000000000000000000000001000
+              * #source_location: 
+                * file: gcc_builtin_headers_types.h
+                * line: 6
+                * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+              * #base: 10
+          * #source_location: 
+            * file: gcc_builtin_headers_types.h
+            * line: 6
+            * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      1: nil
+  * value: nil
+  * name: __gcc_v8qi
+  * base_name: __gcc_v8qi
+  * #source_location: 
+    * file: gcc_builtin_headers_types.h
+    * line: 6
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: gcc_builtin_headers_types.h
+    * line: 7
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: typedef
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 7
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: char
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 7
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: merged_type
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 7
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      0: vector
+          * size: constant
+              * type: signedbv
+                  * width: 32
+                  * #c_type: signed_int
+              * value: 00000000000000000000000000010000
+              * #source_location: 
+                * file: gcc_builtin_headers_types.h
+                * line: 7
+                * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+              * #base: 10
+          * #source_location: 
+            * file: gcc_builtin_headers_types.h
+            * line: 7
+            * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      1: nil
+  * value: nil
+  * name: __gcc_v16qi
+  * base_name: __gcc_v16qi
+  * #source_location: 
+    * file: gcc_builtin_headers_types.h
+    * line: 7
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: gcc_builtin_headers_types.h
+    * line: 8
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: typedef
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 8
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: char
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 8
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: merged_type
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 8
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      0: vector
+          * size: constant
+              * type: signedbv
+                  * width: 32
+                  * #c_type: signed_int
+              * value: 00000000000000000000000000100000
+              * #source_location: 
+                * file: gcc_builtin_headers_types.h
+                * line: 8
+                * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+              * #base: 10
+          * #source_location: 
+            * file: gcc_builtin_headers_types.h
+            * line: 8
+            * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      1: nil
+  * value: nil
+  * name: __gcc_v32qi
+  * base_name: __gcc_v32qi
+  * #source_location: 
+    * file: gcc_builtin_headers_types.h
+    * line: 8
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: gcc_builtin_headers_types.h
+    * line: 9
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: typedef
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 9
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: char
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 9
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: merged_type
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 9
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      0: vector
+          * size: constant
+              * type: signedbv
+                  * width: 32
+                  * #c_type: signed_int
+              * value: 00000000000000000000000001000000
+              * #source_location: 
+                * file: gcc_builtin_headers_types.h
+                * line: 9
+                * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+              * #base: 10
+          * #source_location: 
+            * file: gcc_builtin_headers_types.h
+            * line: 9
+            * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      1: nil
+  * value: nil
+  * name: __gcc_v64qi
+  * base_name: __gcc_v64qi
+  * #source_location: 
+    * file: gcc_builtin_headers_types.h
+    * line: 9
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: gcc_builtin_headers_types.h
+    * line: 10
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: typedef
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 10
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: int
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 10
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: merged_type
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 10
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      0: vector
+          * size: constant
+              * type: signedbv
+                  * width: 32
+                  * #c_type: signed_int
+              * value: 00000000000000000000000000001000
+              * #source_location: 
+                * file: gcc_builtin_headers_types.h
+                * line: 10
+                * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+              * #base: 10
+          * #source_location: 
+            * file: gcc_builtin_headers_types.h
+            * line: 10
+            * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      1: nil
+  * value: nil
+  * name: __gcc_v2si
+  * base_name: __gcc_v2si
+  * #source_location: 
+    * file: gcc_builtin_headers_types.h
+    * line: 10
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: gcc_builtin_headers_types.h
+    * line: 11
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: typedef
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 11
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: int
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 11
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: merged_type
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 11
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      0: vector
+          * size: constant
+              * type: signedbv
+                  * width: 32
+                  * #c_type: signed_int
+              * value: 00000000000000000000000000010000
+              * #source_location: 
+                * file: gcc_builtin_headers_types.h
+                * line: 11
+                * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+              * #base: 10
+          * #source_location: 
+            * file: gcc_builtin_headers_types.h
+            * line: 11
+            * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      1: nil
+  * value: nil
+  * name: __gcc_v4si
+  * base_name: __gcc_v4si
+  * #source_location: 
+    * file: gcc_builtin_headers_types.h
+    * line: 11
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: gcc_builtin_headers_types.h
+    * line: 12
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: typedef
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 12
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: int
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 12
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: merged_type
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 12
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      0: vector
+          * size: constant
+              * type: signedbv
+                  * width: 32
+                  * #c_type: signed_int
+              * value: 00000000000000000000000000100000
+              * #source_location: 
+                * file: gcc_builtin_headers_types.h
+                * line: 12
+                * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+              * #base: 10
+          * #source_location: 
+            * file: gcc_builtin_headers_types.h
+            * line: 12
+            * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      1: nil
+  * value: nil
+  * name: __gcc_v8si
+  * base_name: __gcc_v8si
+  * #source_location: 
+    * file: gcc_builtin_headers_types.h
+    * line: 12
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: gcc_builtin_headers_types.h
+    * line: 13
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: typedef
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 13
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: int
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 13
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: merged_type
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 13
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      0: vector
+          * size: constant
+              * type: signedbv
+                  * width: 32
+                  * #c_type: signed_int
+              * value: 00000000000000000000000001000000
+              * #source_location: 
+                * file: gcc_builtin_headers_types.h
+                * line: 13
+                * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+              * #base: 10
+          * #source_location: 
+            * file: gcc_builtin_headers_types.h
+            * line: 13
+            * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      1: nil
+  * value: nil
+  * name: __gcc_v16si
+  * base_name: __gcc_v16si
+  * #source_location: 
+    * file: gcc_builtin_headers_types.h
+    * line: 13
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: gcc_builtin_headers_types.h
+    * line: 14
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: typedef
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 14
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: short
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 14
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: merged_type
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 14
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      0: vector
+          * size: constant
+              * type: signedbv
+                  * width: 32
+                  * #c_type: signed_int
+              * value: 00000000000000000000000000001000
+              * #source_location: 
+                * file: gcc_builtin_headers_types.h
+                * line: 14
+                * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+              * #base: 10
+          * #source_location: 
+            * file: gcc_builtin_headers_types.h
+            * line: 14
+            * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      1: nil
+  * value: nil
+  * name: __gcc_v4hi
+  * base_name: __gcc_v4hi
+  * #source_location: 
+    * file: gcc_builtin_headers_types.h
+    * line: 14
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: gcc_builtin_headers_types.h
+    * line: 15
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: typedef
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 15
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: short
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 15
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: merged_type
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 15
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      0: vector
+          * size: constant
+              * type: signedbv
+                  * width: 32
+                  * #c_type: signed_int
+              * value: 00000000000000000000000000010000
+              * #source_location: 
+                * file: gcc_builtin_headers_types.h
+                * line: 15
+                * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+              * #base: 10
+          * #source_location: 
+            * file: gcc_builtin_headers_types.h
+            * line: 15
+            * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      1: nil
+  * value: nil
+  * name: __gcc_v8hi
+  * base_name: __gcc_v8hi
+  * #source_location: 
+    * file: gcc_builtin_headers_types.h
+    * line: 15
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: gcc_builtin_headers_types.h
+    * line: 16
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: typedef
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 16
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: short
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 16
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: merged_type
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 16
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      0: vector
+          * size: constant
+              * type: signedbv
+                  * width: 32
+                  * #c_type: signed_int
+              * value: 00000000000000000000000000100000
+              * #source_location: 
+                * file: gcc_builtin_headers_types.h
+                * line: 16
+                * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+              * #base: 10
+          * #source_location: 
+            * file: gcc_builtin_headers_types.h
+            * line: 16
+            * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      1: nil
+  * value: nil
+  * name: __gcc_v16hi
+  * base_name: __gcc_v16hi
+  * #source_location: 
+    * file: gcc_builtin_headers_types.h
+    * line: 16
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: gcc_builtin_headers_types.h
+    * line: 17
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: typedef
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 17
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: short
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 17
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: merged_type
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 17
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      0: vector
+          * size: constant
+              * type: signedbv
+                  * width: 32
+                  * #c_type: signed_int
+              * value: 00000000000000000000000001000000
+              * #source_location: 
+                * file: gcc_builtin_headers_types.h
+                * line: 17
+                * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+              * #base: 10
+          * #source_location: 
+            * file: gcc_builtin_headers_types.h
+            * line: 17
+            * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      1: nil
+  * value: nil
+  * name: __gcc_v32hi
+  * base_name: __gcc_v32hi
+  * #source_location: 
+    * file: gcc_builtin_headers_types.h
+    * line: 17
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: gcc_builtin_headers_types.h
+    * line: 18
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: typedef
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 18
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: float
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 18
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: merged_type
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 18
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      0: vector
+          * size: constant
+              * type: signedbv
+                  * width: 32
+                  * #c_type: signed_int
+              * value: 00000000000000000000000000001000
+              * #source_location: 
+                * file: gcc_builtin_headers_types.h
+                * line: 18
+                * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+              * #base: 10
+          * #source_location: 
+            * file: gcc_builtin_headers_types.h
+            * line: 18
+            * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      1: nil
+  * value: nil
+  * name: __gcc_v2sf
+  * base_name: __gcc_v2sf
+  * #source_location: 
+    * file: gcc_builtin_headers_types.h
+    * line: 18
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: gcc_builtin_headers_types.h
+    * line: 19
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: typedef
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 19
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: float
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 19
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: merged_type
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 19
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      0: vector
+          * size: constant
+              * type: signedbv
+                  * width: 32
+                  * #c_type: signed_int
+              * value: 00000000000000000000000000010000
+              * #source_location: 
+                * file: gcc_builtin_headers_types.h
+                * line: 19
+                * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+              * #base: 10
+          * #source_location: 
+            * file: gcc_builtin_headers_types.h
+            * line: 19
+            * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      1: nil
+  * value: nil
+  * name: __gcc_v4sf
+  * base_name: __gcc_v4sf
+  * #source_location: 
+    * file: gcc_builtin_headers_types.h
+    * line: 19
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: gcc_builtin_headers_types.h
+    * line: 20
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: typedef
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 20
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: float
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 20
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: merged_type
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 20
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      0: vector
+          * size: constant
+              * type: signedbv
+                  * width: 32
+                  * #c_type: signed_int
+              * value: 00000000000000000000000000100000
+              * #source_location: 
+                * file: gcc_builtin_headers_types.h
+                * line: 20
+                * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+              * #base: 10
+          * #source_location: 
+            * file: gcc_builtin_headers_types.h
+            * line: 20
+            * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      1: nil
+  * value: nil
+  * name: __gcc_v8sf
+  * base_name: __gcc_v8sf
+  * #source_location: 
+    * file: gcc_builtin_headers_types.h
+    * line: 20
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: gcc_builtin_headers_types.h
+    * line: 21
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: typedef
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 21
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: float
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 21
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: merged_type
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 21
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      0: vector
+          * size: constant
+              * type: signedbv
+                  * width: 32
+                  * #c_type: signed_int
+              * value: 00000000000000000000000001000000
+              * #source_location: 
+                * file: gcc_builtin_headers_types.h
+                * line: 21
+                * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+              * #base: 10
+          * #source_location: 
+            * file: gcc_builtin_headers_types.h
+            * line: 21
+            * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      1: nil
+  * value: nil
+  * name: __gcc_v16sf
+  * base_name: __gcc_v16sf
+  * #source_location: 
+    * file: gcc_builtin_headers_types.h
+    * line: 21
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: gcc_builtin_headers_types.h
+    * line: 22
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: typedef
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 22
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: double
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 22
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: merged_type
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 22
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      0: vector
+          * size: constant
+              * type: signedbv
+                  * width: 32
+                  * #c_type: signed_int
+              * value: 00000000000000000000000000010000
+              * #source_location: 
+                * file: gcc_builtin_headers_types.h
+                * line: 22
+                * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+              * #base: 10
+          * #source_location: 
+            * file: gcc_builtin_headers_types.h
+            * line: 22
+            * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      1: nil
+  * value: nil
+  * name: __gcc_v2df
+  * base_name: __gcc_v2df
+  * #source_location: 
+    * file: gcc_builtin_headers_types.h
+    * line: 22
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: gcc_builtin_headers_types.h
+    * line: 23
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: typedef
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 23
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: double
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 23
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: merged_type
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 23
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      0: vector
+          * size: constant
+              * type: signedbv
+                  * width: 32
+                  * #c_type: signed_int
+              * value: 00000000000000000000000000100000
+              * #source_location: 
+                * file: gcc_builtin_headers_types.h
+                * line: 23
+                * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+              * #base: 10
+          * #source_location: 
+            * file: gcc_builtin_headers_types.h
+            * line: 23
+            * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      1: nil
+  * value: nil
+  * name: __gcc_v4df
+  * base_name: __gcc_v4df
+  * #source_location: 
+    * file: gcc_builtin_headers_types.h
+    * line: 23
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: gcc_builtin_headers_types.h
+    * line: 24
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: typedef
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 24
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: double
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 24
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: merged_type
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 24
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      0: vector
+          * size: constant
+              * type: signedbv
+                  * width: 32
+                  * #c_type: signed_int
+              * value: 00000000000000000000000001000000
+              * #source_location: 
+                * file: gcc_builtin_headers_types.h
+                * line: 24
+                * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+              * #base: 10
+          * #source_location: 
+            * file: gcc_builtin_headers_types.h
+            * line: 24
+            * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      1: nil
+  * value: nil
+  * name: __gcc_v8df
+  * base_name: __gcc_v8df
+  * #source_location: 
+    * file: gcc_builtin_headers_types.h
+    * line: 24
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: gcc_builtin_headers_types.h
+    * line: 25
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: typedef
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 25
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: long
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 25
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  2: long
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 25
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: merged_type
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 25
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      0: vector
+          * size: constant
+              * type: signedbv
+                  * width: 32
+                  * #c_type: signed_int
+              * value: 00000000000000000000000000001000
+              * #source_location: 
+                * file: gcc_builtin_headers_types.h
+                * line: 25
+                * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+              * #base: 10
+          * #source_location: 
+            * file: gcc_builtin_headers_types.h
+            * line: 25
+            * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      1: nil
+  * value: nil
+  * name: __gcc_v1di
+  * base_name: __gcc_v1di
+  * #source_location: 
+    * file: gcc_builtin_headers_types.h
+    * line: 25
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: gcc_builtin_headers_types.h
+    * line: 26
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: typedef
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 26
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: long
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 26
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  2: long
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 26
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: merged_type
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 26
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      0: vector
+          * size: constant
+              * type: signedbv
+                  * width: 32
+                  * #c_type: signed_int
+              * value: 00000000000000000000000000010000
+              * #source_location: 
+                * file: gcc_builtin_headers_types.h
+                * line: 26
+                * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+              * #base: 10
+          * #source_location: 
+            * file: gcc_builtin_headers_types.h
+            * line: 26
+            * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      1: nil
+  * value: nil
+  * name: __gcc_v2di
+  * base_name: __gcc_v2di
+  * #source_location: 
+    * file: gcc_builtin_headers_types.h
+    * line: 26
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: gcc_builtin_headers_types.h
+    * line: 27
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: typedef
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 27
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: long
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 27
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  2: long
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 27
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: merged_type
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 27
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      0: vector
+          * size: constant
+              * type: signedbv
+                  * width: 32
+                  * #c_type: signed_int
+              * value: 00000000000000000000000000100000
+              * #source_location: 
+                * file: gcc_builtin_headers_types.h
+                * line: 27
+                * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+              * #base: 10
+          * #source_location: 
+            * file: gcc_builtin_headers_types.h
+            * line: 27
+            * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      1: nil
+  * value: nil
+  * name: __gcc_v4di
+  * base_name: __gcc_v4di
+  * #source_location: 
+    * file: gcc_builtin_headers_types.h
+    * line: 27
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: gcc_builtin_headers_types.h
+    * line: 28
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: typedef
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 28
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: long
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 28
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  2: long
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 28
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: merged_type
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 28
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      0: vector
+          * size: constant
+              * type: signedbv
+                  * width: 32
+                  * #c_type: signed_int
+              * value: 00000000000000000000000001000000
+              * #source_location: 
+                * file: gcc_builtin_headers_types.h
+                * line: 28
+                * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+              * #base: 10
+          * #source_location: 
+            * file: gcc_builtin_headers_types.h
+            * line: 28
+            * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      1: nil
+  * value: nil
+  * name: __gcc_v8di
+  * base_name: __gcc_v8di
+  * #source_location: 
+    * file: gcc_builtin_headers_types.h
+    * line: 28
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: gcc_builtin_headers_types.h
+    * line: 29
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: typedef
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 29
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: unsigned
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 29
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  2: long
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 29
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  3: long
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 29
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: nil
+  * value: nil
+  * name: __gcc_di
+  * base_name: __gcc_di
+  * #source_location: 
+    * file: gcc_builtin_headers_types.h
+    * line: 29
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags:
+Type: c_enum
+  * tag: symbol
+      * identifier: tag-__gcc_atomic_memmodels
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 31
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      * #id_class: 3
+      * #base_name: __gcc_atomic_memmodels
+  * #source_location: 
+    * file: gcc_builtin_headers_types.h
+    * line: 31
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: declaration
+      * type: 
+      * is_enum_constant: 1
+      * is_global: 1
+      0: declarator
+          * type: nil
+          * value: nil
+          * name: __ATOMIC_RELAXED
+          * base_name: __ATOMIC_RELAXED
+          * #source_location: 
+            * file: gcc_builtin_headers_types.h
+            * line: 32
+            * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: declaration
+      * type: 
+      * is_enum_constant: 1
+      * is_global: 1
+      0: declarator
+          * type: nil
+          * value: nil
+          * name: __ATOMIC_CONSUME
+          * base_name: __ATOMIC_CONSUME
+          * #source_location: 
+            * file: gcc_builtin_headers_types.h
+            * line: 32
+            * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  2: declaration
+      * type: 
+      * is_enum_constant: 1
+      * is_global: 1
+      0: declarator
+          * type: nil
+          * value: nil
+          * name: __ATOMIC_ACQUIRE
+          * base_name: __ATOMIC_ACQUIRE
+          * #source_location: 
+            * file: gcc_builtin_headers_types.h
+            * line: 32
+            * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  3: declaration
+      * type: 
+      * is_enum_constant: 1
+      * is_global: 1
+      0: declarator
+          * type: nil
+          * value: nil
+          * name: __ATOMIC_RELEASE
+          * base_name: __ATOMIC_RELEASE
+          * #source_location: 
+            * file: gcc_builtin_headers_types.h
+            * line: 32
+            * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  4: declaration
+      * type: 
+      * is_enum_constant: 1
+      * is_global: 1
+      0: declarator
+          * type: nil
+          * value: nil
+          * name: __ATOMIC_ACQ_REL
+          * base_name: __ATOMIC_ACQ_REL
+          * #source_location: 
+            * file: gcc_builtin_headers_types.h
+            * line: 32
+            * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  5: declaration
+      * type: 
+      * is_enum_constant: 1
+      * is_global: 1
+      0: declarator
+          * type: nil
+          * value: nil
+          * name: __ATOMIC_SEQ_CST
+          * base_name: __ATOMIC_SEQ_CST
+          * #source_location: 
+            * file: gcc_builtin_headers_types.h
+            * line: 32
+            * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: gcc_builtin_headers_types.h
+    * line: 34
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: typedef
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 34
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: gcc_float128
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 34
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: nil
+  * value: nil
+  * name: __float128
+  * base_name: __float128
+  * #source_location: 
+    * file: gcc_builtin_headers_types.h
+    * line: 34
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: gcc_builtin_headers_types.h
+    * line: 35
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: typedef
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 35
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: gcc_float64x
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 35
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: nil
+  * value: nil
+  * name: __float80
+  * base_name: __float80
+  * #source_location: 
+    * file: gcc_builtin_headers_types.h
+    * line: 35
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: gcc_builtin_headers_types.h
+    * line: 36
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: typedef
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 36
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: signed
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 36
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  2: gcc_int128
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 36
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: nil
+  * value: nil
+  * name: __int128_t
+  * base_name: __int128_t
+  * #source_location: 
+    * file: gcc_builtin_headers_types.h
+    * line: 36
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: gcc_builtin_headers_types.h
+    * line: 37
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: typedef
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 37
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: unsigned
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 37
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  2: gcc_int128
+      * #source_location: 
+        * file: gcc_builtin_headers_types.h
+        * line: 37
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: nil
+  * value: nil
+  * name: __uint128_t
+  * base_name: __uint128_t
+  * #source_location: 
+    * file: gcc_builtin_headers_types.h
+    * line: 37
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: <builtin-architecture-strings>
+    * line: 1
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: const
+      * #source_location: 
+        * file: <builtin-architecture-strings>
+        * line: 1
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: int
+      * #source_location: 
+        * file: <builtin-architecture-strings>
+        * line: 1
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: nil
+  * value: constant
+      * type: signedbv
+          * width: 32
+          * #c_type: signed_int
+      * value: 00000000000000000000000000100000
+      * #source_location: 
+        * file: <builtin-architecture-strings>
+        * line: 1
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      * #base: 10
+  * name: __CPROVER_architecture_int_width
+  * base_name: __CPROVER_architecture_int_width
+  * #source_location: 
+    * file: <builtin-architecture-strings>
+    * line: 1
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: <builtin-architecture-strings>
+    * line: 2
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: const
+      * #source_location: 
+        * file: <builtin-architecture-strings>
+        * line: 2
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: int
+      * #source_location: 
+        * file: <builtin-architecture-strings>
+        * line: 2
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: nil
+  * value: constant
+      * type: signedbv
+          * width: 32
+          * #c_type: signed_int
+      * value: 00000000000000000000000000100000
+      * #source_location: 
+        * file: <builtin-architecture-strings>
+        * line: 2
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      * #base: 10
+  * name: __CPROVER_architecture_word_size
+  * base_name: __CPROVER_architecture_word_size
+  * #source_location: 
+    * file: <builtin-architecture-strings>
+    * line: 2
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: <builtin-architecture-strings>
+    * line: 3
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: const
+      * #source_location: 
+        * file: <builtin-architecture-strings>
+        * line: 3
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: int
+      * #source_location: 
+        * file: <builtin-architecture-strings>
+        * line: 3
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: nil
+  * value: constant
+      * type: signedbv
+          * width: 32
+          * #c_type: signed_int
+      * value: 00000000000000000000000001000000
+      * #source_location: 
+        * file: <builtin-architecture-strings>
+        * line: 3
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      * #base: 10
+  * name: __CPROVER_architecture_long_int_width
+  * base_name: __CPROVER_architecture_long_int_width
+  * #source_location: 
+    * file: <builtin-architecture-strings>
+    * line: 3
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: <builtin-architecture-strings>
+    * line: 4
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: const
+      * #source_location: 
+        * file: <builtin-architecture-strings>
+        * line: 4
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: int
+      * #source_location: 
+        * file: <builtin-architecture-strings>
+        * line: 4
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: nil
+  * value: constant
+      * type: signedbv
+          * width: 32
+          * #c_type: signed_int
+      * value: 00000000000000000000000000001000
+      * #source_location: 
+        * file: <builtin-architecture-strings>
+        * line: 4
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      * #base: 10
+  * name: __CPROVER_architecture_bool_width
+  * base_name: __CPROVER_architecture_bool_width
+  * #source_location: 
+    * file: <builtin-architecture-strings>
+    * line: 4
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: <builtin-architecture-strings>
+    * line: 5
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: const
+      * #source_location: 
+        * file: <builtin-architecture-strings>
+        * line: 5
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: int
+      * #source_location: 
+        * file: <builtin-architecture-strings>
+        * line: 5
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: nil
+  * value: constant
+      * type: signedbv
+          * width: 32
+          * #c_type: signed_int
+      * value: 00000000000000000000000000001000
+      * #source_location: 
+        * file: <builtin-architecture-strings>
+        * line: 5
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      * #base: 10
+  * name: __CPROVER_architecture_char_width
+  * base_name: __CPROVER_architecture_char_width
+  * #source_location: 
+    * file: <builtin-architecture-strings>
+    * line: 5
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: <builtin-architecture-strings>
+    * line: 6
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: const
+      * #source_location: 
+        * file: <builtin-architecture-strings>
+        * line: 6
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: int
+      * #source_location: 
+        * file: <builtin-architecture-strings>
+        * line: 6
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: nil
+  * value: constant
+      * type: signedbv
+          * width: 32
+          * #c_type: signed_int
+      * value: 00000000000000000000000000010000
+      * #source_location: 
+        * file: <builtin-architecture-strings>
+        * line: 6
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      * #base: 10
+  * name: __CPROVER_architecture_short_int_width
+  * base_name: __CPROVER_architecture_short_int_width
+  * #source_location: 
+    * file: <builtin-architecture-strings>
+    * line: 6
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: <builtin-architecture-strings>
+    * line: 7
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: const
+      * #source_location: 
+        * file: <builtin-architecture-strings>
+        * line: 7
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: int
+      * #source_location: 
+        * file: <builtin-architecture-strings>
+        * line: 7
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: nil
+  * value: constant
+      * type: signedbv
+          * width: 32
+          * #c_type: signed_int
+      * value: 00000000000000000000000001000000
+      * #source_location: 
+        * file: <builtin-architecture-strings>
+        * line: 7
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      * #base: 10
+  * name: __CPROVER_architecture_long_long_int_width
+  * base_name: __CPROVER_architecture_long_long_int_width
+  * #source_location: 
+    * file: <builtin-architecture-strings>
+    * line: 7
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: <builtin-architecture-strings>
+    * line: 8
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: const
+      * #source_location: 
+        * file: <builtin-architecture-strings>
+        * line: 8
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: int
+      * #source_location: 
+        * file: <builtin-architecture-strings>
+        * line: 8
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: nil
+  * value: constant
+      * type: signedbv
+          * width: 32
+          * #c_type: signed_int
+      * value: 00000000000000000000000001000000
+      * #source_location: 
+        * file: <builtin-architecture-strings>
+        * line: 8
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      * #base: 10
+  * name: __CPROVER_architecture_pointer_width
+  * base_name: __CPROVER_architecture_pointer_width
+  * #source_location: 
+    * file: <builtin-architecture-strings>
+    * line: 8
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: <builtin-architecture-strings>
+    * line: 9
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: const
+      * #source_location: 
+        * file: <builtin-architecture-strings>
+        * line: 9
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: int
+      * #source_location: 
+        * file: <builtin-architecture-strings>
+        * line: 9
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: nil
+  * value: constant
+      * type: signedbv
+          * width: 32
+          * #c_type: signed_int
+      * value: 00000000000000000000000000100000
+      * #source_location: 
+        * file: <builtin-architecture-strings>
+        * line: 9
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      * #base: 10
+  * name: __CPROVER_architecture_single_width
+  * base_name: __CPROVER_architecture_single_width
+  * #source_location: 
+    * file: <builtin-architecture-strings>
+    * line: 9
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: <builtin-architecture-strings>
+    * line: 10
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: const
+      * #source_location: 
+        * file: <builtin-architecture-strings>
+        * line: 10
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: int
+      * #source_location: 
+        * file: <builtin-architecture-strings>
+        * line: 10
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: nil
+  * value: constant
+      * type: signedbv
+          * width: 32
+          * #c_type: signed_int
+      * value: 00000000000000000000000001000000
+      * #source_location: 
+        * file: <builtin-architecture-strings>
+        * line: 10
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      * #base: 10
+  * name: __CPROVER_architecture_double_width
+  * base_name: __CPROVER_architecture_double_width
+  * #source_location: 
+    * file: <builtin-architecture-strings>
+    * line: 10
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: <builtin-architecture-strings>
+    * line: 11
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: const
+      * #source_location: 
+        * file: <builtin-architecture-strings>
+        * line: 11
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: int
+      * #source_location: 
+        * file: <builtin-architecture-strings>
+        * line: 11
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: nil
+  * value: constant
+      * type: signedbv
+          * width: 32
+          * #c_type: signed_int
+      * value: 00000000000000000000000010000000
+      * #source_location: 
+        * file: <builtin-architecture-strings>
+        * line: 11
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      * #base: 10
+  * name: __CPROVER_architecture_long_double_width
+  * base_name: __CPROVER_architecture_long_double_width
+  * #source_location: 
+    * file: <builtin-architecture-strings>
+    * line: 11
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: <builtin-architecture-strings>
+    * line: 12
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: const
+      * #source_location: 
+        * file: <builtin-architecture-strings>
+        * line: 12
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: int
+      * #source_location: 
+        * file: <builtin-architecture-strings>
+        * line: 12
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: nil
+  * value: constant
+      * type: signedbv
+          * width: 32
+          * #c_type: signed_int
+      * value: 00000000000000000000000000100000
+      * #source_location: 
+        * file: <builtin-architecture-strings>
+        * line: 12
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      * #base: 10
+  * name: __CPROVER_architecture_wchar_t_width
+  * base_name: __CPROVER_architecture_wchar_t_width
+  * #source_location: 
+    * file: <builtin-architecture-strings>
+    * line: 12
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: <builtin-architecture-strings>
+    * line: 13
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: const
+      * #source_location: 
+        * file: <builtin-architecture-strings>
+        * line: 13
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: int
+      * #source_location: 
+        * file: <builtin-architecture-strings>
+        * line: 13
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: nil
+  * value: constant
+      * type: signedbv
+          * width: 32
+          * #c_type: signed_int
+      * value: 00000000000000000000000000000000
+      * #source_location: 
+        * file: <builtin-architecture-strings>
+        * line: 13
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      * #base: 10
+  * name: __CPROVER_architecture_char_is_unsigned
+  * base_name: __CPROVER_architecture_char_is_unsigned
+  * #source_location: 
+    * file: <builtin-architecture-strings>
+    * line: 13
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: <builtin-architecture-strings>
+    * line: 14
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: const
+      * #source_location: 
+        * file: <builtin-architecture-strings>
+        * line: 14
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: int
+      * #source_location: 
+        * file: <builtin-architecture-strings>
+        * line: 14
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: nil
+  * value: constant
+      * type: signedbv
+          * width: 32
+          * #c_type: signed_int
+      * value: 00000000000000000000000000000000
+      * #source_location: 
+        * file: <builtin-architecture-strings>
+        * line: 14
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      * #base: 10
+  * name: __CPROVER_architecture_wchar_t_is_unsigned
+  * base_name: __CPROVER_architecture_wchar_t_is_unsigned
+  * #source_location: 
+    * file: <builtin-architecture-strings>
+    * line: 14
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: <builtin-architecture-strings>
+    * line: 15
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: const
+      * #source_location: 
+        * file: <builtin-architecture-strings>
+        * line: 15
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: int
+      * #source_location: 
+        * file: <builtin-architecture-strings>
+        * line: 15
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: nil
+  * value: constant
+      * type: signedbv
+          * width: 32
+          * #c_type: signed_int
+      * value: 00000000000000000000000000000001
+      * #source_location: 
+        * file: <builtin-architecture-strings>
+        * line: 15
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      * #base: 10
+  * name: __CPROVER_architecture_alignment
+  * base_name: __CPROVER_architecture_alignment
+  * #source_location: 
+    * file: <builtin-architecture-strings>
+    * line: 15
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: <builtin-architecture-strings>
+    * line: 16
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: const
+      * #source_location: 
+        * file: <builtin-architecture-strings>
+        * line: 16
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: int
+      * #source_location: 
+        * file: <builtin-architecture-strings>
+        * line: 16
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: nil
+  * value: constant
+      * type: signedbv
+          * width: 32
+          * #c_type: signed_int
+      * value: 00000000000000000000000000000100
+      * #source_location: 
+        * file: <builtin-architecture-strings>
+        * line: 16
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      * #base: 10
+  * name: __CPROVER_architecture_memory_operand_size
+  * base_name: __CPROVER_architecture_memory_operand_size
+  * #source_location: 
+    * file: <builtin-architecture-strings>
+    * line: 16
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: <builtin-architecture-strings>
+    * line: 17
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: const
+      * #source_location: 
+        * file: <builtin-architecture-strings>
+        * line: 17
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: int
+      * #source_location: 
+        * file: <builtin-architecture-strings>
+        * line: 17
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: nil
+  * value: constant
+      * type: signedbv
+          * width: 32
+          * #c_type: signed_int
+      * value: 00000000000000000000000000000001
+      * #source_location: 
+        * file: <builtin-architecture-strings>
+        * line: 17
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      * #base: 10
+  * name: __CPROVER_architecture_endianness
+  * base_name: __CPROVER_architecture_endianness
+  * #source_location: 
+    * file: <builtin-architecture-strings>
+    * line: 17
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: <builtin-architecture-strings>
+    * line: 18
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: const
+      * #source_location: 
+        * file: <builtin-architecture-strings>
+        * line: 18
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: char
+      * #source_location: 
+        * file: <builtin-architecture-strings>
+        * line: 18
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: frontend_pointer
+      * #source_location: 
+        * file: <builtin-architecture-strings>
+        * line: 18
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      0: nil
+  * value: string_constant
+      * type: array
+          * size: constant
+              * type: signedbv
+                  * width: 64
+                  * #c_type: signed_long_int
+              * value: 0000000000000000000000000000000000000000000000000000000000000111
+          0: signedbv
+              * width: 8
+              * #c_type: char
+      * value: x86_64
+      * #source_location: 
+        * file: <builtin-architecture-strings>
+        * line: 18
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  * name: __CPROVER_architecture_arch
+  * base_name: __CPROVER_architecture_arch
+  * #source_location: 
+    * file: <builtin-architecture-strings>
+    * line: 18
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: <builtin-architecture-strings>
+    * line: 19
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: const
+      * #source_location: 
+        * file: <builtin-architecture-strings>
+        * line: 19
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: char
+      * #source_location: 
+        * file: <builtin-architecture-strings>
+        * line: 19
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: frontend_pointer
+      * #source_location: 
+        * file: <builtin-architecture-strings>
+        * line: 19
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      0: nil
+  * value: string_constant
+      * type: array
+          * size: constant
+              * type: signedbv
+                  * width: 64
+                  * #c_type: signed_long_int
+              * value: 0000000000000000000000000000000000000000000000000000000000000110
+          0: signedbv
+              * width: 8
+              * #c_type: char
+      * value: linux
+      * #source_location: 
+        * file: <builtin-architecture-strings>
+        * line: 19
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  * name: __CPROVER_architecture_os
+  * base_name: __CPROVER_architecture_os
+  * #source_location: 
+    * file: <builtin-architecture-strings>
+    * line: 19
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: <builtin-architecture-strings>
+    * line: 20
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: const
+      * #source_location: 
+        * file: <builtin-architecture-strings>
+        * line: 20
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: int
+      * #source_location: 
+        * file: <builtin-architecture-strings>
+        * line: 20
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: nil
+  * value: constant
+      * type: signedbv
+          * width: 32
+          * #c_type: signed_int
+      * value: 00000000000000000000000000000001
+      * #source_location: 
+        * file: <builtin-architecture-strings>
+        * line: 20
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      * #base: 10
+  * name: __CPROVER_architecture_NULL_is_zero
+  * base_name: __CPROVER_architecture_NULL_is_zero
+  * #source_location: 
+    * file: <builtin-architecture-strings>
+    * line: 20
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+Flags: is_global
+Type: merged_type
+  * #source_location: 
+    * file: ./factorial.c
+    * line: 1
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  0: unsigned
+      * #source_location: 
+        * file: ./factorial.c
+        * line: 1
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+  1: long
+      * #source_location: 
+        * file: ./factorial.c
+        * line: 1
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+Declarator: declarator
+  * type: code
+      * parameters: 
+        0: declaration
+            * type: unsigned
+                * #source_location: 
+                  * file: ./factorial.c
+                  * line: 1
+                  * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+            * is_parameter: 1
+            * #source_location: 
+              * function: factorial
+            0: declarator
+                * type: nil
+                * value: nil
+                * name: factorial::n
+                * base_name: n
+                * #source_location: 
+                  * file: ./factorial.c
+                  * line: 1
+                  * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      * #source_location: 
+        * file: ./factorial.c
+        * line: 1
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      0: nil
+  * value: code
+      * type: code
+      * statement: block
+      * #source_location: 
+        * file: ./factorial.c
+        * line: 1
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      * #end_location: 
+        * file: ./factorial.c
+        * line: 7
+        * function: factorial
+        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      0: code
+          * type: code
+          * statement: decl
+          0: declaration
+              * type: merged_type
+                  * #source_location: 
+                    * file: ./factorial.c
+                    * line: 2
+                    * function: factorial
+                    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+                  0: unsigned
+                      * #source_location: 
+                        * file: ./factorial.c
+                        * line: 2
+                        * function: factorial
+                        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+                  1: long
+                      * #source_location: 
+                        * file: ./factorial.c
+                        * line: 2
+                        * function: factorial
+                        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+              0: declarator
+                  * type: nil
+                  * value: constant
+                      * type: signedbv
+                          * width: 32
+                          * #c_type: signed_int
+                      * value: 00000000000000000000000000000001
+                      * #source_location: 
+                        * file: ./factorial.c
+                        * line: 2
+                        * function: factorial
+                        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+                      * #base: 10
+                  * name: factorial::1::fac
+                  * base_name: fac
+                  * #source_location: 
+                    * file: ./factorial.c
+                    * line: 2
+                    * function: factorial
+                    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+      1: code
+          * type: code
+          * statement: for
+          * #source_location: 
+            * file: ./factorial.c
+            * line: 3
+            * function: factorial
+            * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+          0: code
+              * type: code
+              * statement: decl
+              0: declaration
+                  * type: merged_type
+                      * #source_location: 
+                        * file: ./factorial.c
+                        * line: 3
+                        * function: factorial
+                        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+                      0: unsigned
+                          * #source_location: 
+                            * file: ./factorial.c
+                            * line: 3
+                            * function: factorial
+                            * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+                      1: int
+                          * #source_location: 
+                            * file: ./factorial.c
+                            * line: 3
+                            * function: factorial
+                            * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+                  0: declarator
+                      * type: nil
+                      * value: constant
+                          * type: signedbv
+                              * width: 32
+                              * #c_type: signed_int
+                          * value: 00000000000000000000000000000001
+                          * #source_location: 
+                            * file: ./factorial.c
+                            * line: 3
+                            * function: factorial
+                            * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+                          * #base: 10
+                      * name: factorial::1::1::i
+                      * base_name: i
+                      * #source_location: 
+                        * file: ./factorial.c
+                        * line: 3
+                        * function: factorial
+                        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+          1: <=
+              * #source_location: 
+                * file: ./factorial.c
+                * line: 3
+                * function: factorial
+                * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+              0: symbol
+                  * identifier: factorial::1::1::i
+                  * #source_location: 
+                    * file: ./factorial.c
+                    * line: 3
+                    * function: factorial
+                    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+                  * #id_class: 1
+                  * #base_name: i
+              1: symbol
+                  * identifier: factorial::n
+                  * #source_location: 
+                    * file: ./factorial.c
+                    * line: 3
+                    * function: factorial
+                    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+                  * #id_class: 1
+                  * #base_name: n
+          2: side_effect
+              * statement: postincrement
+              * #source_location: 
+                * file: ./factorial.c
+                * line: 3
+                * function: factorial
+                * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+              0: symbol
+                  * identifier: factorial::1::1::i
+                  * #source_location: 
+                    * file: ./factorial.c
+                    * line: 3
+                    * function: factorial
+                    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+                  * #id_class: 1
+                  * #base_name: i
+          3: code
+              * type: code
+              * statement: block
+              * #source_location: 
+                * file: ./factorial.c
+                * line: 3
+                * function: factorial
+                * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+              * #end_location: 
+                * file: ./factorial.c
+                * line: 5
+                * function: factorial
+                * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+              0: code
+                  * type: code
+                  * statement: expression
+                  * #source_location: 
+                    * file: ./factorial.c
+                    * line: 4
+                    * function: factorial
+                    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+                  0: side_effect
+                      * statement: assign*
+                      * #source_location: 
+                        * file: ./factorial.c
+                        * line: 4
+                        * function: factorial
+                        * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+                      0: symbol
+                          * identifier: factorial::1::fac
+                          * #source_location: 
+                            * file: ./factorial.c
+                            * line: 4
+                            * function: factorial
+                            * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+                          * #id_class: 1
+                          * #base_name: fac
+                      1: symbol
+                          * identifier: factorial::1::1::i
+                          * #source_location: 
+                            * file: ./factorial.c
+                            * line: 4
+                            * function: factorial
+                            * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+                          * #id_class: 1
+                          * #base_name: i
+      2: code
+          * type: code
+          * statement: return
+          * #source_location: 
+            * file: ./factorial.c
+            * line: 6
+            * function: factorial
+            * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+          0: symbol
+              * identifier: factorial::1::fac
+              * #source_location: 
+                * file: ./factorial.c
+                * line: 6
+                * function: factorial
+                * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+              * #id_class: 1
+              * #base_name: fac
+  * name: factorial
+  * base_name: factorial
+  * #source_location: 
+    * file: ./factorial.c
+    * line: 1
+    * working_directory: /home/fhy18/gitRepo/cbmc-5.11
+
+CBMC version 5.10 (cbmc-5.10) 64-bit x86_64 linux
+Parsing ./factorial.c
+Converting
+Type-checking factorial
+Generating GOTO Program
+
+Symbols:
+
+Symbol......: __CPROVER_architecture_NULL_is_zero
+Pretty name.: __CPROVER_architecture_NULL_is_zero
+Module......: factorial
+Base name...: __CPROVER_architecture_NULL_is_zero
+Mode........: C
+Type........: const signed int
+Value.......: 1
+Flags.......: lvalue static_lifetime
+Location....: file <builtin-architecture-strings> line 20
+
+Symbol......: __CPROVER_architecture_alignment
+Pretty name.: __CPROVER_architecture_alignment
+Module......: factorial
+Base name...: __CPROVER_architecture_alignment
+Mode........: C
+Type........: const signed int
+Value.......: 1
+Flags.......: lvalue static_lifetime
+Location....: file <builtin-architecture-strings> line 15
+
+Symbol......: __CPROVER_architecture_arch
+Pretty name.: __CPROVER_architecture_arch
+Module......: factorial
+Base name...: __CPROVER_architecture_arch
+Mode........: C
+Type........: const char *
+Value.......: "x86_64"
+Flags.......: lvalue static_lifetime
+Location....: file <builtin-architecture-strings> line 18
+
+Symbol......: __CPROVER_architecture_bool_width
+Pretty name.: __CPROVER_architecture_bool_width
+Module......: factorial
+Base name...: __CPROVER_architecture_bool_width
+Mode........: C
+Type........: const signed int
+Value.......: 8
+Flags.......: lvalue static_lifetime
+Location....: file <builtin-architecture-strings> line 4
+
+Symbol......: __CPROVER_architecture_char_is_unsigned
+Pretty name.: __CPROVER_architecture_char_is_unsigned
+Module......: factorial
+Base name...: __CPROVER_architecture_char_is_unsigned
+Mode........: C
+Type........: const signed int
+Value.......: 0
+Flags.......: lvalue static_lifetime
+Location....: file <builtin-architecture-strings> line 13
+
+Symbol......: __CPROVER_architecture_char_width
+Pretty name.: __CPROVER_architecture_char_width
+Module......: factorial
+Base name...: __CPROVER_architecture_char_width
+Mode........: C
+Type........: const signed int
+Value.......: 8
+Flags.......: lvalue static_lifetime
+Location....: file <builtin-architecture-strings> line 5
+
+Symbol......: __CPROVER_architecture_double_width
+Pretty name.: __CPROVER_architecture_double_width
+Module......: factorial
+Base name...: __CPROVER_architecture_double_width
+Mode........: C
+Type........: const signed int
+Value.......: 64
+Flags.......: lvalue static_lifetime
+Location....: file <builtin-architecture-strings> line 10
+
+Symbol......: __CPROVER_architecture_endianness
+Pretty name.: __CPROVER_architecture_endianness
+Module......: factorial
+Base name...: __CPROVER_architecture_endianness
+Mode........: C
+Type........: const signed int
+Value.......: 1
+Flags.......: lvalue static_lifetime
+Location....: file <builtin-architecture-strings> line 17
+
+Symbol......: __CPROVER_architecture_int_width
+Pretty name.: __CPROVER_architecture_int_width
+Module......: factorial
+Base name...: __CPROVER_architecture_int_width
+Mode........: C
+Type........: const signed int
+Value.......: 32
+Flags.......: lvalue static_lifetime
+Location....: file <builtin-architecture-strings> line 1
+
+Symbol......: __CPROVER_architecture_long_double_width
+Pretty name.: __CPROVER_architecture_long_double_width
+Module......: factorial
+Base name...: __CPROVER_architecture_long_double_width
+Mode........: C
+Type........: const signed int
+Value.......: 128
+Flags.......: lvalue static_lifetime
+Location....: file <builtin-architecture-strings> line 11
+
+Symbol......: __CPROVER_architecture_long_int_width
+Pretty name.: __CPROVER_architecture_long_int_width
+Module......: factorial
+Base name...: __CPROVER_architecture_long_int_width
+Mode........: C
+Type........: const signed int
+Value.......: 64
+Flags.......: lvalue static_lifetime
+Location....: file <builtin-architecture-strings> line 3
+
+Symbol......: __CPROVER_architecture_long_long_int_width
+Pretty name.: __CPROVER_architecture_long_long_int_width
+Module......: factorial
+Base name...: __CPROVER_architecture_long_long_int_width
+Mode........: C
+Type........: const signed int
+Value.......: 64
+Flags.......: lvalue static_lifetime
+Location....: file <builtin-architecture-strings> line 7
+
+Symbol......: __CPROVER_architecture_memory_operand_size
+Pretty name.: __CPROVER_architecture_memory_operand_size
+Module......: factorial
+Base name...: __CPROVER_architecture_memory_operand_size
+Mode........: C
+Type........: const signed int
+Value.......: 4
+Flags.......: lvalue static_lifetime
+Location....: file <builtin-architecture-strings> line 16
+
+Symbol......: __CPROVER_architecture_os
+Pretty name.: __CPROVER_architecture_os
+Module......: factorial
+Base name...: __CPROVER_architecture_os
+Mode........: C
+Type........: const char *
+Value.......: "linux"
+Flags.......: lvalue static_lifetime
+Location....: file <builtin-architecture-strings> line 19
+
+Symbol......: __CPROVER_architecture_pointer_width
+Pretty name.: __CPROVER_architecture_pointer_width
+Module......: factorial
+Base name...: __CPROVER_architecture_pointer_width
+Mode........: C
+Type........: const signed int
+Value.......: 64
+Flags.......: lvalue static_lifetime
+Location....: file <builtin-architecture-strings> line 8
+
+Symbol......: __CPROVER_architecture_short_int_width
+Pretty name.: __CPROVER_architecture_short_int_width
+Module......: factorial
+Base name...: __CPROVER_architecture_short_int_width
+Mode........: C
+Type........: const signed int
+Value.......: 16
+Flags.......: lvalue static_lifetime
+Location....: file <builtin-architecture-strings> line 6
+
+Symbol......: __CPROVER_architecture_single_width
+Pretty name.: __CPROVER_architecture_single_width
+Module......: factorial
+Base name...: __CPROVER_architecture_single_width
+Mode........: C
+Type........: const signed int
+Value.......: 32
+Flags.......: lvalue static_lifetime
+Location....: file <builtin-architecture-strings> line 9
+
+Symbol......: __CPROVER_architecture_wchar_t_is_unsigned
+Pretty name.: __CPROVER_architecture_wchar_t_is_unsigned
+Module......: factorial
+Base name...: __CPROVER_architecture_wchar_t_is_unsigned
+Mode........: C
+Type........: const signed int
+Value.......: 0
+Flags.......: lvalue static_lifetime
+Location....: file <builtin-architecture-strings> line 14
+
+Symbol......: __CPROVER_architecture_wchar_t_width
+Pretty name.: __CPROVER_architecture_wchar_t_width
+Module......: factorial
+Base name...: __CPROVER_architecture_wchar_t_width
+Mode........: C
+Type........: const signed int
+Value.......: 32
+Flags.......: lvalue static_lifetime
+Location....: file <builtin-architecture-strings> line 12
+
+Symbol......: __CPROVER_architecture_word_size
+Pretty name.: __CPROVER_architecture_word_size
+Module......: factorial
+Base name...: __CPROVER_architecture_word_size
+Mode........: C
+Type........: const signed int
+Value.......: 32
+Flags.......: lvalue static_lifetime
+Location....: file <builtin-architecture-strings> line 2
+
+Symbol......: __CPROVER_constant_infinity_uint
+Pretty name.: __CPROVER_constant_infinity_uint
+Module......: factorial
+Base name...: __CPROVER_constant_infinity_uint
+Mode........: C
+Type........: const unsigned int
+Value.......: 
+Flags.......: lvalue static_lifetime
+Location....: file <built-in-additions> line 3
+
+Symbol......: __CPROVER_dead_object
+Pretty name.: __CPROVER_dead_object
+Module......: factorial
+Base name...: __CPROVER_dead_object
+Mode........: C
+Type........: const void *
+Value.......: NULL
+Flags.......: lvalue static_lifetime
+Location....: file <built-in-additions> line 11
+
+Symbol......: __CPROVER_deallocated
+Pretty name.: __CPROVER_deallocated
+Module......: factorial
+Base name...: __CPROVER_deallocated
+Mode........: C
+Type........: const void *
+Value.......: NULL
+Flags.......: lvalue static_lifetime
+Location....: file <built-in-additions> line 10
+
+Symbol......: __CPROVER_initialize
+Pretty name.: __CPROVER_initialize
+Module......: factorial
+Base name...: __CPROVER_initialize
+Mode........: C
+Type........: void (void)
+Value.......: 
+Flags.......: lvalue
+Location....: file <built-in-additions> line 31
+
+Symbol......: __CPROVER_malloc_is_new_array
+Pretty name.: __CPROVER_malloc_is_new_array
+Module......: factorial
+Base name...: __CPROVER_malloc_is_new_array
+Mode........: C
+Type........: _Bool
+Value.......: 0 != 0
+Flags.......: lvalue static_lifetime
+Location....: file <built-in-additions> line 14
+
+Symbol......: __CPROVER_malloc_object
+Pretty name.: __CPROVER_malloc_object
+Module......: factorial
+Base name...: __CPROVER_malloc_object
+Mode........: C
+Type........: const void *
+Value.......: NULL
+Flags.......: lvalue static_lifetime
+Location....: file <built-in-additions> line 12
+
+Symbol......: __CPROVER_malloc_size
+Pretty name.: __CPROVER_malloc_size
+Module......: factorial
+Base name...: __CPROVER_malloc_size
+Mode........: C
+Type........: __CPROVER_size_t
+Value.......: 
+Flags.......: lvalue static_lifetime
+Location....: file <built-in-additions> line 13
+
+Symbol......: __CPROVER_memory
+Pretty name.: __CPROVER_memory
+Module......: factorial
+Base name...: __CPROVER_memory
+Mode........: C
+Type........: unsigned char [INFINITY()]
+Value.......: 
+Flags.......: lvalue static_lifetime extern
+Location....: file <built-in-additions> line 9
+
+Symbol......: __CPROVER_memory_leak
+Pretty name.: __CPROVER_memory_leak
+Module......: factorial
+Base name...: __CPROVER_memory_leak
+Mode........: C
+Type........: const void *
+Value.......: NULL
+Flags.......: lvalue static_lifetime
+Location....: file <built-in-additions> line 15
+
+Symbol......: __CPROVER_next_thread_id
+Pretty name.: __CPROVER_next_thread_id
+Module......: factorial
+Base name...: __CPROVER_next_thread_id
+Mode........: C
+Type........: unsigned long int
+Value.......: (unsigned long int)0
+Flags.......: lvalue static_lifetime
+Location....: file <built-in-additions> line 8
+
+Symbol......: __CPROVER_pipe_count
+Pretty name.: __CPROVER_pipe_count
+Module......: factorial
+Base name...: __CPROVER_pipe_count
+Mode........: C
+Type........: unsigned int
+Value.......: (unsigned int)0
+Flags.......: lvalue static_lifetime
+Location....: file <built-in-additions> line 29
+
+Symbol......: __CPROVER_rounding_mode
+Pretty name.: __CPROVER_rounding_mode
+Module......: factorial
+Base name...: __CPROVER_rounding_mode
+Mode........: C
+Type........: signed int
+Value.......: 0
+Flags.......: lvalue static_lifetime thread_local
+Location....: file <built-in-additions> line 20
+
+Symbol......: __CPROVER_size_t
+Pretty name.: __CPROVER_size_t
+Module......: factorial
+Base name...: __CPROVER_size_t
+Mode........: C
+Type........: __CPROVER_size_t
+Value.......: 
+Flags.......: thread_local file_local type macro
+Location....: file <built-in-additions> line 1
+
+Symbol......: __CPROVER_thread_id
+Pretty name.: __CPROVER_thread_id
+Module......: factorial
+Base name...: __CPROVER_thread_id
+Mode........: C
+Type........: unsigned long int
+Value.......: (unsigned long int)0
+Flags.......: lvalue static_lifetime thread_local
+Location....: file <built-in-additions> line 6
+
+Symbol......: __CPROVER_threads_exited
+Pretty name.: __CPROVER_threads_exited
+Module......: factorial
+Base name...: __CPROVER_threads_exited
+Mode........: C
+Type........: _Bool [INFINITY()]
+Value.......: 
+Flags.......: lvalue static_lifetime
+Location....: file <built-in-additions> line 7
+
+Symbol......: factorial
+Pretty name.: factorial
+Module......: factorial
+Base name...: factorial
+Mode........: C
+Type........: unsigned long int (unsigned int n)
+Value.......: {
+  unsigned long int fac=(unsigned long int)1;
+  {
+    unsigned int i=(unsigned int)1;
+    for( ; i <= n; i++)
+    {
+      fac *= (unsigned long int)i;
+    }
+  }
+  return fac;
+}
+Flags.......: lvalue
+Location....: file ./factorial.c line 1
+
+Symbol......: factorial::1::1::i
+Pretty name.: factorial::1::1::i
+Module......: factorial
+Base name...: i
+Mode........: C
+Type........: unsigned int
+Value.......: (unsigned int)1
+Flags.......: lvalue thread_local file_local
+Location....: file ./factorial.c line 3 function factorial
+
+Symbol......: factorial::1::fac
+Pretty name.: factorial::1::fac
+Module......: factorial
+Base name...: fac
+Mode........: C
+Type........: unsigned long int
+Value.......: (unsigned long int)1
+Flags.......: lvalue thread_local file_local
+Location....: file ./factorial.c line 2 function factorial
+
+Symbol......: factorial::n
+Pretty name.: 
+Module......: factorial
+Base name...: n
+Mode........: C
+Type........: unsigned int
+Value.......: 
+Flags.......: lvalue thread_local file_local parameter state_var
+Location....: file ./factorial.c line 1
+
+CBMC version 5.10 (cbmc-5.10) 64-bit x86_64 linux
+Parsing ./factorial.c
+Converting
+Type-checking factorial
+Generating GOTO Program
+Adding CPROVER library (x86_64)
+Removal of function pointers and virtual functions
+Generic Property Instrumentation
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+factorial /* factorial */
+        // 0 file ./factorial.c line 2 function factorial
+        unsigned long int fac;
+        // 1 file ./factorial.c line 2 function factorial
+        fac = (unsigned long int)1;
+        // 2 file ./factorial.c line 3 function factorial
+        unsigned int i;
+        // 3 file ./factorial.c line 3 function factorial
+        i = (unsigned int)1;
+        // 4 file ./factorial.c line 3 function factorial
+     1: IF !(i <= n) THEN GOTO 2
+        // 5 file ./factorial.c line 4 function factorial
+        fac = fac * (unsigned long int)i;
+        // 6 file ./factorial.c line 3 function factorial
+        i = i + 1u;
+        // 7 file ./factorial.c line 3 function factorial
+        GOTO 1
+        // 8 file ./factorial.c line 5 function factorial
+     2: dead i;
+        // 9 file ./factorial.c line 6 function factorial
+        factorial#return_value = fac;
+        // 10 file ./factorial.c line 6 function factorial
+        dead fac;
+        // 11 file ./factorial.c line 7 function factorial
+        END_FUNCTION
+
