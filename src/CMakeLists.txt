@@ -14,14 +14,14 @@ endif(DOXYGEN_FOUND)
 #   Add a bison target named 'parser'.
 macro(generic_bison name)
     set(bison_header "${name}_y.tab.h")
-    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${bison_header}")
-        message(FATAL_ERROR "Generated file ${bison_header} found in source tree. If you previously built with `make`, run `make clean` and try again")
-    endif()
+#    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${bison_header}")
+#        message(FATAL_ERROR "Generated file ${bison_header} found in source tree. If you previously built with `make`, run `make clean` and try again")
+#    endif()
 
     set(bison_source "${name}_y.tab.cpp")
-    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${bison_source}")
-        message(FATAL_ERROR "Generated file ${bison_source} found in source tree. If you previously built with `make`, run `make clean` and try again")
-    endif()
+#    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${bison_source}")
+#        message(FATAL_ERROR "Generated file ${bison_source} found in source tree. If you previously built with `make`, run `make clean` and try again")
+#    endif()
 
     bison_target(
         parser
@@ -41,9 +41,9 @@ endmacro(generic_bison)
 #   Add a flex target named 'scanner'
 macro(generic_flex name)
     set(flex_source "${name}_lex.yy.cpp")
-    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${flex_source}")
-        message(FATAL_ERROR "Generated file ${flex_source} found in source tree. If you previously built with `make`, run `make clean` and try again")
-    endif()
+#    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${flex_source}")
+#        message(FATAL_ERROR "Generated file ${flex_source} found in source tree. If you previously built with `make`, run `make clean` and try again")
+#    endif()
 
     flex_target(
         scanner

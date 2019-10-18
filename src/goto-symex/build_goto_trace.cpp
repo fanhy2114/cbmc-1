@@ -228,7 +228,7 @@ void build_goto_trace(
       }
       else if(it->is_atomic_end() && current_time<0)
         current_time*=-1;
-
+      
       assert(current_time>=0);
       // move any steps gathered in an atomic section
 

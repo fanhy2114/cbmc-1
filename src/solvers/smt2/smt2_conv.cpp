@@ -33,6 +33,12 @@ Author: Daniel Kroening, kroening@kroening.com
 #include <solvers/flattening/flatten_byte_operators.h>
 #include <solvers/floatbv/float_bv.h>
 #include <solvers/lowering/expr_lowering.h>
+// __FHY_ADD_BEGIN__
+#include <vector>
+#include <iostream>
+#include <regex>
+extern std::vector<std::string> fix_constraint;
+// __FHY_ADD_END__
 
 // Mark different kinds of error condition
 // General
@@ -97,7 +103,9 @@ void smt2_convt::write_header()
 void smt2_convt::write_footer(std::ostream &out)
 {
   out << "\n";
-
+  // __FHY_ADD_BEGIN__
+  add_ssa_constraint();
+  // __FHY_ADD_END__
   // add the assumptions, if any
   if(!assumptions.empty())
   {
@@ -4809,3 +4817,21 @@ exprt smt2_convt::substitute_let(
 
   return expr;
 }
+
+// __FHY_ADD_BEGIN__
+void smt2_convt::add_ssa_constraint() {
+  if(fix_constraint.empty())
+    return;
+  std::regex re(R"(!choice_rf(\d+))");
+  std::smatch sm;
+  for(const auto& i : fix_constraint){
+    if(std::regex_search(i, sm, re)){
+    	out<<"; set to true fixed\n";
+      	out<<"(assert |memory_model::choice_rf"<<sm[sm.size()-1]<<"|)\n";
+    }
+    else{
+      std::cerr<<"add SSA constraint error.\n";
+    }
+  }
+}
+// __FHY_ADD_END__

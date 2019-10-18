@@ -131,6 +131,9 @@ protected:
 
   void write_header();
   void write_footer(std::ostream &);
+  // __FHY_ADD_BEGIN__
+  void add_ssa_constraint();
+  // __FHY_ADD_END__
 
   // tweaks for arrays
   bool use_array_theory(const exprt &);

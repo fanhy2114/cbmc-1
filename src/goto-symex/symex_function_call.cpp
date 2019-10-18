@@ -171,7 +171,6 @@ void goto_symext::symex_function_call(
   const code_function_callt &code)
 {
   const exprt &function=code.function();
-
   if(function.id()==ID_symbol)
     symex_function_call_symbol(get_goto_function, state, code);
   else if(function.id()==ID_if)
@@ -289,7 +288,7 @@ void goto_symext::symex_function_call_code(
   locality(identifier, state, goto_function);
 
   // assign actuals to formal parameters
-  parameter_assignments(identifier, goto_function, state, arguments);
+   parameter_assignments(identifier, goto_function, state, arguments);
 
   frame.end_of_function=--goto_function.body.instructions.end();
   frame.return_value=call.lhs();

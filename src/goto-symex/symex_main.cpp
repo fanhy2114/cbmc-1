@@ -20,7 +20,13 @@ Author: Daniel Kroening, kroening@kroening.com
 #include <util/make_unique.h>
 
 #include <analyses/dirty.h>
-
+// __FHY_ADD_BEGIN__
+#include <iostream>
+#include "goto-programs/show_symbol_table.h"
+#include "util/format.h"
+#include "util/format_type.h"
+#include "util/format_expr.h"
+// __FHY_ADD_END__
 void goto_symext::symex_transition(
   statet &state,
   goto_programt::const_targett to,
@@ -134,7 +140,6 @@ void goto_symext::initialize_entry_point(
     !pc->function.empty(), "all symexed instructions should have a function");
 
   const goto_functiont &entry_point_function = get_goto_function(pc->function);
-
   auto emplace_safe_pointers_result =
     safe_pointers.emplace(pc->function, local_safe_pointerst{ns});
   if(emplace_safe_pointers_result.second)
@@ -154,7 +159,7 @@ void goto_symext::symex_threaded_step(
 
   // is there another thread to execute?
   if(state.call_stack().empty() &&
-     state.source.thread_nr+1<state.threads.size())
+     state.source.thread_nr+1 < state.threads.size())
   {
     unsigned t=state.source.thread_nr+1;
 #if 0
@@ -280,6 +285,11 @@ void goto_symext::symex_from_entry_point_of(
   try
   {
     start_function = &get_goto_function(goto_functionst::entry_point());
+    // __FHY_ADD_BEGIN__
+//    const namespacet ns(outer_symbol_table);
+//    std::cout<<"entry point name"<<std::endl<<goto_functionst::entry_point().c_str()<<std::endl;
+//    start_function->body.output(ns,goto_functionst::entry_point(),std::cout);
+    // __FHY_ADD_END__
   }
   catch(const std::out_of_range &)
   {
@@ -287,13 +297,13 @@ void goto_symext::symex_from_entry_point_of(
   }
 
   statet state;
-
+	
   initialize_entry_point(
     state,
     get_goto_function,
     start_function->body.instructions.begin(),
     prev(start_function->body.instructions.end()));
-
+  
   symex_with_state(
     state, get_goto_function, new_symbol_table);
 }

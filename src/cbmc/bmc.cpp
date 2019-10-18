@@ -32,6 +32,13 @@ Author: Daniel Kroening, kroening@kroening.com
 #include "cbmc_solvers.h"
 #include "counterexample_beautification.h"
 #include "fault_localization.h"
+// __FHY_ADD_BEGIN__
+#include "show_symbol_table.h"
+#include "cpp_language.h"
+#include <regex>
+#include "memory_model.h"
+std::vector<std::string> fix_constraint;
+// __FHY_ADD_END_
 
 /// Hook used by CEGIS to selectively freeze variables
 /// in the SAT solver after the SSA formula is added to the solver.
@@ -200,6 +207,48 @@ void bmct::report_failure()
   }
 }
 
+// __FHY_ADD_BEGIN__
+void bmct::fix_ssa(){
+  unsigned count = 0;
+  std::smatch sm;
+  std::string pattern = R"(!\(__CPROVER_threads_exited#(\d+)\$wclk\$(\d+)(\s*)>=(\s*))";
+  pattern.append(R"(__CPROVER_threads_exited#(\d+)\$rclk\$(\d+)\)(\s*)\|\|(\s*)(.*))");
+  std::regex re(pattern);
+  for(auto &step : equation.SSA_steps){
+    const irep_idt &function = step.source.pc->function;
+    std::string string_value = from_expr(ns, function, step.cond_expr);
+    if(!(step.is_constraint() && function == "pthread_join"))
+		continue;
+	if(std::regex_match(string_value, sm, re)){
+	    std::string new_expr = string_value.substr(0, string_value.find("||"));
+		//equation.constraint(implies_exprt(true_exprt(), to_expr(ns, step.source.pc->function, new_expr)), "fix_ssa", step.source);
+//		std::cout<<"function: "<<function<<" ssa: "<<string_value<<std::endl;
+//		for (const auto &i : sm) {
+//			if(i == ' ')
+//				continue;
+//			std::cout << i << std::endl;
+//			break;
+//		}
+		fix_constraint.push_back(sm[sm.size() - 1]);
+		count++;
+	}
+  }
+//  std::string str = "!(__CPROVER_threads_exited#5$wclk$8 >= __CPROVER_threads_exited#2$rclk$8) || (guard1 && guard2) || !choice_rf1";
+//  if(std::regex_match(str, sm, re)){
+//  	for (const auto &i : sm) {
+//  		if(i == ' ')
+//  			continue;
+//  		std::cout << i << std::endl;
+//  	}
+//  	fix_constraint.push_back(sm[sm.size() - 1]);
+//  }
+  std::cout << "\n" << "Fix SSA expressions: " <<count<< std::endl;
+//  for(const auto &i : fix_constraint){
+//  	std::cout << i <<"\n";
+//  }
+}
+// __FHY_ADD_END__
+
 void bmct::show_program()
 {
   unsigned count=1;
@@ -331,6 +380,19 @@ safety_checkert::resultt bmct::execute(
       return goto_model.get_goto_function(id);
     };
 
+    // __FHY_ADD_BEGIN__
+//    const namespacet ns(goto_model.get_symbol_table());
+//    for(const auto &fun : goto_model.get_goto_functions().function_map){
+//      const symbolt &symbol = ns.lookup(fun.first);
+//      std::cout<<"---"<<symbol.display_name()<<std::endl;
+//    }
+
+//    for(const auto & fun : goto_model.get_goto_functions().function_map){
+//    	const symbolt &symbol = ns.lookup(fun.first);
+//    	std::cout<<"function name: "<<symbol.display_name()<<std::endl;
+//    	get_goto_function(fun.first).body.output(ns,symbol.name, std::cout);
+//    }
+    // __FHY_ADD_END__
     perform_symbolic_execution(get_goto_function);
 
     // Borrow a reference to the goto functions map. This reference, or
@@ -358,7 +420,17 @@ safety_checkert::resultt bmct::execute(
       memory_model->set_message_handler(get_message_handler());
       (*memory_model)(equation);
     }
-
+    
+    // __FHY_ADD_BEGIN__
+//    for(const auto &step : equation.SSA_steps){
+//      if(!step.is_constraint())
+//        continue;
+//      const irep_idt &function = step.source.pc->function;
+//      std::string string_value = from_expr(ns, function, step.cond_expr);
+//      std::cout<<string_value<<std::endl;
+//    }
+    fix_ssa();
+    // __FHY_ADD_END__
     statistics() << "size of program expression: "
                  << equation.SSA_steps.size()
                  << " steps" << eom;
@@ -482,7 +554,6 @@ safety_checkert::resultt bmct::run(
   abstract_goto_modelt &goto_model)
 {
   setup();
-
   return execute(goto_model);
 }
 
