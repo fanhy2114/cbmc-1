@@ -19,7 +19,8 @@ src/.settings/*
 # Visual Studio
 Debug/*
 Release/*
-
+cmake-build-debug/*
+cmake-build-release/*
 # compilation files
 *.lo
 *.od
