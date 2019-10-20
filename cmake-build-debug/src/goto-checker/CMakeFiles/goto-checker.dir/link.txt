@@ -1,2 +1,0 @@
-/usr/bin/ar qc ../../lib/libgoto-checker.a  CMakeFiles/goto-checker.dir/bmc_util.cpp.o CMakeFiles/goto-checker.dir/goto_verifier.cpp.o CMakeFiles/goto-checker.dir/incremental_goto_checker.cpp.o CMakeFiles/goto-checker.dir/properties.cpp.o CMakeFiles/goto-checker.dir/report_util.cpp.o CMakeFiles/goto-checker.dir/solver_factory.cpp.o CMakeFiles/goto-checker.dir/symex_bmc.cpp.o CMakeFiles/goto-checker.dir/symex_coverage.cpp.o
-/usr/bin/ranlib ../../lib/libgoto-checker.a

@@ -1,2 +1,0 @@
-/usr/bin/ar qc ../../lib/libmmcc.a  CMakeFiles/mmcc.dir/mm2cpp.cpp.o CMakeFiles/mmcc.dir/mm_parser.cpp.o CMakeFiles/mmcc.dir/mmcc_main.cpp.o CMakeFiles/mmcc.dir/mmcc_parse_options.cpp.o CMakeFiles/mmcc.dir/mm_y.tab.cpp.o CMakeFiles/mmcc.dir/mm_lex.yy.cpp.o
-/usr/bin/ranlib ../../lib/libmmcc.a

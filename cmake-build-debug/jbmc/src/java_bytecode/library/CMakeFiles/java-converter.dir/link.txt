@@ -1,1 +1,0 @@
-/usr/bin/c++   -Wall -Wpedantic -Werror -Wno-deprecated-declarations -g  -rdynamic CMakeFiles/java-converter.dir/converter.cpp.o  -o ../../../../bin/java-converter 

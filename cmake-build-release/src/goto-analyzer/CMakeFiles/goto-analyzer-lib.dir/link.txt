@@ -1,2 +1,0 @@
-/usr/bin/ar qc ../../lib/libgoto-analyzer-lib.a  CMakeFiles/goto-analyzer-lib.dir/goto_analyzer_parse_options.cpp.o CMakeFiles/goto-analyzer-lib.dir/static_show_domain.cpp.o CMakeFiles/goto-analyzer-lib.dir/static_simplifier.cpp.o CMakeFiles/goto-analyzer-lib.dir/static_verifier.cpp.o CMakeFiles/goto-analyzer-lib.dir/taint_analysis.cpp.o CMakeFiles/goto-analyzer-lib.dir/taint_parser.cpp.o CMakeFiles/goto-analyzer-lib.dir/unreachable_instructions.cpp.o
-/usr/bin/ranlib ../../lib/libgoto-analyzer-lib.a

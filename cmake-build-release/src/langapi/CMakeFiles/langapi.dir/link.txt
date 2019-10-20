@@ -1,2 +1,0 @@
-/usr/bin/ar qc ../../lib/liblangapi.a  CMakeFiles/langapi.dir/language.cpp.o CMakeFiles/langapi.dir/language_file.cpp.o CMakeFiles/langapi.dir/language_ui.cpp.o CMakeFiles/langapi.dir/language_util.cpp.o CMakeFiles/langapi.dir/mode.cpp.o
-/usr/bin/ranlib ../../lib/liblangapi.a
