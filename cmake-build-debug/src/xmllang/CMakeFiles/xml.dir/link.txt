@@ -1,0 +1,2 @@
+/usr/bin/ar qc ../../lib/libxml.a  CMakeFiles/xml.dir/graphml.cpp.o CMakeFiles/xml.dir/xml_parse_tree.cpp.o CMakeFiles/xml.dir/xml_parser.cpp.o CMakeFiles/xml.dir/xml_y.tab.cpp.o CMakeFiles/xml.dir/xml_lex.yy.cpp.o
+/usr/bin/ranlib ../../lib/libxml.a

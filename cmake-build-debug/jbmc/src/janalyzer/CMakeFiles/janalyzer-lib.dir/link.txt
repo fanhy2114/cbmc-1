@@ -1,0 +1,2 @@
+/usr/bin/ar qc ../../../lib/libjanalyzer-lib.a  CMakeFiles/janalyzer-lib.dir/janalyzer_parse_options.cpp.o
+/usr/bin/ranlib ../../../lib/libjanalyzer-lib.a

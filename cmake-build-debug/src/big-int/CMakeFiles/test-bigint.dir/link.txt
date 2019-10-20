@@ -1,0 +1,1 @@
+/usr/bin/c++   -Wall -Wpedantic -Werror -Wno-deprecated-declarations -g  -rdynamic CMakeFiles/test-bigint.dir/bigint-func.cc.o CMakeFiles/test-bigint.dir/bigint.cc.o CMakeFiles/test-bigint.dir/bigint-test.cc.o  -o ../../bin/test-bigint 

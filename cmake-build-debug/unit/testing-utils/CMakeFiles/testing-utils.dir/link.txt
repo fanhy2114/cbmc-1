@@ -1,0 +1,2 @@
+/usr/bin/ar qc ../../lib/libtesting-utils.a  CMakeFiles/testing-utils.dir/call_graph_test_utils.cpp.o CMakeFiles/testing-utils.dir/free_form_cmdline.cpp.o CMakeFiles/testing-utils.dir/message.cpp.o CMakeFiles/testing-utils.dir/require_expr.cpp.o CMakeFiles/testing-utils.dir/require_symbol.cpp.o CMakeFiles/testing-utils.dir/run_test_with_compilers.cpp.o
+/usr/bin/ranlib ../../lib/libtesting-utils.a

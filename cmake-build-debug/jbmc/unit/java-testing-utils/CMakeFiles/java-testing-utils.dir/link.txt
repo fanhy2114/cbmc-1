@@ -1,0 +1,2 @@
+/usr/bin/ar qc ../../../lib/libjava-testing-utils.a  CMakeFiles/java-testing-utils.dir/load_java_class.cpp.o CMakeFiles/java-testing-utils.dir/require_goto_statements.cpp.o CMakeFiles/java-testing-utils.dir/require_parse_tree.cpp.o CMakeFiles/java-testing-utils.dir/require_type.cpp.o
+/usr/bin/ranlib ../../../lib/libjava-testing-utils.a

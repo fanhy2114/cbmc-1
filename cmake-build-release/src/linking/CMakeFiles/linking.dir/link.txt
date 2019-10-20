@@ -1,0 +1,2 @@
+/usr/bin/ar qc ../../lib/liblinking.a  CMakeFiles/linking.dir/linking.cpp.o CMakeFiles/linking.dir/remove_internal_symbols.cpp.o CMakeFiles/linking.dir/static_lifetime_init.cpp.o
+/usr/bin/ranlib ../../lib/liblinking.a

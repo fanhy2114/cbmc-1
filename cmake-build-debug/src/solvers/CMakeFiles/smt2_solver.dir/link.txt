@@ -1,0 +1,1 @@
+/usr/bin/c++   -Wall -Wpedantic -Werror -Wno-deprecated-declarations -g  -rdynamic CMakeFiles/smt2_solver.dir/smt2/smt2_solver.cpp.o  -o ../../bin/smt2_solver ../../lib/libsolvers.a ../../lib/libminisat2-condensed.a ../../lib/libutil.a ../../lib/liblangapi.a ../../lib/libutil.a ../../lib/liblangapi.a ../../lib/libbig-int.a 

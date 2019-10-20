@@ -1,0 +1,2 @@
+/usr/bin/ar qc ../../lib/libjson-symtab-language.a  CMakeFiles/json-symtab-language.dir/json_symbol.cpp.o CMakeFiles/json-symtab-language.dir/json_symbol_table.cpp.o CMakeFiles/json-symtab-language.dir/json_symtab_language.cpp.o
+/usr/bin/ranlib ../../lib/libjson-symtab-language.a

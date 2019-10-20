@@ -1,0 +1,42 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/fhy18/gitRepo/cbmc-5.11/src/big-int/allocainc.h
+alloca.h
+-
+malloc.h
+-
+builtins.h
+-
+stdlib.h
+-
+stdlib.h
+-
+
+/home/fhy18/gitRepo/cbmc-5.11/src/big-int/bigint-func.cc
+bigint.hh
+/home/fhy18/gitRepo/cbmc-5.11/src/big-int/bigint.hh
+
+/home/fhy18/gitRepo/cbmc-5.11/src/big-int/bigint.cc
+bigint.hh
+/home/fhy18/gitRepo/cbmc-5.11/src/big-int/bigint.hh
+allocainc.h
+/home/fhy18/gitRepo/cbmc-5.11/src/big-int/allocainc.h
+cctype
+-
+climits
+-
+cstring
+-
+cstdio
+-
+
+/home/fhy18/gitRepo/cbmc-5.11/src/big-int/bigint.hh
+utility
+-
+

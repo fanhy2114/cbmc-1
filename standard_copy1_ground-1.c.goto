@@ -1,0 +1,133 @@
+CBMC version 5.10 (cbmc-5.10) 64-bit x86_64 linux
+Parsing ./standard_copy1_ground-1.c
+Converting
+Type-checking standard_copy1_ground-1
+Generating GOTO Program
+Adding CPROVER library (x86_64)
+Removal of function pointers and virtual functions
+Generic Property Instrumentation
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+malloc /* malloc */
+        // 0 file <builtin-library-malloc> line 11 function malloc
+        // Labels: __CPROVER_HIDE
+        void *malloc_res;
+        // 1 file <builtin-library-malloc> line 12 function malloc
+        void *malloc_value;
+        // 2 file <builtin-library-malloc> line 12 function malloc
+        malloc_value = ALLOCATE(malloc_size, 0);
+        // 3 file <builtin-library-malloc> line 12 function malloc
+        malloc_res = malloc_value;
+        // 4 file <builtin-library-malloc> line 15 function malloc
+        __CPROVER_deallocated = malloc_res == __CPROVER_deallocated ? NULL : __CPROVER_deallocated;
+        // 5 file <builtin-library-malloc> line 18 function malloc
+        _Bool record_malloc;
+        // 6 file <builtin-library-malloc> line 18 function malloc
+        record_malloc = NONDET(_Bool);
+        // 7 file <builtin-library-malloc> line 19 function malloc
+        __CPROVER_malloc_object = record_malloc ? malloc_res : __CPROVER_malloc_object;
+        // 8 file <builtin-library-malloc> line 20 function malloc
+        __CPROVER_malloc_size = record_malloc ? malloc_size : __CPROVER_malloc_size;
+        // 9 file <builtin-library-malloc> line 21 function malloc
+        __CPROVER_malloc_is_new_array = (record_malloc ? 0 : (signed int)__CPROVER_malloc_is_new_array) != 0;
+        // 10 file <builtin-library-malloc> line 24 function malloc
+        _Bool record_may_leak;
+        // 11 file <builtin-library-malloc> line 24 function malloc
+        record_may_leak = NONDET(_Bool);
+        // 12 file <builtin-library-malloc> line 25 function malloc
+        __CPROVER_memory_leak = record_may_leak ? malloc_res : __CPROVER_memory_leak;
+        // 13 file <builtin-library-malloc> line 27 function malloc
+        malloc#return_value = malloc_res;
+        // 14 file <builtin-library-malloc> line 27 function malloc
+        dead record_may_leak;
+        // 15 file <builtin-library-malloc> line 27 function malloc
+        dead record_malloc;
+        // 16 file <builtin-library-malloc> line 27 function malloc
+        dead malloc_value;
+        // 17 file <builtin-library-malloc> line 27 function malloc
+        dead malloc_res;
+        // 18 file <builtin-library-malloc> line 28 function malloc
+        END_FUNCTION
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+__CPROVER_initialize /* __CPROVER_initialize */
+        // 19 file <built-in-additions> line 11
+        // Labels: __CPROVER_HIDE
+        __CPROVER_dead_object = NULL;
+        // 20 file <built-in-additions> line 10
+        __CPROVER_deallocated = NULL;
+        // 21 file <built-in-additions> line 14
+        __CPROVER_malloc_is_new_array = 0 != 0;
+        // 22 file <built-in-additions> line 12
+        __CPROVER_malloc_object = NULL;
+        // 23 file <built-in-additions> line 13
+        __CPROVER_malloc_size = 0ul;
+        // 24 file <built-in-additions> line 15
+        __CPROVER_memory_leak = NULL;
+        // 25 file <built-in-additions> line 8
+        __CPROVER_next_thread_id = (unsigned long int)0;
+        // 26 file <built-in-additions> line 29
+        __CPROVER_pipe_count = (unsigned int)0;
+        // 27 file <built-in-additions> line 20
+        __CPROVER_rounding_mode = 0;
+        // 28 file <built-in-additions> line 6
+        __CPROVER_thread_id = (unsigned long int)0;
+        // 29 file <built-in-additions> line 7
+        __CPROVER_threads_exited = ARRAY_OF(FALSE);
+        // 30 no location
+        END_FUNCTION
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+proc1 /* proc1 */
+        // 31 file ./standard_copy1_ground-1.c line 6 function proc1
+        signed int *a;
+        // 32 file ./standard_copy1_ground-1.c line 6 function proc1
+        void *return_value_malloc;
+        // 33 file ./standard_copy1_ground-1.c line 6 function proc1
+        malloc(sizeof(signed int) /*4ul*/  * (unsigned long int)len);
+        // 34 file ./standard_copy1_ground-1.c line 6 function proc1
+        return_value_malloc = malloc#return_value;
+        // 35 file ./standard_copy1_ground-1.c line 6 function proc1
+        dead malloc#return_value;
+        // 36 file ./standard_copy1_ground-1.c line 6 function proc1
+        a = (signed int *)return_value_malloc;
+        // 37 file ./standard_copy1_ground-1.c line 7 function proc1
+        ASSERT !overflow("+", signed int *, a, (signed long int)(-1 + len)) // pointer arithmetic overflow on + in a + (signed long int)(len - 1)
+        // 38 file ./standard_copy1_ground-1.c line 7 function proc1
+        a[(signed long int)(len - 1)] = 0;
+        // 39 file ./standard_copy1_ground-1.c line 9 function proc1
+        signed int i;
+        // 40 file ./standard_copy1_ground-1.c line 10 function proc1
+     1: ASSERT !overflow("+", signed int *, a, (signed long int)i) // pointer arithmetic overflow on + in a + (signed long int)i
+        // 41 file ./standard_copy1_ground-1.c line 10 function proc1
+        IF !(a[(signed long int)i] != 0) THEN GOTO 2
+        // 42 file ./standard_copy1_ground-1.c line 12 function proc1
+        i = i + 1;
+        // 43 file ./standard_copy1_ground-1.c line 10 function proc1
+        GOTO 1
+        // 44 file ./standard_copy1_ground-1.c line 14 function proc1
+     2: dead i;
+        // 45 file ./standard_copy1_ground-1.c line 14 function proc1
+        dead a;
+        // 46 file ./standard_copy1_ground-1.c line 14 function proc1
+        dead return_value_malloc;
+        // 47 file ./standard_copy1_ground-1.c line 14 function proc1
+        END_FUNCTION
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+__CPROVER__start /* __CPROVER__start */
+        // 48 no location
+        __CPROVER_initialize();
+        // 49 file ./standard_copy1_ground-1.c line 5
+        signed int len;
+        // 50 file ./standard_copy1_ground-1.c line 5
+        len = NONDET(signed int);
+        // 51 file ./standard_copy1_ground-1.c line 5
+        INPUT("len", len);
+        // 52 file ./standard_copy1_ground-1.c line 5
+        proc1(len);
+        // 53 no location
+        dead len;
+        // 54 no location
+        END_FUNCTION
+

@@ -1,0 +1,2 @@
+/usr/bin/ar qc ../../lib/libclobber-lib.a  CMakeFiles/clobber-lib.dir/clobber_parse_options.cpp.o
+/usr/bin/ranlib ../../lib/libclobber-lib.a

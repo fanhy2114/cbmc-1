@@ -1,0 +1,2 @@
+/usr/bin/ar qc ../../lib/libjsil.a  CMakeFiles/jsil.dir/expr2jsil.cpp.o CMakeFiles/jsil.dir/jsil_convert.cpp.o CMakeFiles/jsil.dir/jsil_entry_point.cpp.o CMakeFiles/jsil.dir/jsil_internal_additions.cpp.o CMakeFiles/jsil.dir/jsil_language.cpp.o CMakeFiles/jsil.dir/jsil_parse_tree.cpp.o CMakeFiles/jsil.dir/jsil_parser.cpp.o CMakeFiles/jsil.dir/jsil_typecheck.cpp.o CMakeFiles/jsil.dir/jsil_types.cpp.o CMakeFiles/jsil.dir/jsil_y.tab.cpp.o CMakeFiles/jsil.dir/jsil_lex.yy.cpp.o
+/usr/bin/ranlib ../../lib/libjsil.a

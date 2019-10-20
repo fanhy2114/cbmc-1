@@ -1,0 +1,2 @@
+/usr/bin/ar qc ../../../lib/libjdiff-lib.a  CMakeFiles/jdiff-lib.dir/java_syntactic_diff.cpp.o CMakeFiles/jdiff-lib.dir/jdiff_languages.cpp.o CMakeFiles/jdiff-lib.dir/jdiff_parse_options.cpp.o
+/usr/bin/ranlib ../../../lib/libjdiff-lib.a

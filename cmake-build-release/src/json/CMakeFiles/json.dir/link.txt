@@ -1,0 +1,2 @@
+/usr/bin/ar qc ../../lib/libjson.a  CMakeFiles/json.dir/json_parser.cpp.o CMakeFiles/json.dir/json_y.tab.cpp.o CMakeFiles/json.dir/json_lex.yy.cpp.o
+/usr/bin/ranlib ../../lib/libjson.a

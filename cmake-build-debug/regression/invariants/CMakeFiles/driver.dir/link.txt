@@ -1,0 +1,1 @@
+/usr/bin/c++   -Wall -Wpedantic -Werror -Wno-deprecated-declarations -g  -rdynamic CMakeFiles/driver.dir/driver.cpp.o  -o ../../bin/driver ../../lib/libbig-int.a ../../lib/libutil.a ../../lib/liblangapi.a ../../lib/libutil.a ../../lib/liblangapi.a ../../lib/libbig-int.a 

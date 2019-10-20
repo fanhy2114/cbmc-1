@@ -1,0 +1,42 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/fhy18/gitRepo/cbmc-5.11/jbmc/src/miniz/miniz.cpp
+miniz.h
+/home/fhy18/gitRepo/cbmc-5.11/jbmc/src/miniz/miniz.h
+sys/stat.h
+-
+sys/utime.h
+-
+sys/utime.h
+-
+sys/utime.h
+-
+utime.h
+-
+utime.h
+-
+utime.h
+-
+
+/home/fhy18/gitRepo/cbmc-5.11/jbmc/src/miniz/miniz.h
+time.h
+-
+assert.h
+-
+stdlib.h
+-
+string.h
+-
+stdint.h
+-
+stdbool.h
+-
+stdio.h
+-
+

@@ -1,0 +1,2 @@
+/usr/bin/ar qc ../../lib/libgoto-diff-lib.a  CMakeFiles/goto-diff-lib.dir/change_impact.cpp.o CMakeFiles/goto-diff-lib.dir/goto_diff_base.cpp.o CMakeFiles/goto-diff-lib.dir/goto_diff_languages.cpp.o CMakeFiles/goto-diff-lib.dir/goto_diff_parse_options.cpp.o CMakeFiles/goto-diff-lib.dir/syntactic_diff.cpp.o CMakeFiles/goto-diff-lib.dir/unified_diff.cpp.o
+/usr/bin/ranlib ../../lib/libgoto-diff-lib.a

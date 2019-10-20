@@ -1,0 +1,2 @@
+/usr/bin/ar qc ../../lib/libassembler.a  CMakeFiles/assembler.dir/assembler_parser.cpp.o CMakeFiles/assembler.dir/assembler_lex.yy.cpp.o
+/usr/bin/ranlib ../../lib/libassembler.a
