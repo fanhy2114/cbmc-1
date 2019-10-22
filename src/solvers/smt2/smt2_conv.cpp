@@ -103,7 +103,7 @@ void smt2_convt::write_footer(std::ostream &out)
 {
   out << "\n";
   // __FHY_ADD_BEGIN__
-  add_ssa_constraint();
+//  add_ssa_constraint();
   // __FHY_ADD_END__
 
   // add the assumptions, if any

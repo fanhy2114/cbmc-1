@@ -5,7 +5,7 @@
 
 extern void __VERIFIER_error() __attribute__ ((__noreturn__));
 int __VERIFIER_nondet_int(void);
-//void ldv_assert(int expression) { if (!expression) { ERROR: __VERIFIER_error();}; return; }
+void ldv_assert(int expression) { if (!expression) { ERROR: __VERIFIER_error();}; return; }
 pthread_t t1;
 pthread_mutex_t mutex;
 int pdev;
@@ -13,7 +13,7 @@ int pdev;
 void *thread1(void *arg) {
    pthread_mutex_lock(&mutex);
    pdev = 6;
-   assert(pdev==6);
+   ldv_assert(pdev==6);
    pthread_mutex_unlock(&mutex);
    return 0;
 }
@@ -22,7 +22,7 @@ int module_init() {
    pthread_mutex_init(&mutex, NULL);
    //not a race
    pdev = 1;
-   assert(pdev==1);
+   ldv_assert(pdev==1);
   //  pthread_create(&t1, NULL, thread1, NULL);
   //  return 0;
    if(__VERIFIER_nondet_int()) {
@@ -35,7 +35,7 @@ int module_init() {
    }
    //not a race
    pdev = 3;
-   assert(pdev==3);
+   ldv_assert(pdev==3);
    pthread_mutex_destroy(&mutex);
    return -1;
 }

@@ -687,8 +687,8 @@ void path_explorert::perform_symbolic_execution(
 void bmct::fix_ssa(){
 	unsigned count = 0;
 	std::smatch sm;
-	std::string pattern = R"(!\(__CPROVER_threads_exited#(\d+)\$wclk\$(\d+)(\s*)>=(\s*))";
-	pattern.append(R"(__CPROVER_threads_exited#(\d+)\$rclk\$(\d+)\)(\s*)\|\|(\s*)(.*))");
+	std::string pattern = R"(!choice_rf(\d+)(\s*)\|\|(\s*)!\(__CPROVER_threads_exited#(\d+)\$wclk\$(\d+)(\s*)>=(\s*))";
+	pattern.append(R"(__CPROVER_threads_exited#(\d+)\$rclk\$(\d+)\)(.*))");
 	std::regex re(pattern);
 	for(auto &step : equation.SSA_steps){
 		const irep_idt &function = step.source.pc->function;
@@ -700,17 +700,17 @@ void bmct::fix_ssa(){
 			std::string new_expr = string_value.substr(0, string_value.find("||"));
 			//equation.constraint(implies_exprt(true_exprt(), to_expr(ns, step.source.pc->function, new_expr)), "fix_ssa", step.source);
 //		std::cout<<"function: "<<function<<" ssa: "<<string_value<<std::endl;
-//		for (const auto &i : sm) {
-//			if(i == ' ')
-//				continue;
-//			std::cout << i << std::endl;
-//			break;
-//		}
+		for (const auto &i : sm) {
+			if(i == ' ')
+				continue;
+			std::cout << i << std::endl;
+			break;
+		}
 			fix_constraint.push_back(sm[sm.size() - 1]);
 			count++;
 		}
 	}
-//  std::string str = "!(__CPROVER_threads_exited#5$wclk$8 >= __CPROVER_threads_exited#2$rclk$8) || (guard1 && guard2) || !choice_rf1";
+//  std::string str = "(guard1 && guard2) || !choice_rf1 || !(__CPROVER_threads_exited#5$wclk$8 >= __CPROVER_threads_exited#2$rclk$8)";
 //  if(std::regex_match(str, sm, re)){
 //  	for (const auto &i : sm) {
 //  		if(i == ' ')
@@ -719,9 +719,9 @@ void bmct::fix_ssa(){
 //  	}
 //  	fix_constraint.push_back(sm[sm.size() - 1]);
 //  }
-	std::cout << "\n" << "Fix SSA expressions: " <<count<< std::endl;
-//  for(const auto &i : fix_constraint){
-//  	std::cout << i <<"\n";
-//  }
+  std::cout << "\n" << "Fix SSA expressions: " <<count<< std::endl;
+  for(const auto &i : fix_constraint){
+  	std::cout << i <<"\n";
+  }
 }
 // __FHY_ADD_END__
