@@ -695,6 +695,7 @@ void bmct::fix_ssa(){
 		std::string string_value = from_expr(ns, function, step.cond_expr);
 		if(!(step.is_constraint() && function == "pthread_join"))
 			continue;
+		std::cout<<"function: "<<function<<" ssa: "<<string_value<<std::endl;
 		if(std::regex_match(string_value, sm, re)){
 			std::string new_expr = string_value.substr(0, string_value.find("||"));
 			//equation.constraint(implies_exprt(true_exprt(), to_expr(ns, step.source.pc->function, new_expr)), "fix_ssa", step.source);
