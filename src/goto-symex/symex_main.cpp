@@ -22,6 +22,13 @@ Author: Daniel Kroening, kroening@kroening.com
 #include <util/symbol_table.h>
 
 #include <analyses/dirty.h>
+// __FHY_ADD_BEGIN__
+#include <iostream>
+#include "goto-programs/show_symbol_table.h"
+#include "util/format.h"
+#include "util/format_type.h"
+#include "util/format_expr.h"
+// __FHY_ADD_END__
 
 symex_configt::symex_configt(const optionst &options)
   : max_depth(options.get_unsigned_int_option("depth")),
@@ -297,6 +304,11 @@ void goto_symext::symex_from_entry_point_of(
   try
   {
     start_function = &get_goto_function(goto_functionst::entry_point());
+    // __FHY_ADD_BEGIN__
+//    const namespacet ns(outer_symbol_table);
+//    std::cout<<"entry point name"<<std::endl<<goto_functionst::entry_point().c_str()<<std::endl;
+//    start_function->body.output(ns,goto_functionst::entry_point(),std::cout);
+	// __FHY_ADD_END__
   }
   catch(const std::out_of_range &)
   {

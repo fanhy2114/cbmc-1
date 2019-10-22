@@ -30,6 +30,10 @@ Author: Daniel Kroening, kroening@kroening.com
 #include <goto-symex/memory_model.h>
 
 #include "symex_bmc.h"
+// __FHY_ADD_BEGIN__
+#include <vector>
+// __FHY_ADD_END__
+
 
 class cbmc_solverst;
 
@@ -185,6 +189,9 @@ protected:
     prop_convt &);
 
   void do_conversion();
+  // __FHY_ADD_BEGIN__
+  void fix_ssa();
+  // __FHY_ADD_END__
 
   virtual void freeze_program_variables();
 
