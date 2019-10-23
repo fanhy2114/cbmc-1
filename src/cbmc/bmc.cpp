@@ -39,6 +39,7 @@ Author: Daniel Kroening, kroening@kroening.com
 #include "show_symbol_table.h"
 #include "cpp_language.h"
 #include <regex>
+#include <util/expr_iterator.h>
 #include "memory_model.h"
 std::vector<std::string> fix_constraint;
 // __FHY_ADD_END_
@@ -686,39 +687,101 @@ void path_explorert::perform_symbolic_execution(
 // __FHY_ADD_BEGIN__
 void bmct::fix_ssa(){
 	unsigned count = 0;
-	std::smatch sm;
 	std::string pattern = R"(!choice_rf(\d+)(\s*)\|\|(\s*)!\(__CPROVER_threads_exited#(\d+)\$wclk\$(\d+)(\s*)>=(\s*))";
-	pattern.append(R"(__CPROVER_threads_exited#(\d+)\$rclk\$(\d+)\)(.*))");
+	pattern.append(R"(__CPROVER_threads_exited#2\$rclk\$(\d+)\)(.*))");
 	std::regex re(pattern);
-	for(auto &step : equation.SSA_steps){
+	std::regex re_old(R"(!choice_rf(\d+)(\s*)\|\|(\s*)__CPROVER_threads_exited#(\d+)(\s*)==(\s*)__CPROVER_threads_exited#(\d+))");
+	std::regex re_guard(R"((!*)\\guard#(\d+))");
+	symex_target_equationt::SSA_stept temp;
+	for(const auto &step : equation.SSA_steps){
 		const irep_idt &function = step.source.pc->function;
 		std::string string_value = from_expr(ns, function, step.cond_expr);
+		std::string str = from_expr(ns, function, temp.cond_expr);
 		if(!(step.is_constraint() && function == "pthread_join"))
 			continue;
+		std::cout <<"===" <<str <<"\n";
+		std::cout <<"===" <<string_value << "\n";
 		std::cout<<"function: "<<function<<" ssa: "<<string_value<<std::endl;
-		if(std::regex_match(string_value, sm, re)){
-			std::string new_expr = string_value.substr(0, string_value.find("||"));
-			//equation.constraint(implies_exprt(true_exprt(), to_expr(ns, step.source.pc->function, new_expr)), "fix_ssa", step.source);
-//		std::cout<<"function: "<<function<<" ssa: "<<string_value<<std::endl;
-		for (const auto &i : sm) {
-			if(i == ' ')
-				continue;
-			std::cout << i << std::endl;
-			break;
-		}
-			fix_constraint.push_back(sm[sm.size() - 1]);
+		if(std::regex_match(string_value, re)){
+			std::string temp_string_value = from_expr(ns, function, temp.cond_expr);
+			if(std::regex_match(temp_string_value, re_old)){
+				temp.cond_expr.operands()[0].make_not();
+				equation.constraint(temp.cond_expr.operands()[0], "fix-ssa", temp.source);
+				fix_constraint.push_back(from_expr(ns, function, temp.cond_expr.operands()[0]));
+			}
+			else{
+				std::cout <<"aaaaa"<<"\n";
+				for(unsigned int i = 0 ; i < temp.cond_expr.operands().size(); i++){
+					std::cout << "*** "<<from_expr(ns, function, temp.cond_expr.operands()[i]) <<"\n";
+				}
+				assert(temp.cond_expr.operands().size() >= 2);
+				// init new constraint expression
+				exprt e(temp.cond_expr.id(), temp.cond_expr.type());
+				temp.cond_expr.operands()[0].make_not();
+				exprt choice_rf = temp.cond_expr.operands()[0];
+				
+				std::string guard_string = from_expr(ns, function, temp.cond_expr.operands()[1]);
+				bool guard_flag = true;
+				bool meet_flag = false;
+				and_exprt guard_rf;
+				guard_rf.add_to_operands(true_exprt());
+				for(auto it = temp.cond_expr.depth_begin(); it!=temp.cond_expr.depth_end(); it++){
+					std::cout <<"---  " << it->operands().size() <<"\n";
+					std::cout <<"----- "<< from_expr(ns, function, *it) <<"\n";
+					if(it == temp.cond_expr.depth_begin())
+						continue;
+					if(from_expr(ns, function,*it) == guard_string){
+						guard_flag = it->operands().size() % 2 == 0;
+						continue;
+					}
+					if(it->operands().size()==0 && std::regex_match(from_expr(ns, function,*it), re_guard)){
+						meet_flag = true;
+						guard_rf.add_to_operands(*it);
+						continue;
+					}
+					for (const auto &i : it->operands()) {
+						std::string temp_str = from_expr(ns, function, i);
+						std::cout << "------  "<<temp_str <<"\n";
+						if(std::regex_match(temp_str, re_guard)){
+							meet_flag = true;
+							guard_rf.add_to_operands(i);
+						}
+						else if(meet_flag){
+							break;
+						}
+					}
+					if(meet_flag)
+						break;
+				}
+				if(!meet_flag){
+					e.add_to_operands(choice_rf);
+					equation.constraint(e, "fix-ssa", temp.source);
+				}
+				else{
+					if(guard_flag)
+						guard_rf.make_not();
+					e.add_to_operands(choice_rf, guard_rf);
+					equation.constraint(e, "fix-ssa", temp.source);
+				}
+				fix_constraint.push_back(from_expr(ns, function, e));
+//				std::cout << "-  " <<e.operands().size() <<"\n";
+//				e.add_to_operands(temp.cond_expr.operands()[0],temp.cond_expr.operands()[1]);
+//				std::cout << "-  " <<e.operands().size() <<"\n";
+//				equation.constraint(e, "fix-ssa", temp.source);
+//				for(auto it = temp.cond_expr.depth_begin(); it != temp.cond_expr.depth_end(); it++){
+//					std::cout <<"---  " << it->operands().size() <<"\n";
+//					std::cout <<"----- "<< from_expr(ns, function, *it) <<"\n";
+//					for(unsigned int i = 0; i< it->operands().size();i++){
+//						std::cout <<"-------  "<< from_expr(ns,function,it->operands()[i])<<"\n";
+//					}
+//				}
+//				equation.constraint(temp.cond_expr, "fix-ssa", temp.source);
+//				fix_constraint.push_back(from_expr(ns, function, temp.cond_expr));
+			}
 			count++;
 		}
+		temp = step;
 	}
-//  std::string str = "(guard1 && guard2) || !choice_rf1 || !(__CPROVER_threads_exited#5$wclk$8 >= __CPROVER_threads_exited#2$rclk$8)";
-//  if(std::regex_match(str, sm, re)){
-//  	for (const auto &i : sm) {
-//  		if(i == ' ')
-//  			continue;
-//  		std::cout << i << std::endl;
-//  	}
-//  	fix_constraint.push_back(sm[sm.size() - 1]);
-//  }
   std::cout << "\n" << "Fix SSA expressions: " <<count<< std::endl;
   for(const auto &i : fix_constraint){
   	std::cout << i <<"\n";

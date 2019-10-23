@@ -103,7 +103,7 @@ void smt2_convt::write_footer(std::ostream &out)
 {
   out << "\n";
   // __FHY_ADD_BEGIN__
-//  add_ssa_constraint();
+	//  add_ssa_constraint();
   // __FHY_ADD_END__
 
   // add the assumptions, if any
@@ -4830,6 +4830,12 @@ void smt2_convt::add_ssa_constraint() {
 	std::regex re(R"(!choice_rf(\d+))");
 	std::smatch sm;
 	for(const auto& i : fix_constraint){
+		for (const auto &i : sm) {
+			if(i == ' ')
+				continue;
+			std::cout << i << std::endl;
+			break;
+		}
 		if(std::regex_search(i, sm, re)){
 			out<<"; set to true fixed\n";
 			out<<"(assert |memory_model::choice_rf"<<sm[sm.size()-1]<<"|)\n";

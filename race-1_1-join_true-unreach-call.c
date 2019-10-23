@@ -49,7 +49,7 @@ void module_exit() {
    pthread_mutex_destroy(&mutex);
    //not a race
    pdev = 5;
-   assert(pdev==5);
+   ldv_assert(pdev==5);
 }
 
 int main(void) {
