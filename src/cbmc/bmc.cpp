@@ -731,17 +731,17 @@ void bmct::fix_ssa(){
 					if(it == temp.cond_expr.depth_begin())
 						continue;
 					if(from_expr(ns, function,*it) == guard_string){
-						guard_flag = it->operands().size() % 2 == 0;
 						continue;
 					}
 					if(it->operands().size()==0 && std::regex_match(from_expr(ns, function,*it), re_guard)){
 						meet_flag = true;
+						guard_flag = true;
 						guard_rf.add_to_operands(*it);
 						continue;
 					}
 					for (const auto &i : it->operands()) {
 						std::string temp_str = from_expr(ns, function, i);
-						std::cout << "------  "<<temp_str <<"\n";
+						std::cout << "-------  "<<temp_str <<"\n";
 						if(std::regex_match(temp_str, re_guard)){
 							meet_flag = true;
 							guard_rf.add_to_operands(i);
