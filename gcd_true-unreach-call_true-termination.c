@@ -1,13 +1,13 @@
 extern void __VERIFIER_error(void) __attribute__ ((__noreturn__));
 extern void __VERIFIER_assume(int);
 // Copyright (c) 2015 Michael Tautschnig <michael.tautschnig@qmul.ac.uk>
-// 
+//
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
-// 
+//
 //     http://www.apache.org/licenses/LICENSE-2.0
-// 
+//
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -36,11 +36,11 @@ Implementation
 In pseudocode, the algorithm is described as follows:
 
 (
-  WHILE a != b DO                                        
+  WHILE a != b DO
       IF a>b THEN a:=a-b ELSE SKIP FI
   OD
 ||
-  WHILE a != b DO                                        
+  WHILE a != b DO
        IF b>a THEN b:=b-a ELSE SKIP FI
   OD
 );
