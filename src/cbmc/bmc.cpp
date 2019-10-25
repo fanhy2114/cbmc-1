@@ -212,23 +212,23 @@ void bmct::fix_ssa(){
   unsigned count = 0;
   std::smatch sm;
   std::string pattern = R"(!\(__CPROVER_threads_exited#(\d+)\$wclk\$(\d+)(\s*)>=(\s*))";
-  pattern.append(R"(__CPROVER_threads_exited#(\d+)\$rclk\$(\d+)\)(\s*)\|\|(\s*)(.*))");
+  pattern.append(R"(__CPROVER_threads_exited#2\$rclk\$(\d+)\)(\s*)\|\|(\s*)(.*))");
   std::regex re(pattern);
   for(auto &step : equation.SSA_steps){
     const irep_idt &function = step.source.pc->function;
     std::string string_value = from_expr(ns, function, step.cond_expr);
     if(!(step.is_constraint() && function == "pthread_join"))
 		continue;
+    std::cout<<"function: "<<function<<" ssa: "<<string_value<<std::endl;
 	if(std::regex_match(string_value, sm, re)){
 	    std::string new_expr = string_value.substr(0, string_value.find("||"));
-		//equation.constraint(implies_exprt(true_exprt(), to_expr(ns, step.source.pc->function, new_expr)), "fix_ssa", step.source);
 //		std::cout<<"function: "<<function<<" ssa: "<<string_value<<std::endl;
-//		for (const auto &i : sm) {
-//			if(i == ' ')
-//				continue;
-//			std::cout << i << std::endl;
-//			break;
-//		}
+		for (const auto &i : sm) {
+			if(i == ' ')
+				continue;
+			std::cout << i << std::endl;
+			break;
+		}
 		fix_constraint.push_back(sm[sm.size() - 1]);
 		count++;
 	}
@@ -243,9 +243,9 @@ void bmct::fix_ssa(){
 //  	fix_constraint.push_back(sm[sm.size() - 1]);
 //  }
   std::cout << "\n" << "Fix SSA expressions: " <<count<< std::endl;
-//  for(const auto &i : fix_constraint){
-//  	std::cout << i <<"\n";
-//  }
+  for(const auto &i : fix_constraint){
+  	std::cout << i <<"\n";
+  }
 }
 // __FHY_ADD_END__
 
