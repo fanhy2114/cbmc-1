@@ -37,6 +37,7 @@ Author: Daniel Kroening, kroening@kroening.com
 #include "cpp_language.h"
 #include <regex>
 #include "memory_model.h"
+#include "expr_iterator.h"
 std::vector<std::string> fix_constraint;
 // __FHY_ADD_END_
 
@@ -207,47 +208,6 @@ void bmct::report_failure()
   }
 }
 
-// __FHY_ADD_BEGIN__
-void bmct::fix_ssa(){
-  unsigned count = 0;
-  std::smatch sm;
-  std::string pattern = R"(!\(__CPROVER_threads_exited#(\d+)\$wclk\$(\d+)(\s*)>=(\s*))";
-  pattern.append(R"(__CPROVER_threads_exited#2\$rclk\$(\d+)\)(\s*)\|\|(\s*)(.*))");
-  std::regex re(pattern);
-  for(auto &step : equation.SSA_steps){
-    const irep_idt &function = step.source.pc->function;
-    std::string string_value = from_expr(ns, function, step.cond_expr);
-    if(!(step.is_constraint() && function == "pthread_join"))
-		continue;
-    std::cout<<"function: "<<function<<" ssa: "<<string_value<<std::endl;
-	if(std::regex_match(string_value, sm, re)){
-	    std::string new_expr = string_value.substr(0, string_value.find("||"));
-//		std::cout<<"function: "<<function<<" ssa: "<<string_value<<std::endl;
-		for (const auto &i : sm) {
-			if(i == ' ')
-				continue;
-			std::cout << i << std::endl;
-			break;
-		}
-		fix_constraint.push_back(sm[sm.size() - 1]);
-		count++;
-	}
-  }
-//  std::string str = "!(__CPROVER_threads_exited#5$wclk$8 >= __CPROVER_threads_exited#2$rclk$8) || (guard1 && guard2) || !choice_rf1";
-//  if(std::regex_match(str, sm, re)){
-//  	for (const auto &i : sm) {
-//  		if(i == ' ')
-//  			continue;
-//  		std::cout << i << std::endl;
-//  	}
-//  	fix_constraint.push_back(sm[sm.size() - 1]);
-//  }
-  std::cout << "\n" << "Fix SSA expressions: " <<count<< std::endl;
-  for(const auto &i : fix_constraint){
-  	std::cout << i <<"\n";
-  }
-}
-// __FHY_ADD_END__
 
 void bmct::show_program()
 {
@@ -779,3 +739,101 @@ void path_explorert::perform_symbolic_execution(
   symex.resume_symex_from_saved_state(
     get_goto_function, saved_state, &equation, symex_symbol_table);
 }
+
+// __FHY_ADD_BEGIN__
+void bmct::fix_ssa(){
+	unsigned int count = 0;
+	std::string pattern = R"(!\(__CPROVER_threads_exited#(\d+)\$wclk\$(\d+)(\s*)>=(\s*))";
+	pattern.append(R"(__CPROVER_threads_exited#2\$rclk\$(\d+)\)(\s*)\|\|(\s*)(.*))");
+	std::regex re(pattern);
+	std::regex re_old(R"(__CPROVER_threads_exited#(\d+)(\s*)==(\s*)__CPROVER_threads_exited#(\d+)(\s*)\|\|(\s*)!choice_rf(\d+))");
+	std::regex re_guard(R"((!*)\\guard#(\d+))");
+	symex_target_equationt::SSA_stept pre_step;
+	for(auto &step : equation.SSA_steps){
+		const irep_idt &function = step.source.pc->function;
+		std::string string_value = from_expr(ns, function, step.cond_expr);
+		std::string str = from_expr(ns, function, pre_step.cond_expr);
+		if(!(step.is_constraint() && function == "pthread_join"))
+			continue;
+//		std::cout <<"===" <<str <<"\n";
+//		std::cout <<"===" <<string_value << "\n";
+//		std::cout<<"function: "<<function<<" ssa: "<<string_value<<std::endl;
+		if(std::regex_match(string_value, re)){
+			std::string temp_string_value = from_expr(ns, function, pre_step.cond_expr);
+			if(std::regex_match(temp_string_value, re_old)){
+				pre_step.cond_expr.operands()[1].make_not();
+				equation.constraint(pre_step.cond_expr.operands()[1], "fix-ssa", pre_step.source);
+				fix_constraint.push_back(from_expr(ns, function, pre_step.cond_expr.operands()[1]));
+			}
+			else{
+//				for (const auto &i : pre_step.cond_expr.operands()){
+//					std::cout << "*** "<<from_expr(ns, function, i) <<"\n";
+//				}
+				assert(pre_step.cond_expr.operands().size() >= 2);
+				// init new constraint expression
+				// turn choice_rf1 -> guard_rf into guard_rf -> choice_rf
+				exprt e(pre_step.cond_expr.id(), pre_step.cond_expr.type());
+				pre_step.cond_expr.operands()[1].make_not();
+				exprt choice_rf = pre_step.cond_expr.operands()[1];
+				std::string guard_string = from_expr(ns, function, pre_step.cond_expr.operands()[0]);
+				bool guard_flag = true;
+				if(guard_string.substr(0, 2) == "!("){
+					guard_flag = false;
+					pre_step.cond_expr.operands()[0].make_not();
+					guard_string = from_expr(ns, function, pre_step.cond_expr.operands()[0]);
+				}
+				bool meet_flag = false;
+				and_exprt guard_rf;
+				guard_rf.copy_to_operands(true_exprt());
+				for(auto it = pre_step.cond_expr.depth_begin(); it!=pre_step.cond_expr.depth_end(); it++){
+//					std::cout <<"---  " << it->operands().size() <<"\n";
+//					std::cout <<"----- "<< from_expr(ns, function, *it) <<"\n";
+					if(it == pre_step.cond_expr.depth_begin())
+						continue;
+					if(from_expr(ns, function,*it) == guard_string){
+						if(!std::regex_search(guard_string, re_guard)){
+							break;
+						}
+						else if (guard_string.find("&&") == std::string::npos){
+							guard_rf.copy_to_operands(*it);
+							break;
+						}
+						else{
+							for(const auto &i : it->operands()){
+								std::string temp_str = from_expr(ns, function, i);
+//								std::cout << "-------  "<<temp_str <<"\n";
+								if(std::regex_search(temp_str, re_guard)){
+									meet_flag = true;
+									guard_rf.copy_to_operands(i);
+								}
+								else{
+									continue;
+								}
+							}
+						}
+					}
+					if(meet_flag)
+						break;
+				}
+				if(!meet_flag){
+					e = choice_rf;
+				}
+				else{
+					if(guard_flag)
+						guard_rf.make_not();
+					e.copy_to_operands(choice_rf, guard_rf);
+
+				}
+				equation.constraint(e, "fix-ssa", pre_step.source);
+				fix_constraint.push_back(from_expr(ns, function, e));
+			}
+			count++;
+		}
+		pre_step = step;
+	}
+  std::cout << "\n" << "Fix SSA expressions: " <<count<< std::endl;
+  for(const auto &i : fix_constraint){
+  	std::cout << i <<"\n";
+  }
+}
+// __FHY_ADD_END__
