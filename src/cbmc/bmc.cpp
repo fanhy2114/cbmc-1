@@ -755,9 +755,9 @@ void bmct::fix_ssa(){
 		std::string str = from_expr(ns, function, pre_step.cond_expr);
 		if(!(step.is_constraint() && function == "pthread_join"))
 			continue;
-//		std::cout <<"===" <<str <<"\n";
-//		std::cout <<"===" <<string_value << "\n";
-//		std::cout<<"function: "<<function<<" ssa: "<<string_value<<std::endl;
+		std::cout <<"===" <<str <<"\n";
+		std::cout <<"===" <<string_value << "\n";
+		std::cout<<"function: "<<function<<" ssa: "<<string_value<<std::endl;
 		if(std::regex_match(string_value, re)){
 			std::string temp_string_value = from_expr(ns, function, pre_step.cond_expr);
 			if(std::regex_match(temp_string_value, re_old)){
@@ -766,9 +766,9 @@ void bmct::fix_ssa(){
 				fix_constraint.push_back(from_expr(ns, function, pre_step.cond_expr.operands()[1]));
 			}
 			else{
-//				for (const auto &i : pre_step.cond_expr.operands()){
-//					std::cout << "*** "<<from_expr(ns, function, i) <<"\n";
-//				}
+				for (const auto &i : pre_step.cond_expr.operands()){
+					std::cout << "*** "<<from_expr(ns, function, i) <<"\n";
+				}
 				assert(pre_step.cond_expr.operands().size() >= 2);
 				// init new constraint expression
 				// turn choice_rf1 -> guard_rf into guard_rf -> choice_rf
@@ -786,8 +786,8 @@ void bmct::fix_ssa(){
 				and_exprt guard_rf;
 				guard_rf.copy_to_operands(true_exprt());
 				for(auto it = pre_step.cond_expr.depth_begin(); it!=pre_step.cond_expr.depth_end(); it++){
-//					std::cout <<"---  " << it->operands().size() <<"\n";
-//					std::cout <<"----- "<< from_expr(ns, function, *it) <<"\n";
+					std::cout <<"---  " << it->operands().size() <<"\n";
+					std::cout <<"----- "<< from_expr(ns, function, *it) <<"\n";
 					if(it == pre_step.cond_expr.depth_begin())
 						continue;
 					if(from_expr(ns, function,*it) == guard_string){
@@ -801,7 +801,7 @@ void bmct::fix_ssa(){
 						else{
 							for(const auto &i : it->operands()){
 								std::string temp_str = from_expr(ns, function, i);
-//								std::cout << "-------  "<<temp_str <<"\n";
+								std::cout << "-------  "<<temp_str <<"\n";
 								if(std::regex_search(temp_str, re_guard)){
 									meet_flag = true;
 									guard_rf.copy_to_operands(i);
