@@ -748,6 +748,7 @@ void bmct::fix_ssa(){
 	std::regex re(pattern);
 	std::regex re_old(R"(__CPROVER_threads_exited#(\d+)(\s*)==(\s*)__CPROVER_threads_exited#(\d+)(\s*)\|\|(\s*)!choice_rf(\d+))");
 	std::regex re_guard(R"((!*)\\guard#(\d+))");
+	std::regex re_exited(R"(__CPROVER_threads_exited#(\d+)(\s*)==(\s*)__CPROVER_threads_exited#(\d+))");
 	symex_target_equationt::SSA_stept pre_step;
 	for(auto &step : equation.SSA_steps){
 		const irep_idt &function = step.source.pc->function;
@@ -802,7 +803,7 @@ void bmct::fix_ssa(){
 							for(const auto &i : it->operands()){
 								std::string temp_str = from_expr(ns, function, i);
 								std::cout << "-------  "<<temp_str <<"\n";
-								if(std::regex_search(temp_str, re_guard)){
+								if(!std::regex_match(temp_str, re_exited)){
 									meet_flag = true;
 									guard_rf.copy_to_operands(i);
 								}
@@ -816,16 +817,16 @@ void bmct::fix_ssa(){
 						break;
 				}
 				if(!meet_flag){
-					e = choice_rf;
+					continue;
 				}
 				else{
 					if(guard_flag)
 						guard_rf.make_not();
 					e.copy_to_operands(choice_rf, guard_rf);
-
+					equation.constraint(e, "fix-ssa", pre_step.source);
+					fix_constraint.push_back(from_expr(ns, function, e));
 				}
-				equation.constraint(e, "fix-ssa", pre_step.source);
-				fix_constraint.push_back(from_expr(ns, function, e));
+				
 			}
 			count++;
 		}
