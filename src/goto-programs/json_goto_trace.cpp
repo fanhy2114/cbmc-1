@@ -12,17 +12,15 @@ Author: Daniel Kroening
 /// Traces of GOTO Programs
 
 #include "json_goto_trace.h"
-#include "goto_trace.h"
 
-#include <util/json_expr.h>
-#include <util/json.h>
-#include <util/json_stream.h>
+#include <langapi/language_util.h>
 #include <util/arith_tools.h>
 #include <util/config.h>
 #include <util/invariant.h>
 #include <util/simplify_expr.h>
-#include <util/json_irep.h>
-#include <langapi/language_util.h>
+
+#include "goto_trace.h"
+#include "json_expr.h"
 
 /// Convert an ASSERT goto_trace step.
 /// \param [out] json_failure: The JSON object that
@@ -77,7 +75,10 @@ void convert_decl(
   const jsont &json_location = conversion_dependencies.location;
   const namespacet &ns = conversion_dependencies.ns;
 
-  irep_idt identifier = step.lhs_object.get_identifier();
+  auto lhs_object=step.get_lhs_object();
+
+  irep_idt identifier =
+    lhs_object.has_value()?lhs_object->get_identifier():irep_idt();
 
   json_assignment["stepType"] = json_stringt("assignment");
 
@@ -135,9 +136,9 @@ void convert_decl(
       type_string = from_type(ns, identifier, symbol->type);
 
     json_assignment["mode"] = json_stringt(symbol->mode);
-    exprt simplified = simplify_expr(step.full_lhs_value, ns);
+    const exprt simplified_expr = simplify_expr(step.full_lhs_value, ns);
 
-    full_lhs_value = json(simplified, ns, symbol->mode);
+    full_lhs_value = json(simplified_expr, ns, symbol->mode);
   }
   else
   {
@@ -274,11 +275,15 @@ void convert_return(
   json_call_return["internal"] = jsont::json_boolean(step.internal);
   json_call_return["thread"] = json_numbert(std::to_string(step.thread_nr));
 
-  const symbolt &symbol = ns.lookup(step.identifier);
-  json_objectt &json_function = json_call_return["function"].make_object();
-  json_function["displayName"] = json_stringt(symbol.display_name());
-  json_function["identifier"] = json_stringt(step.identifier);
-  json_function["sourceLocation"] = json(symbol.location);
+  const irep_idt &function_identifier =
+    (step.type == goto_trace_stept::typet::FUNCTION_CALL) ? step.called_function
+                                                          : step.function;
+
+  const symbolt &symbol = ns.lookup(function_identifier);
+  json_call_return["function"] =
+    json_objectt({{"displayName", json_stringt(symbol.display_name())},
+                  {"identifier", json_stringt(function_identifier)},
+                  {"sourceLocation", json(symbol.location)}});
 
   if(!location.is_null())
     json_call_return["sourceLocation"] = location;

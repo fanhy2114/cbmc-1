@@ -39,12 +39,11 @@ Author: Peter Schrammel
 #include <goto-programs/remove_unused_functions.h>
 #include <goto-programs/remove_vector.h>
 #include <goto-programs/remove_virtual_functions.h>
+#include <goto-programs/rewrite_union.h>
 #include <goto-programs/set_properties.h>
 #include <goto-programs/show_properties.h>
 #include <goto-programs/string_abstraction.h>
 #include <goto-programs/string_instrumentation.h>
-
-#include <goto-symex/rewrite_union.h>
 
 #include <goto-instrument/cover.h>
 
@@ -61,11 +60,13 @@ Author: Peter Schrammel
 #include <goto-diff/goto_diff.h>
 #include <goto-diff/unified_diff.h>
 
+// TODO: do not use language_uit for this; requires a refactoring of
+//   initialize_goto_model to support parsing specific command line files
 jdiff_parse_optionst::jdiff_parse_optionst(int argc, const char **argv)
   : parse_options_baset(JDIFF_OPTIONS, argc, argv),
-    jdiff_languagest(cmdline, ui_message_handler),
+    jdiff_languagest(cmdline, ui_message_handler, &options),
     ui_message_handler(cmdline, std::string("JDIFF ") + CBMC_VERSION),
-    languages2(cmdline, ui_message_handler)
+    languages2(cmdline, ui_message_handler, &options)
 {
 }
 
@@ -74,9 +75,9 @@ jdiff_parse_optionst::jdiff_parse_optionst(int argc, const char **argv)
   const char **argv,
   const std::string &extra_options)
   : parse_options_baset(JDIFF_OPTIONS + extra_options, argc, argv),
-    jdiff_languagest(cmdline, ui_message_handler),
+    jdiff_languagest(cmdline, ui_message_handler, &options),
     ui_message_handler(cmdline, std::string("JDIFF ") + CBMC_VERSION),
-    languages2(cmdline, ui_message_handler)
+    languages2(cmdline, ui_message_handler, &options)
 {
 }
 
@@ -93,6 +94,7 @@ void jdiff_parse_optionst::get_command_line_options(optionst &options)
   // we always require these options
   cmdline.set("no-lazy-methods");
   cmdline.set("no-refine-strings");
+  parse_java_language_options(cmdline, options);
 
   if(cmdline.isset("cover"))
     parse_cover_options(cmdline, options);
@@ -274,8 +276,7 @@ int jdiff_parse_optionst::doit()
   }
 
   java_syntactic_difft sd(
-    goto_model1, goto_model2, options, get_message_handler());
-  sd.set_ui(get_ui());
+    goto_model1, goto_model2, options, ui_message_handler);
   sd();
   sd.output_functions();
 
@@ -344,16 +345,20 @@ bool jdiff_parse_optionst::process_goto_program(
   try
   {
     // remove function pointers
-    status() << "Removal of function pointers and virtual functions" << eom;
+    status() << "Removing function pointers and virtual functions" << eom;
     remove_function_pointers(
       get_message_handler(), goto_model, cmdline.isset("pointer-check"));
 
     // Java virtual functions -> explicit dispatch tables:
     remove_virtual_functions(goto_model);
-    // remove catch and throw
-    remove_exceptions(goto_model, get_message_handler());
+
+    // remove Java throw and catch
+    // This introduces instanceof, so order is important:
+    remove_exceptions_using_instanceof(goto_model, get_message_handler());
+
     // Java instanceof -> clsid comparison:
-    remove_instanceof(goto_model, get_message_handler());
+    class_hierarchyt class_hierarchy(goto_model.symbol_table);
+    remove_instanceof(goto_model, class_hierarchy, get_message_handler());
 
     mm_io(goto_model);
 

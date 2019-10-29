@@ -1,8 +1,8 @@
 /*******************************************************************\
 
- Module: Unit tests for parsing generic classes
+Module: Unit tests for parsing generic classes
 
- Author: DiffBlue Limited. All rights reserved.
+Author: Diffblue Limited.
 
 \*******************************************************************/
 

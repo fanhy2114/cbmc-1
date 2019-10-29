@@ -53,10 +53,10 @@ public:
   /// \remarks
   ///   Allows multiple definitions of the same class to appear on the
   ///   classpath, so long as all but the first definition are marked with the
-  ///   attribute `\@java::com.diffblue.OverlayClassImplementation`.
+  ///   attribute `\@java::org.cprover.OverlayClassImplementation`.
   ///   Overlay class definitions can contain methods with the same signature
   ///   as methods in the original class, so long as these are marked with the
-  ///   attribute `\@java::com.diffblue.OverlayMethodImplementation`; such
+  ///   attribute `\@java::org.cprover.OverlayMethodImplementation`; such
   ///   overlay methods are replaced in the original file with the version
   ///   found in the last overlay on the classpath. Later definitions can
   ///   also contain new supporting methods and fields that are merged in.
@@ -118,11 +118,44 @@ private:
   // see definition below for more info
   static void add_array_types(symbol_tablet &symbol_table);
 
+  /// Check if a method is an overlay method by searching for
+  /// `ID_overlay_method` in its list of annotations.
+  ///
+  /// An overlay method is a method with the annotation
+  /// \@OverlayMethodImplementation. They should only appear in
+  /// [overlay classes](\ref java_class_loader.cpp::is_overlay_class). They
+  /// will be loaded by JBMC instead of the method with the same signature
+  /// in the underlying class. It is an error if there is no method with the
+  /// same signature in the underlying class. It is an error if a method in
+  /// an overlay class has the same signature as a method in the underlying
+  /// class and it isn't marked as an overlay method or an
+  /// [ignored method](\ref java_bytecode_convert_classt::is_ignored_method).
+  ///
+  /// \param method: a `methodt` object from a java bytecode parse tree
+  /// \return true if the method is an overlay method, else false
   static bool is_overlay_method(const methodt &method)
   {
     return method.has_annotation(ID_overlay_method);
   }
 
+  /// Check if a method is an ignored method by searching for
+  /// `ID_ignored_method` in its list of annotations.
+  ///
+  /// An ignored method is a method with the annotation
+  /// \@IgnoredMethodImplementation. They will be ignored by JBMC. They are
+  /// intended for use in
+  /// [overlay classes](\ref java_class_loader.cpp::is_overlay_class), in
+  /// particular for methods which must exist in the overlay class so that
+  /// it will compile, e.g. default constructors, but which we do not want
+  /// to overlay the corresponding method in the
+  /// underlying class. It is an error if a method in
+  /// an overlay class has the same signature as a method in the underlying
+  /// class and it isn't marked as an
+  /// [overlay method](\ref java_bytecode_convert_classt::is_overlay_method)
+  /// or an ignored method.
+  ///
+  /// \param method: a `methodt` object from a java bytecode parse tree
+  /// \return true if the method is an ignored method, else false
   static bool is_ignored_method(const methodt &method)
   {
     return method.has_annotation(ID_ignored_method);
@@ -143,9 +176,9 @@ private:
 /// - class: A<T> extends B<T, Integer> implements C, D<T>
 /// - signature: <T:Ljava/lang/Object;>B<TT;Ljava/lang/Integer;>;LC;LD<TT;>;
 /// - returned superclass reference: B<TT;Ljava/lang/Integer;>;
-/// \param signature Signature of the class
+/// \param signature: Signature of the class
 /// \return Reference of the generic superclass, or empty if the superclass
-/// is not generic
+///   is not generic
 static optionalt<std::string>
 extract_generic_superclass_reference(const optionalt<std::string> &signature)
 {
@@ -182,10 +215,10 @@ extract_generic_superclass_reference(const optionalt<std::string> &signature)
 /// - signature: <T:Ljava/lang/Object;>B<TT;Ljava/lang/Integer;>;LC;LD<TT;>;
 /// - returned interface reference for C: LC;
 /// - returned interface reference for D: LD<TT;>;
-/// \param signature Signature of the class
-/// \param interface_name The interface name
+/// \param signature: Signature of the class
+/// \param interface_name: The interface name
 /// \return Reference of the generic interface, or empty if the interface
-/// is not generic
+///   is not generic
 static optionalt<std::string> extract_generic_interface_reference(
   const optionalt<std::string> &signature,
   const std::string &interface_name)
@@ -270,7 +303,7 @@ void java_bytecode_convert_classt::convert(
   }
 
   class_type.set_tag(c.name);
-  class_type.set(ID_base_name, c.name);
+  class_type.set_inner_name(c.inner_name);
   class_type.set(ID_abstract, c.is_abstract);
   class_type.set(ID_is_annotation, c.is_annotation);
   class_type.set(ID_interface, c.is_interface);
@@ -306,7 +339,7 @@ void java_bytecode_convert_classt::convert(
 
   if(!c.super_class.empty())
   {
-    const symbol_typet base("java::" + id2string(c.super_class));
+    const struct_tag_typet base("java::" + id2string(c.super_class));
 
     // if the superclass is generic then the class has the superclass reference
     // including the generic info in its signature
@@ -318,7 +351,7 @@ void java_bytecode_convert_classt::convert(
     {
       try
       {
-        const java_generic_symbol_typet generic_base(
+        const java_generic_struct_tag_typet generic_base(
           base, superclass_ref.value(), qualified_classname);
         class_type.add_base(generic_base);
       }
@@ -346,7 +379,7 @@ void java_bytecode_convert_classt::convert(
   // interfaces are recorded as bases
   for(const auto &interface : c.implements)
   {
-    const symbol_typet base("java::" + id2string(interface));
+    const struct_tag_typet base("java::" + id2string(interface));
 
     // if the interface is generic then the class has the interface reference
     // including the generic info in its signature
@@ -358,7 +391,7 @@ void java_bytecode_convert_classt::convert(
     {
       try
       {
-        const java_generic_symbol_typet generic_base(
+        const java_generic_struct_tag_typet generic_base(
           base, interface_ref.value(), qualified_classname);
         class_type.add_base(generic_base);
       }
@@ -468,11 +501,16 @@ void java_bytecode_convert_classt::convert(
   {
     for(const methodt &method : overlay_class.get().methods)
     {
-      if(is_ignored_method(method))
-        continue;
       const irep_idt method_identifier =
         qualified_classname + "." + id2string(method.name)
           + ":" + method.descriptor;
+      if(is_ignored_method(method))
+      {
+        debug()
+          << "Ignoring method:  '" << method_identifier << "'"
+          << eom;
+        continue;
+      }
       if(method_bytecode.contains_method(method_identifier))
       {
         // This method has already been discovered and added to method_bytecode
@@ -511,11 +549,16 @@ void java_bytecode_convert_classt::convert(
   }
   for(const methodt &method : c.methods)
   {
-    if(is_ignored_method(method))
-      continue;
     const irep_idt method_identifier=
       qualified_classname + "." + id2string(method.name)
         + ":" + method.descriptor;
+    if(is_ignored_method(method))
+    {
+      debug()
+        << "Ignoring method:  '" << method_identifier << "'"
+        << eom;
+      continue;
+    }
     if(method_bytecode.contains_method(method_identifier))
     {
       // This method has already been discovered while parsing an overlay
@@ -645,6 +688,8 @@ void java_bytecode_convert_classt::convert(
     // link matches the method used by java_bytecode_convert_method::convert
     // for methods.
     new_symbol.type.set(ID_C_class, class_symbol.name);
+    new_symbol.type.set(ID_C_field, f.name);
+    new_symbol.type.set(ID_C_constant, f.is_final);
     new_symbol.pretty_name=id2string(class_symbol.pretty_name)+
       "."+id2string(f.name);
     new_symbol.mode=ID_java;
@@ -664,12 +709,14 @@ void java_bytecode_convert_classt::convert(
       new_symbol.type.set(ID_C_access, ID_default);
 
     const namespacet ns(symbol_table);
-    new_symbol.value=
-      zero_initializer(
-        field_type,
-        class_symbol.location,
-        ns,
-        get_message_handler());
+    const auto value = zero_initializer(field_type, class_symbol.location, ns);
+    if(!value.has_value())
+    {
+      error().source_location = class_symbol.location;
+      error() << "failed to zero-initialize " << f.name << eom;
+      throw 0;
+    }
+    new_symbol.value = *value;
 
     // Load annotations
     if(!f.annotations.empty())
@@ -708,6 +755,8 @@ void java_bytecode_convert_classt::convert(
     else
       component.set_access(ID_default);
 
+    component.set_is_final(f.is_final);
+
     // Load annotations
     if(!f.annotations.empty())
     {
@@ -726,26 +775,27 @@ void java_bytecode_convert_classt::add_array_types(symbol_tablet &symbol_table)
 
   for(const char l : letters)
   {
-    symbol_typet symbol_type=
-      to_symbol_type(java_array_type(l).subtype());
+    struct_tag_typet struct_tag_type =
+      to_struct_tag_type(java_array_type(l).subtype());
 
-    const irep_idt &symbol_type_identifier=symbol_type.get_identifier();
-    if(symbol_table.has_symbol(symbol_type_identifier))
+    const irep_idt &struct_tag_type_identifier =
+      struct_tag_type.get_identifier();
+    if(symbol_table.has_symbol(struct_tag_type_identifier))
       return;
 
     java_class_typet class_type;
     // we have the base class, java.lang.Object, length and data
     // of appropriate type
-    class_type.set_tag(symbol_type_identifier);
+    class_type.set_tag(struct_tag_type_identifier);
     // Note that non-array types don't have "java::" at the beginning of their
     // tag, and their name is "java::" + their tag. Since arrays do have
     // "java::" at the beginning of their tag we set the name to be the same as
     // the tag.
-    class_type.set_name(symbol_type_identifier);
+    class_type.set_name(struct_tag_type_identifier);
 
     class_type.components().reserve(3);
     class_typet::componentt base_class_component(
-      "@java.lang.Object", symbol_typet("java::java.lang.Object"));
+      "@java.lang.Object", struct_tag_typet("java::java.lang.Object"));
     base_class_component.set_pretty_name("@java.lang.Object");
     base_class_component.set_base_name("@java.lang.Object");
     class_type.components().push_back(base_class_component);
@@ -761,7 +811,7 @@ void java_bytecode_convert_classt::add_array_types(symbol_tablet &symbol_table)
     data_component.set_base_name("data");
     class_type.components().push_back(data_component);
 
-    class_type.add_base(symbol_typet("java::java.lang.Object"));
+    class_type.add_base(struct_tag_typet("java::java.lang.Object"));
 
     INVARIANT(
       is_valid_java_array(class_type),
@@ -769,8 +819,8 @@ void java_bytecode_convert_classt::add_array_types(symbol_tablet &symbol_table)
       "object that doesn't match expectations");
 
     symbolt symbol;
-    symbol.name=symbol_type_identifier;
-    symbol.base_name=symbol_type.get(ID_C_base_name);
+    symbol.name = struct_tag_type_identifier;
+    symbol.base_name = struct_tag_type.get(ID_C_base_name);
     symbol.is_type=true;
     symbol.type = class_type;
     symbol.mode = ID_java;
@@ -779,13 +829,13 @@ void java_bytecode_convert_classt::add_array_types(symbol_tablet &symbol_table)
     // Also provide a clone method:
     // ----------------------------
 
-    const irep_idt clone_name=
-      id2string(symbol_type_identifier)+".clone:()Ljava/lang/Object;";
+    const irep_idt clone_name =
+      id2string(struct_tag_type_identifier) + ".clone:()Ljava/lang/Object;";
     java_method_typet::parametert this_param;
     this_param.set_identifier(id2string(clone_name)+"::this");
     this_param.set_base_name("this");
     this_param.set_this();
-    this_param.type()=java_reference_type(symbol_type);
+    this_param.type() = java_reference_type(struct_tag_type);
     const java_method_typet clone_type({this_param}, java_lang_object_type());
 
     parameter_symbolt this_symbol;
@@ -802,27 +852,23 @@ void java_bytecode_convert_classt::add_array_types(symbol_tablet &symbol_table)
     local_symbol.name=local_name;
     local_symbol.base_name="cloned_array";
     local_symbol.pretty_name=local_symbol.base_name;
-    local_symbol.type=java_reference_type(symbol_type);
+    local_symbol.type = java_reference_type(struct_tag_type);
     local_symbol.mode=ID_java;
     symbol_table.add(local_symbol);
     const auto &local_symexpr=local_symbol.symbol_expr();
 
-    code_blockt clone_body;
-
     code_declt declare_cloned(local_symexpr);
-    clone_body.move_to_operands(declare_cloned);
 
     source_locationt location;
     location.set_function(local_name);
     side_effect_exprt java_new_array(
-      ID_java_new_array, java_reference_type(symbol_type), location);
-    dereference_exprt old_array(this_symbol.symbol_expr(), symbol_type);
-    dereference_exprt new_array(local_symexpr, symbol_type);
+      ID_java_new_array, java_reference_type(struct_tag_type), location);
+    dereference_exprt old_array(this_symbol.symbol_expr(), struct_tag_type);
+    dereference_exprt new_array(local_symexpr, struct_tag_type);
     member_exprt old_length(
       old_array, length_component.get_name(), length_component.type());
     java_new_array.copy_to_operands(old_length);
     code_assignt create_blank(local_symexpr, java_new_array);
-    clone_body.move_to_operands(create_blank);
 
     member_exprt old_data(
       old_array, data_component.get_name(), data_component.type());
@@ -852,41 +898,35 @@ void java_bytecode_convert_classt::add_array_types(symbol_tablet &symbol_table)
     const auto &index_symexpr=index_symbol.symbol_expr();
 
     code_declt declare_index(index_symexpr);
-    clone_body.move_to_operands(declare_index);
-
-    code_fort copy_loop;
-
-    copy_loop.init()=
-      code_assignt(index_symexpr, from_integer(0, index_symexpr.type()));
-    copy_loop.cond()=
-      binary_relation_exprt(index_symexpr, ID_lt, old_length);
 
     side_effect_exprt inc(ID_assign, typet(), location);
     inc.operands().resize(2);
     inc.op0()=index_symexpr;
     inc.op1()=plus_exprt(index_symexpr, from_integer(1, index_symexpr.type()));
-    copy_loop.iter()=inc;
 
     dereference_exprt old_cell(
       plus_exprt(old_data, index_symexpr), old_data.type().subtype());
     dereference_exprt new_cell(
       plus_exprt(new_data, index_symexpr), new_data.type().subtype());
-    code_assignt copy_cell(new_cell, old_cell);
-    copy_loop.body()=copy_cell;
 
-    // End for-loop
-    clone_body.move_to_operands(copy_loop);
+    const code_fort copy_loop(
+      code_assignt(index_symexpr, from_integer(0, index_symexpr.type())),
+      binary_relation_exprt(index_symexpr, ID_lt, old_length),
+      std::move(inc),
+      code_assignt(std::move(new_cell), std::move(old_cell)));
 
     member_exprt new_base_class(
       new_array, base_class_component.get_name(), base_class_component.type());
     address_of_exprt retval(new_base_class);
     code_returnt return_inst(retval);
-    clone_body.move_to_operands(return_inst);
+
+    const code_blockt clone_body(
+      {declare_cloned, create_blank, declare_index, copy_loop, return_inst});
 
     symbolt clone_symbol;
     clone_symbol.name=clone_name;
-    clone_symbol.pretty_name=
-      id2string(symbol_type_identifier)+".clone:()";
+    clone_symbol.pretty_name =
+      id2string(struct_tag_type_identifier) + ".clone:()";
     clone_symbol.base_name="clone";
     clone_symbol.type=clone_type;
     clone_symbol.value=clone_body;
@@ -942,8 +982,8 @@ bool java_bytecode_convert_class(
 /// Example: if \p parameter has identifier `java::Outer$Inner::T` and
 /// there is a replacement parameter with identifier `java::Outer::T`, the
 /// identifier of \p parameter gets set to `java::Outer::T`.
-/// \param parameter
-/// \param replacement_parameters vector of generic parameters (only viable
+/// \param parameter: The given generic type parameter
+/// \param replacement_parameters: vector of generic parameters (only viable
 ///   ones, i.e., only those that can actually appear here such as generic
 ///   parameters of outer classes of the class specified by the prefix of \p
 ///   parameter identifier)
@@ -994,8 +1034,6 @@ static void find_and_replace_parameter(
 /// Example: class `Outer<T>` has an inner class `Inner` that has a field
 /// `t` of type `Generic<T>`. This function ensures that the parameter points to
 /// `java::Outer::T` instead of `java::Outer$Inner::T`.
-/// \param type
-/// \param replacement_parameters
 static void find_and_replace_parameters(
   typet &type,
   const std::vector<java_generic_parametert> &replacement_parameters)
@@ -1015,9 +1053,10 @@ static void find_and_replace_parameters(
       find_and_replace_parameters(argument, replacement_parameters);
     }
   }
-  else if(is_java_generic_symbol_type(type))
+  else if(is_java_generic_struct_tag_type(type))
   {
-    java_generic_symbol_typet &generic_base = to_java_generic_symbol_type(type);
+    java_generic_struct_tag_typet &generic_base =
+      to_java_generic_struct_tag_type(type);
     std::vector<reference_typet> &gen_types = generic_base.generic_types();
     for(auto &gen_type : gen_types)
     {
@@ -1028,7 +1067,7 @@ static void find_and_replace_parameters(
 
 /// Convert parsed annotations into the symbol table
 /// \param parsed_annotations: The parsed annotations to convert
-/// \param annotations: The java_annotationt collection to populate
+/// \param java_annotations: The java_annotationt collection to populate
 void convert_annotations(
   const java_bytecode_parse_treet::annotationst &parsed_annotations,
   std::vector<java_annotationt> &java_annotations)
@@ -1077,8 +1116,6 @@ void convert_java_annotations(
 /// any generic class. All uses of the implicit generic type parameters within
 /// the inner class are updated to point to the type parameters of the
 /// corresponding outer classes.
-/// \param class_name
-/// \param symbol_table
 void mark_java_implicitly_generic_class_type(
   const irep_idt &class_name,
   symbol_tablet &symbol_table)

@@ -127,15 +127,9 @@ std::string expr2javat::convert_struct(
   bool first=true;
   size_t last_size=0;
 
-  for(struct_typet::componentst::const_iterator
-      c_it=components.begin();
-      c_it!=components.end();
-      c_it++)
+  for(const auto &c : components)
   {
-    if(c_it->type().id()==ID_code)
-    {
-    }
-    else
+    if(c.type().id() != ID_code)
     {
       std::string tmp=convert(*o_it);
       std::string sep;
@@ -155,7 +149,7 @@ std::string expr2javat::convert_struct(
 
       dest+=sep;
       dest+='.';
-      dest+=c_it->get_string(ID_pretty_name);
+      dest += id2string(c.get_pretty_name());
       dest+='=';
       dest+=tmp;
     }
@@ -197,19 +191,17 @@ std::string expr2javat::convert_constant(
     std::string dest;
     dest.reserve(char_representation_length);
 
-    mp_integer int_value;
-    if(to_integer(src, int_value))
-      UNREACHABLE;
+    const char16_t int_value = numeric_cast_v<char16_t>(src);
 
-    dest += "(char)'" + utf16_native_endian_to_java(int_value.to_long()) + '\'';
+    // Character literals in Java have type 'char', thus no cast is needed.
+    // This is different from C, where charater literals have type 'int'.
+    dest += '\'' + utf16_native_endian_to_java(int_value) + '\'';
     return dest;
   }
   else if(src.type()==java_byte_type())
   {
     // No byte-literals in Java, so just cast:
-    mp_integer int_value;
-    if(to_integer(src, int_value))
-      UNREACHABLE;
+    const mp_integer int_value = numeric_cast_v<mp_integer>(src);
     std::string dest="(byte)";
     dest+=integer2string(int_value);
     return dest;
@@ -217,9 +209,7 @@ std::string expr2javat::convert_constant(
   else if(src.type()==java_short_type())
   {
     // No short-literals in Java, so just cast:
-    mp_integer int_value;
-    if(to_integer(src, int_value))
-      UNREACHABLE;
+    const mp_integer int_value = numeric_cast_v<mp_integer>(src);
     std::string dest="(short)";
     dest+=integer2string(int_value);
     return dest;
@@ -227,9 +217,7 @@ std::string expr2javat::convert_constant(
   else if(src.type()==java_long_type())
   {
     // long integer literals must have 'L' at the end
-    mp_integer int_value;
-    if(to_integer(src, int_value))
-      UNREACHABLE;
+    const mp_integer int_value = numeric_cast_v<mp_integer>(src);
     std::string dest=integer2string(int_value);
     dest+='L';
     return dest;

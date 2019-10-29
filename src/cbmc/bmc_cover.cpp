@@ -14,22 +14,23 @@ Author: Daniel Kroening, kroening@kroening.com
 #include <chrono>
 #include <iomanip>
 
-#include <util/xml.h>
-#include <util/xml_expr.h>
+#include <goto-checker/bmc_util.h>
+
 #include <util/json.h>
 #include <util/json_stream.h>
-#include <util/json_expr.h>
+#include <util/xml_irep.h>
 
 #include <solvers/prop/cover_goals.h>
 #include <solvers/prop/literal_expr.h>
 
 #include <goto-symex/build_goto_trace.h>
-#include <goto-programs/xml_goto_trace.h>
+
+#include <goto-programs/json_expr.h>
 #include <goto-programs/json_goto_trace.h>
+#include <goto-programs/xml_expr.h>
+#include <goto-programs/xml_goto_trace.h>
 
 #include <langapi/language_util.h>
-
-#include "bv_cbmc.h"
 
 class bmc_covert:
   public cover_goalst::observert,
@@ -211,7 +212,9 @@ bool bmc_covert::operator()()
 
   // Do conversion to next solver layer
 
-  bmc.do_conversion();
+  convert_symex_target_equation(
+    bmc.equation, bmc.prop_conv, get_message_handler());
+  bmc.freeze_program_variables();
 
   // get the conditions for these goals from formula
   // collect all 'instances' of the goals
@@ -221,7 +224,7 @@ bool bmc_covert::operator()()
   {
     if(it->is_assert())
     {
-      assert(it->source.pc->is_assert());
+      PRECONDITION(it->source.pc->is_assert());
       const and_exprt c(
         literal_exprt(it->guard_literal), literal_exprt(!it->cond_literal));
       literalt l_c=solver.convert(c);
@@ -241,7 +244,9 @@ bool bmc_covert::operator()()
     cover_goals.add(l);
   }
 
-  assert(cover_goals.size()==goal_map.size());
+  INVARIANT(cover_goals.size() == goal_map.size(),
+    "we add coverage for each goal");
+
 
   status() << "Running " << solver.decision_procedure_text() << eom;
 
@@ -261,7 +266,7 @@ bool bmc_covert::operator()()
     if(g.second.satisfied)
       goals_covered++;
 
-  switch(bmc.ui)
+  switch(bmc.ui_message_handler.get_ui())
   {
     case ui_message_handlert::uit::PLAIN:
     {
@@ -293,10 +298,12 @@ bool bmc_covert::operator()()
       {
         const goalt &goal=goal_pair.second;
 
-        xmlt xml_result("goal");
-        xml_result.set_attribute("id", id2string(goal_pair.first));
-        xml_result.set_attribute("description", goal.description);
-        xml_result.set_attribute("status", goal.satisfied?"SATISFIED":"FAILED");
+        xmlt xml_result(
+          "goal",
+          {{"id", id2string(goal_pair.first)},
+           {"description", goal.description},
+           {"status", goal.satisfied ? "SATISFIED" : "FAILED"}},
+          {});
 
         if(goal.source_location.is_not_nil())
           xml_result.new_element()=xml(goal.source_location);
@@ -341,8 +348,10 @@ bool bmc_covert::operator()()
 
     case ui_message_handlert::uit::JSON_UI:
     {
+      if(status().tellp() > 0)
+        status() << eom; // force end of previous message
       json_stream_objectt &json_result =
-        status().json_stream().push_back_stream_object();
+        bmc.ui_message_handler.get_json_stream().push_back_stream_object();
       for(const auto &goal_pair : goal_map)
       {
         const goalt &goal=goal_pair.second;
@@ -361,7 +370,6 @@ bool bmc_covert::operator()()
       json_arrayt &tests_array=json_result["tests"].make_array();
       for(const auto &test : tests)
       {
-        json_objectt &result=tests_array.push_back().make_object();
         if(bmc.options.get_bool_option("trace"))
         {
           json_arrayt &json_trace = json_result["trace"].make_array();
@@ -375,20 +383,21 @@ bool bmc_covert::operator()()
           {
             if(step.is_input())
             {
-              json_objectt json_input;
-              json_input["id"] = json_stringt(step.io_id);
+              json_objectt json_input({{"id", json_stringt(step.io_id)}});
               if(step.io_args.size()==1)
                 json_input["value"]=
                   json(step.io_args.front(), bmc.ns, ID_unknown);
-              json_test.push_back(json_input);
+              json_test.push_back(std::move(json_input));
             }
           }
         }
-        json_arrayt &goal_refs=result["coveredGoals"].make_array();
+        json_arrayt goal_refs;
         for(const auto &goal_id : test.covered_goals)
         {
           goal_refs.push_back(json_stringt(goal_id));
         }
+        tests_array.push_back(
+          json_objectt({{"coveredGoals", std::move(goal_refs)}}));
       }
 
       break;
@@ -406,7 +415,7 @@ bool bmc_covert::operator()()
                << (cover_goals.iterations()==1?"":"s")
                << eom;
 
-  if(bmc.ui==ui_message_handlert::uit::PLAIN)
+  if(bmc.ui_message_handler.get_ui() == ui_message_handlert::uit::PLAIN)
   {
     result() << "Test suite:" << '\n';
 

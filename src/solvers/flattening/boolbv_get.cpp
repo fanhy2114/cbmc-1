@@ -71,9 +71,6 @@ exprt boolbvt::bv_get_rec(
   std::size_t offset,
   const typet &type) const
 {
-  if(type.id()==ID_symbol)
-    return bv_get_rec(bv, unknown, offset, ns.follow(type));
-
   std::size_t width=boolbv_width(type);
 
   assert(bv.size()==unknown.size());
@@ -123,15 +120,17 @@ exprt boolbvt::bv_get_rec(
     }
     else if(type.id()==ID_struct_tag)
     {
-      return
-        bv_get_rec(
-          bv, unknown, offset, ns.follow_tag(to_struct_tag_type(type)));
+      exprt result = bv_get_rec(
+        bv, unknown, offset, ns.follow_tag(to_struct_tag_type(type)));
+      result.type() = type;
+      return result;
     }
     else if(type.id()==ID_union_tag)
     {
-      return
-        bv_get_rec(
-          bv, unknown, offset, ns.follow_tag(to_union_tag_type(type)));
+      exprt result =
+        bv_get_rec(bv, unknown, offset, ns.follow_tag(to_union_tag_type(type)));
+      result.type() = type;
+      return result;
     }
     else if(type.id()==ID_struct)
     {
@@ -141,12 +140,9 @@ exprt boolbvt::bv_get_rec(
       exprt::operandst op;
       op.reserve(components.size());
 
-      for(struct_typet::componentst::const_iterator
-          it=components.begin();
-          it!=components.end();
-          it++)
+      for(const auto &c : components)
       {
-        const typet &subtype=ns.follow(it->type());
+        const typet &subtype = c.type();
         op.push_back(nil_exprt());
 
         std::size_t sub_width=boolbv_width(subtype);
@@ -158,9 +154,7 @@ exprt boolbvt::bv_get_rec(
         }
       }
 
-      struct_exprt dest(type);
-      dest.operands().swap(op);
-      return dest;
+      return struct_exprt(std::move(op), type);
     }
     else if(type.id()==ID_union)
     {
@@ -172,38 +166,34 @@ exprt boolbvt::bv_get_rec(
       // Any idea that's better than just returning the first component?
       std::size_t component_nr=0;
 
-      union_exprt value(union_type);
+      const typet &subtype = components[component_nr].type();
 
-      value.set_component_name(
-        components[component_nr].get_name());
-
-      const typet &subtype=components[component_nr].type();
-
-      value.op()=bv_get_rec(bv, unknown, offset, subtype);
-
-      return value;
+      return union_exprt(
+        components[component_nr].get_name(),
+        bv_get_rec(bv, unknown, offset, subtype),
+        union_type);
     }
     else if(type.id()==ID_vector)
     {
-      const typet &subtype=ns.follow(type.subtype());
+      const typet &subtype = type.subtype();
       std::size_t sub_width=boolbv_width(subtype);
 
       if(sub_width!=0 && width%sub_width==0)
       {
         std::size_t size=width/sub_width;
-        vector_exprt value(to_vector_type(type));
+        vector_exprt value({}, to_vector_type(type));
         value.reserve_operands(size);
 
         for(std::size_t i=0; i<size; i++)
           value.operands().push_back(
             bv_get_rec(bv, unknown, i*sub_width, subtype));
 
-        return value;
+        return std::move(value);
       }
     }
     else if(type.id()==ID_complex)
     {
-      const typet &subtype=ns.follow(type.subtype());
+      const typet &subtype = type.subtype();
       std::size_t sub_width=boolbv_width(subtype);
 
       if(sub_width!=0 && width==sub_width*2)
@@ -218,6 +208,7 @@ exprt boolbvt::bv_get_rec(
     }
   }
 
+  // most significant bit first
   std::string value;
 
   for(std::size_t bit_nr=offset; bit_nr<offset+width; bit_nr++)
@@ -258,17 +249,17 @@ exprt boolbvt::bv_get_rec(
       mp_integer int_value=binary2integer(value, false);
       mp_integer from=string2integer(type.get_string(ID_from));
 
-      constant_exprt value_expr(type);
-      value_expr.set_value(integer2string(int_value+from));
-      return value_expr;
+      return constant_exprt(integer2string(int_value + from), type);
     }
     break;
 
   default:
   case bvtypet::IS_C_ENUM:
-    constant_exprt value_expr(type);
-    value_expr.set_value(value);
-    return value_expr;
+  {
+    const irep_idt bvrep = make_bvrep(
+      width, [&value](size_t i) { return value[value.size() - i - 1] == '1'; });
+    return constant_exprt(bvrep, type);
+  }
   }
 
   return nil_exprt();
@@ -346,10 +337,7 @@ exprt boolbvt::bv_get_unbounded_array(const exprt &expr) const
         it1!=index_set.end();
         it1++)
     {
-      index_exprt index;
-      index.type()=type.subtype();
-      index.array()=expr;
-      index.index()=*it1;
+      index_exprt index(expr, *it1);
 
       exprt value=bv_get_cache(index);
       exprt index_value=bv_get_cache(*it1);
@@ -373,7 +361,7 @@ exprt boolbvt::bv_get_unbounded_array(const exprt &expr) const
 
   if(size_mpint>100 || size.id()==ID_infinity)
   {
-    result = array_list_exprt(to_array_type(type));
+    result = array_list_exprt({}, to_array_type(type));
     result.type().set(ID_size, integer2string(size_mpint));
 
     result.operands().reserve(values.size()*2);
@@ -392,7 +380,7 @@ exprt boolbvt::bv_get_unbounded_array(const exprt &expr) const
     result=exprt(ID_array, type);
     result.type().set(ID_size, size);
 
-    std::size_t size_int=integer2size_t(size_mpint);
+    std::size_t size_int = numeric_cast_v<std::size_t>(size_mpint);
 
     // allocate operands
     result.operands().resize(size_int);
@@ -406,7 +394,8 @@ exprt boolbvt::bv_get_unbounded_array(const exprt &expr) const
         it!=values.end();
         it++)
       if(it->first>=0 && it->first<size_mpint)
-        result.operands()[integer2size_t(it->first)].swap(it->second);
+        result.operands()[numeric_cast_v<std::size_t>(it->first)].swap(
+          it->second);
   }
 
   return result;

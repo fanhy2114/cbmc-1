@@ -19,8 +19,9 @@ Author: Daniel Kroening, kroening@kroening.com
 /// that are called but for which we don't have a body (overapproximating the
 /// return value and possibly side effects).
 ///
-/// The two main APIs are \ref gen_nondet_init() and \ref object_factory(), at
-/// the bottom of the file.  Their purpose is very similar. A call to
+/// The two main APIs are \ref gen_nondet_init() and \ref object_factory()
+/// (which calls gen_nondet_init()), at the bottom of the file.
+/// A call to
 ///
 ///   gen_nondet_init(expr, code, ..., update_in_place)
 ///
@@ -28,7 +29,9 @@ Author: Daniel Kroening, kroening@kroening.com
 /// non-deterministically initialize the `expr` (which is expected to be an
 /// l-value exprt) with a primitive or reference value of type equal to or
 /// compatible with `expr.type()` -- see documentation for the argument
-/// `pointer_type_selector` for additional details.
+/// `pointer_type_selector` for additional details. gen_nondet_init() is the
+/// starting point of a recursive algorithm, and most other functions in this
+/// file are different (recursive or base) cases depending on the type of expr.
 ///
 /// The code generated mainly depends on the parameter `update_in_place`. Assume
 /// that `expr` is a reference to an object (in our IR, that means a pointer to
@@ -71,28 +74,18 @@ Author: Daniel Kroening, kroening@kroening.com
 #include "java_bytecode_language.h"
 #include "select_pointer_type.h"
 
+#include <util/allocate_objects.h>
 #include <util/message.h>
 #include <util/std_code.h>
 #include <util/symbol_table.h>
-
-/// Selects the kind of allocation used by java_object_factory et al.
-enum class allocation_typet
-{
-  /// Allocate global objects
-  GLOBAL,
-  /// Allocate local stacked objects
-  LOCAL,
-  /// Allocate dynamic objects (using MALLOC)
-  DYNAMIC
-};
 
 exprt object_factory(
   const typet &type,
   const irep_idt base_name,
   code_blockt &init_code,
   symbol_table_baset &symbol_table,
-  object_factory_parameterst parameters,
-  allocation_typet alloc_type,
+  java_object_factory_parameterst parameters,
+  lifetimet lifetime,
   const source_locationt &location,
   const select_pointer_typet &pointer_type_selector);
 
@@ -101,8 +94,8 @@ exprt object_factory(
   const irep_idt base_name,
   code_blockt &init_code,
   symbol_tablet &symbol_table,
-  const object_factory_parameterst &object_factory_parameters,
-  allocation_typet alloc_type,
+  const java_object_factory_parameterst &object_factory_parameters,
+  lifetimet lifetime,
   const source_locationt &location);
 
 enum class update_in_placet
@@ -118,8 +111,8 @@ void gen_nondet_init(
   symbol_table_baset &symbol_table,
   const source_locationt &loc,
   bool skip_classid,
-  allocation_typet alloc_type,
-  const object_factory_parameterst &object_factory_parameters,
+  lifetimet lifetime,
+  const java_object_factory_parameterst &object_factory_parameters,
   const select_pointer_typet &pointer_type_selector,
   update_in_placet update_in_place);
 
@@ -129,25 +122,10 @@ void gen_nondet_init(
   symbol_table_baset &symbol_table,
   const source_locationt &loc,
   bool skip_classid,
-  allocation_typet alloc_type,
-  const object_factory_parameterst &object_factory_parameters,
+  lifetimet lifetime,
+  const java_object_factory_parameterst &object_factory_parameters,
   update_in_placet update_in_place);
 
-exprt allocate_dynamic_object(
-  const exprt &target_expr,
-  const typet &allocate_type,
-  symbol_table_baset &symbol_table,
-  const source_locationt &loc,
-  const irep_idt &function_id,
-  code_blockt &output_code,
-  std::vector<const symbolt *> &symbols_created,
-  bool cast_needed = false);
-
-exprt allocate_dynamic_object_with_decl(
-  const exprt &target_expr,
-  symbol_table_baset &symbol_table,
-  const source_locationt &loc,
-  const irep_idt &function_id,
-  code_blockt &output_code);
+codet make_allocate_code(const symbol_exprt &lhs, const exprt &size);
 
 #endif // CPROVER_JAVA_BYTECODE_JAVA_OBJECT_FACTORY_H

@@ -32,9 +32,10 @@ Author: Daniel Kroening, kroening@kroening.com
 class java_bytecode_parsert:public parsert
 {
 public:
-  java_bytecode_parsert()
+  explicit java_bytecode_parsert(bool skip_instructions)
+    : skip_instructions(skip_instructions)
   {
-    get_bytecodes();
+    populate_bytecode_mnemonics_table();
   }
 
   virtual bool parse();
@@ -78,6 +79,7 @@ protected:
   };
 
   std::vector<bytecodet> bytecodes;
+  const bool skip_instructions = false;
 
   pool_entryt &pool_entry(u2 index)
   {
@@ -101,8 +103,13 @@ protected:
     return java_type_from_string(id2string(pool_entry(index).s));
   }
 
-  void get_bytecodes()
+  void populate_bytecode_mnemonics_table()
   {
+    // This is only useful for rbytecodes, which in turn is only useful to
+    // parse method instructions.
+    if(skip_instructions)
+      return;
+
     // pre-hash the mnemonics, so we do this only once
     bytecodes.resize(256);
     for(const bytecode_infot *p=bytecode_info; p->mnemonic!=nullptr; p++)
@@ -126,7 +133,7 @@ protected:
   void rRuntimeAnnotation_attribute(annotationst &);
   void rRuntimeAnnotation(annotationt &);
   void relement_value_pairs(annotationt::element_value_pairst &);
-  void relement_value_pair(annotationt::element_value_pairt &);
+  exprt get_relement_value();
   void rmethod_attribute(methodt &method);
   void rfield_attribute(fieldt &);
   void rcode_attribute(methodt &method);
@@ -134,6 +141,9 @@ protected:
   void rbytecode(methodt::instructionst &);
   void get_class_refs();
   void get_class_refs_rec(const typet &);
+  void get_annotation_class_refs(
+    const java_bytecode_parse_treet::annotationst &annotations);
+  void get_annotation_value_class_refs(const exprt &value);
   void parse_local_variable_type_table(methodt &method);
   optionalt<lambda_method_handlet>
   parse_method_handle(const class method_handle_infot &entry);
@@ -452,7 +462,6 @@ bool java_bytecode_parsert::parse()
 #define ACC_FINAL        0x0010
 #define ACC_SYNCHRONIZED 0x0020
 #define ACC_BRIDGE       0x0040
-#define ACC_VARARGS      0x0080
 #define ACC_NATIVE       0x0100
 #define ACC_INTERFACE    0x0200
 #define ACC_ABSTRACT     0x0400
@@ -526,11 +535,9 @@ void java_bytecode_parsert::rClassFile()
   parse_tree.loading_successful=true;
 }
 
+/// Get the class references for the benefit of a dependency analysis.
 void java_bytecode_parsert::get_class_refs()
 {
-  // Get the class references for the benefit of a dependency
-  // analysis.
-
   for(const auto &c : constant_pool)
   {
     switch(c.tag)
@@ -550,8 +557,11 @@ void java_bytecode_parsert::get_class_refs()
     }
   }
 
+  get_annotation_class_refs(parse_tree.parsed_class.annotations);
+
   for(const auto &field : parse_tree.parsed_class.fields)
   {
+    get_annotation_class_refs(field.annotations);
     typet field_type;
     if(field.signature.has_value())
     {
@@ -573,6 +583,9 @@ void java_bytecode_parsert::get_class_refs()
 
   for(const auto &method : parse_tree.parsed_class.methods)
   {
+    get_annotation_class_refs(method.annotations);
+    for(const auto &parameter_annotations : method.parameter_annotations)
+      get_annotation_class_refs(parameter_annotations);
     typet method_type;
     if(method.signature.has_value())
     {
@@ -616,7 +629,7 @@ void java_bytecode_parsert::get_class_refs_rec(const typet &src)
     for(const auto &p : ct.parameters())
       get_class_refs_rec(p.type());
   }
-  else if(src.id()==ID_symbol)
+  else if(src.id() == ID_struct_tag)
   {
     irep_idt name=src.get(ID_C_base_name);
     if(has_prefix(id2string(name), "array["))
@@ -636,6 +649,41 @@ void java_bytecode_parsert::get_class_refs_rec(const typet &src)
   }
   else if(src.id()==ID_pointer)
     get_class_refs_rec(src.subtype());
+}
+
+/// For each of the given annotations, get a reference to its class and
+/// recursively get class references of the values it stores.
+void java_bytecode_parsert::get_annotation_class_refs(
+  const java_bytecode_parse_treet::annotationst &annotations)
+{
+  for(const auto &annotation : annotations)
+  {
+    get_class_refs_rec(annotation.type);
+    for(const auto &element_value_pair : annotation.element_value_pairs)
+      get_annotation_value_class_refs(element_value_pair.value);
+  }
+}
+
+/// See \ref java_bytecode_parsert::get_annotation_class_refs.
+/// For the different cases of `exprt`, see \ref
+/// java_bytecode_parsert::get_relement_value.
+void java_bytecode_parsert::get_annotation_value_class_refs(const exprt &value)
+{
+  if(const auto &symbol_expr = expr_try_dynamic_cast<symbol_exprt>(value))
+  {
+    const irep_idt &value_id = symbol_expr->get_identifier();
+    const typet value_type = java_type_from_string(id2string(value_id));
+    get_class_refs_rec(value_type);
+  }
+  else if(const auto &array_expr = expr_try_dynamic_cast<array_exprt>(value))
+  {
+    for(const exprt &operand : array_expr->operands())
+      get_annotation_value_class_refs(operand);
+  }
+  // TODO: enum and nested annotation cases (once these are correctly parsed by
+  // get_relement_value).
+  // Note that in the cases where expr is a string or primitive type, no
+  // additional class references are needed.
 }
 
 void java_bytecode_parsert::rconstant_pool()
@@ -749,11 +797,9 @@ void java_bytecode_parsert::rconstant_pool()
         const pool_entryt &class_name_entry=pool_entry(class_entry.ref1);
         typet type=type_entry(nameandtype_entry.ref2);
 
-        symbol_typet class_symbol=
-          java_classname(id2string(class_name_entry.s));
+        auto class_tag = java_classname(id2string(class_name_entry.s));
 
-        fieldref_exprt fieldref(
-          type, name_entry.s, class_symbol.get_identifier());
+        fieldref_exprt fieldref(type, name_entry.s, class_tag.get_identifier());
 
         it->expr=fieldref;
       }
@@ -768,15 +814,13 @@ void java_bytecode_parsert::rconstant_pool()
         const pool_entryt &class_name_entry=pool_entry(class_entry.ref1);
         typet type=type_entry(nameandtype_entry.ref2);
 
-        symbol_typet class_symbol=
-          java_classname(id2string(class_name_entry.s));
+        auto class_tag = java_classname(id2string(class_name_entry.s));
 
         irep_idt component_name=
           id2string(name_entry.s)+
           ":"+id2string(pool_entry(nameandtype_entry.ref2).s);
 
-        irep_idt class_name=
-          class_symbol.get_identifier();
+        irep_idt class_name = class_tag.get_identifier();
 
         irep_idt identifier=
           id2string(class_name)+"."+id2string(component_name);
@@ -910,6 +954,9 @@ void java_bytecode_parsert::rfields(classt &parsed_class)
 void java_bytecode_parsert::rbytecode(
   methodt::instructionst &instructions)
 {
+  INVARIANT(
+    bytecodes.size() == 256, "bytecode mnemonics should have been populated");
+
   u4 code_length=read_u4();
 
   u4 address;
@@ -1174,7 +1221,7 @@ void java_bytecode_parsert::rmethod_attribute(methodt &method)
 
   irep_idt attribute_name=pool_entry(attribute_name_index).s;
 
-  if(attribute_name=="Code")
+  if(attribute_name == "Code" && !skip_instructions)
   {
     UNUSED_u2(max_stack);
     UNUSED_u2(max_locals);
@@ -1201,8 +1248,8 @@ void java_bytecode_parsert::rmethod_attribute(methodt &method)
       method.exception_table[e].end_pc=end_pc;
       method.exception_table[e].handler_pc=handler_pc;
       if(catch_type!=0)
-        method.exception_table[e].catch_type=
-          to_symbol_type(pool_entry(catch_type).expr.type());
+        method.exception_table[e].catch_type =
+          to_struct_tag_type(pool_entry(catch_type).expr.type());
     }
 
     u2 attributes_count=read_u2();
@@ -1242,6 +1289,21 @@ void java_bytecode_parsert::rmethod_attribute(methodt &method)
           attribute_name=="RuntimeVisibleAnnotations")
   {
     rRuntimeAnnotation_attribute(method.annotations);
+  }
+  else if(
+    attribute_name == "RuntimeInvisibleParameterAnnotations" ||
+    attribute_name == "RuntimeVisibleParameterAnnotations")
+  {
+    u1 parameter_count = read_u1();
+    // There may be attributes for both runtime-visiible and rutime-invisible
+    // annotations, the length of either array may be longer than the other as
+    // trailing parameters without annotations are omitted.
+    // Extend our parameter_annotations if this one is longer than the one
+    // previously recorded (if any).
+    if(method.parameter_annotations.size() < parameter_count)
+      method.parameter_annotations.resize(parameter_count);
+    for(u2 param_no = 0; param_no < parameter_count; ++param_no)
+      rRuntimeAnnotation_attribute(method.parameter_annotations[param_no]);
   }
   else if(attribute_name == "Exceptions")
   {
@@ -1511,16 +1573,17 @@ void java_bytecode_parsert::relement_value_pairs(
   {
     u2 element_name_index=read_u2();
     element_value_pair.element_name=pool_entry(element_name_index).s;
-
-    relement_value_pair(element_value_pair);
+    element_value_pair.value = get_relement_value();
   }
 }
 
 /// Corresponds to the element_value structure
 /// Described in Java 8 specification 4.7.16.1
 /// https://docs.oracle.com/javase/specs/jvms/se8/html/jvms-4.html#jvms-4.7.16.1
-void java_bytecode_parsert::relement_value_pair(
-  annotationt::element_value_pairt &element_value_pair)
+/// \return An exprt that represents the particular value of annotations field.
+///   This is usually one of: a byte, number of some sort, string, character,
+///   enum, Class type, array or another annotation.
+exprt java_bytecode_parsert::get_relement_value()
 {
   u1 tag=read_u1();
 
@@ -1531,50 +1594,46 @@ void java_bytecode_parsert::relement_value_pair(
       UNUSED_u2(type_name_index);
       UNUSED_u2(const_name_index);
       // todo: enum
+      return exprt();
     }
-    break;
 
   case 'c':
     {
       u2 class_info_index = read_u2();
-      element_value_pair.value = symbol_exprt(pool_entry(class_info_index).s);
+      return symbol_exprt(pool_entry(class_info_index).s);
     }
-    break;
 
   case '@':
     {
+      // TODO: return this wrapped in an exprt
       // another annotation, recursively
       annotationt annotation;
       rRuntimeAnnotation(annotation);
+      return exprt();
     }
-    break;
 
   case '[':
     {
+      array_exprt values;
       u2 num_values=read_u2();
       for(std::size_t i=0; i<num_values; i++)
       {
-        annotationt::element_value_pairt element_value;
-        relement_value_pair(element_value); // recursive call
+        values.operands().push_back(get_relement_value());
       }
+      return std::move(values);
     }
-    break;
 
   case 's':
     {
       u2 const_value_index=read_u2();
-      element_value_pair.value=string_constantt(
-        pool_entry(const_value_index).s);
+      return string_constantt(pool_entry(const_value_index).s);
     }
-    break;
 
   default:
     {
       u2 const_value_index=read_u2();
-      element_value_pair.value=constant(const_value_index);
+      return constant(const_value_index);
     }
-
-  break;
   }
 }
 
@@ -1637,6 +1696,8 @@ void java_bytecode_parsert::rinner_classes_attribute(
     // This is a marker that a class is anonymous.
     if(inner_name_index == 0)
       parsed_class.is_anonymous_class = true;
+    else
+      parsed_class.inner_name = pool_entry_lambda(inner_name_index).s;
     // Note that if outer_class_info_index == 0, the inner class is an anonymous
     // or local class, and is treated as private.
     if(outer_class_info_index == 0)
@@ -1765,6 +1826,7 @@ void java_bytecode_parsert::rmethods(classt &parsed_class)
 #define ACC_PROTECTED  0x0004
 #define ACC_STATIC     0x0008
 #define ACC_FINAL      0x0010
+#define ACC_VARARGS    0x0080
 #define ACC_SUPER      0x0020
 #define ACC_VOLATILE   0x0040
 #define ACC_TRANSIENT  0x0080
@@ -1791,6 +1853,7 @@ void java_bytecode_parsert::rmethod(classt &parsed_class)
   method.is_synchronized=(access_flags&ACC_SYNCHRONIZED)!=0;
   method.is_native=(access_flags&ACC_NATIVE)!=0;
   method.is_bridge = (access_flags & ACC_BRIDGE) != 0;
+  method.is_varargs = (access_flags & ACC_VARARGS) != 0;
   method.name=pool_entry(name_index).s;
   method.base_name=pool_entry(name_index).s;
   method.descriptor=id2string(pool_entry(descriptor_index).s);
@@ -1806,9 +1869,12 @@ void java_bytecode_parsert::rmethod(classt &parsed_class)
 }
 
 optionalt<java_bytecode_parse_treet>
-java_bytecode_parse(std::istream &istream, message_handlert &message_handler)
+java_bytecode_parse(
+  std::istream &istream,
+  message_handlert &message_handler,
+  bool skip_instructions)
 {
-  java_bytecode_parsert java_bytecode_parser;
+  java_bytecode_parsert java_bytecode_parser(skip_instructions);
   java_bytecode_parser.in=&istream;
   java_bytecode_parser.set_message_handler(message_handler);
 
@@ -1823,7 +1889,10 @@ java_bytecode_parse(std::istream &istream, message_handlert &message_handler)
 }
 
 optionalt<java_bytecode_parse_treet>
-java_bytecode_parse(const std::string &file, message_handlert &message_handler)
+java_bytecode_parse(
+  const std::string &file,
+  message_handlert &message_handler,
+  bool skip_instructions)
 {
   std::ifstream in(file, std::ios::binary);
 
@@ -1835,7 +1904,7 @@ java_bytecode_parse(const std::string &file, message_handlert &message_handler)
     return {};
   }
 
-  return java_bytecode_parse(in, message_handler);
+  return java_bytecode_parse(in, message_handler, skip_instructions);
 }
 
 /// Parses the local variable type table of a method. The LVTT holds generic
@@ -1880,8 +1949,8 @@ void java_bytecode_parsert::parse_local_variable_type_table(methodt &method)
 /// Read method handle pointed to from constant pool entry at index, return type
 /// of method handle and name if lambda function is found.
 /// \param entry: the constant pool entry of the methodhandle_info structure
-/// \returns: the method_handle type of the methodhandle_structure,
-/// either for a recognized bootstrap method or for a lambda function
+/// \return the method_handle type of the methodhandle_structure,
+///   either for a recognized bootstrap method or for a lambda function
 optionalt<java_bytecode_parsert::lambda_method_handlet>
 java_bytecode_parsert::parse_method_handle(const method_handle_infot &entry)
 {
@@ -1925,7 +1994,7 @@ java_bytecode_parsert::parse_method_handle(const method_handle_infot &entry)
 
 /// Read all entries of the `BootstrapMethods` attribute of a class file.
 /// \param parsed_class: the class representation of the class file that is
-/// currently parsed
+///   currently parsed
 void java_bytecode_parsert::read_bootstrapmethods_entry(classt &parsed_class)
 {
   u2 num_bootstrap_methods = read_u2();
@@ -2074,7 +2143,6 @@ void java_bytecode_parsert::store_unknown_method_handle(
   size_t bootstrap_method_index,
   java_bytecode_parsert::u2_valuest u2_values) const
 {
-  const lambda_method_handlet lambda_method_handle =
-    lambda_method_handlet::create_unknown_handle(move(u2_values));
+  const lambda_method_handlet lambda_method_handle(std::move(u2_values));
   parsed_class.add_method_handle(bootstrap_method_index, lambda_method_handle);
 }

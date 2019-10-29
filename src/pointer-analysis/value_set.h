@@ -47,10 +47,7 @@ public:
 
   virtual ~value_sett() = default;
 
-  static bool field_sensitive(
-    const irep_idt &id,
-    const typet &type,
-    const namespacet &);
+  static bool field_sensitive(const irep_idt &id, const typet &type);
 
   /// Matches the location_number field of the instruction that corresponds
   /// to this value_sett instance in value_set_domaint's state map
@@ -213,7 +210,7 @@ public:
   /// \param dest: object map to update
   /// \param n: object number to add; must be mapped to the corresponding
   ///   expression by `object_numbering`.
-  /// \param object: offset into object `n` (may be unknown).
+  /// \param offset: offset into object `n` (may be unknown).
   bool insert(
     object_mapt &dest,
     object_numberingt::number_type n,
@@ -224,7 +221,7 @@ public:
   /// with a differing offset its offset is marked unknown.
   /// \param dest: object map to update
   /// \param expr: expression to add
-  /// \param object: offset into `expr` (may be unknown).
+  /// \param offset: offset into `expr` (may be unknown).
   bool insert(object_mapt &dest, const exprt &expr, const offsett &offset) const
   {
     return insert(dest, object_numbering.number(expr), offset);
@@ -306,16 +303,19 @@ public:
     const idt &identifier,
     const std::string &suffix);
 
-  /// Clears value set (not used in the CBMC repository)
-  void make_any()
-  {
-    values.clear();
-  }
-
   void clear()
   {
     values.clear();
   }
+
+  /// Finds an entry in this value-set. The interface differs from get_entry
+  /// because get_value_set_rec wants to check for a struct's first component
+  /// before stripping the suffix as is done in get_entry.
+  /// \param id: identifier to find.
+  /// \return a constant pointer to an entry if found, or null otherwise.
+  ///   Note the pointer may be invalidated by insert operations, including
+  ///   get_entry.
+  const entryt *find_entry(const idt &id) const;
 
   /// Gets or inserts an entry in this value-set.
   /// \param e: entry to find. Its `id` and `suffix` fields will be used
@@ -326,10 +326,7 @@ public:
   /// \param type: type of `e.identifier`, used to determine whether `e`'s
   ///   suffix should be used to find a field-sensitive value-set or whether
   ///   a single entry should be shared by all of symbol `e.identifier`.
-  /// \param ns: global namespace
-  entryt &get_entry(
-    const entryt &e, const typet &type,
-    const namespacet &ns);
+  entryt &get_entry(const entryt &e, const typet &type);
 
   /// Pretty-print this value-set
   /// \param ns: global namespace
@@ -454,8 +451,8 @@ protected:
   /// Reads the set of objects pointed to by `expr`, including making
   /// recursive lookups for dereference operations etc.
   /// \param expr: query expression
-  /// \param dest [out]: overwritten by the set of object numbers pointed to
-  /// \param ns; global namespace
+  /// \param [out] dest: overwritten by the set of object numbers pointed to
+  /// \param ns: global namespace
   /// \param is_simplified: if false, simplify `expr` before reading.
   void get_value_set(
     const exprt &expr,
@@ -483,13 +480,6 @@ protected:
   void dereference_rec(
     const exprt &src,
     exprt &dest) const;
-
-  /// Marks objects that may be pointed to by `op` as maybe-invalid
-  /// \param op: pointer to invalidate
-  /// \param ns: global namespace
-  void do_free(
-    const exprt &op,
-    const namespacet &ns);
 
   /// Extracts a member from a struct- or union-typed expression.
   /// Usually that means making a `member_exprt`, but this can shortcut
@@ -536,6 +526,9 @@ protected:
     const namespacet &,
     object_mapt &rhs_values) const
   {
+    // unused parameters
+    (void)rhs;
+    (void)rhs_values;
   }
 
   /// Subclass customisation point to apply global side-effects to this domain,
@@ -547,6 +540,9 @@ protected:
     const exprt &rhs,
     const namespacet &)
   {
+    // unused parameters
+    (void)lhs;
+    (void)rhs;
   }
 };
 

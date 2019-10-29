@@ -7,6 +7,7 @@ Author: Daniel Poetzl
 \*******************************************************************/
 
 #include "string_utils.h"
+#include "exception_utils.h"
 #include "invariant.h"
 
 #include <cassert>
@@ -41,10 +42,10 @@ std::string strip_string(const std::string &s)
 /// \param delim: The character to use as the delimiter
 /// \param [out] result: The sub strings. Must be empty.
 /// \param strip: If true, strip_string will be used on each element, removing
-/// whitespace from the beginning and end of each element
+///   whitespace from the beginning and end of each element
 /// \param remove_empty: If true, all empty-string elements will be removed.
-/// This is applied after strip so whitespace only elements will be removed if
-/// both are set to true
+///   This is applied after strip so whitespace only elements will be removed if
+///   both are set to true.
 void split_string(
   const std::string &s,
   char delim,
@@ -109,17 +110,27 @@ void split_string(
   std::vector<std::string> result;
 
   split_string(s, delim, result, strip);
-  if(result.size()!=2)
-    throw "split string did not generate exactly 2 parts";
+  if(result.size() != 2)
+  {
+    throw deserialization_exceptiont{"expected string `" + s +
+                                     "' to contain two substrings "
+                                     "delimited by " +
+                                     delim + " but has " +
+                                     std::to_string(result.size())};
+  }
 
   left=result[0];
   right=result[1];
 }
 
-std::vector<std::string> split_string(const std::string &s, char delim)
+std::vector<std::string> split_string(
+  const std::string &s,
+  char delim,
+  bool strip,
+  bool remove_empty)
 {
   std::vector<std::string> result;
-  split_string(s, delim, result);
+  split_string(s, delim, result, strip, remove_empty);
   return result;
 }
 

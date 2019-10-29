@@ -12,8 +12,7 @@ Author: Daniel Kroening, kroening@kroening.com
 
 #include "std_expr.h"
 
-/*! \brief Expression providing an SSA-renamed symbol of expressions
-*/
+/// Expression providing an SSA-renamed symbol of expressions
 class ssa_exprt:public symbol_exprt
 {
 public:
@@ -22,9 +21,8 @@ public:
     set(ID_C_SSA_symbol, true);
   }
 
-  /*! \brief Constructor
-   * \param expr Expression to be converted to SSA symbol
-  */
+  /// Constructor
+  /// \param expr: Expression to be converted to SSA symbol
   explicit ssa_exprt(const exprt &expr):
     symbol_exprt(expr.type())
   {
@@ -101,7 +99,7 @@ public:
   void remove_level_2()
   {
     remove(ID_L2);
-    update_identifier();
+    set_identifier(get_l1_object_identifier());
   }
 
   const irep_idt get_level_0() const
@@ -119,54 +117,54 @@ public:
     return get(ID_L2);
   }
 
-  void update_identifier()
-  {
-    const irep_idt &l0=get_level_0();
-    const irep_idt &l1=get_level_1();
-    const irep_idt &l2=get_level_2();
+  void update_identifier();
 
-    auto idpair=build_identifier(get_original_expr(), l0, l1, l2);
-    set_identifier(idpair.first);
-    set(ID_L1_object_identifier, idpair.second);
+  /// Used to determine whether or not an identifier can be built before trying
+  /// and getting an exception
+  static bool can_build_identifier(const exprt &src);
+
+  static void check(
+    const exprt &expr,
+    const validation_modet vm = validation_modet::INVARIANT)
+  {
+    DATA_CHECK(
+      vm, !expr.has_operands(), "SSA expression should not have operands");
+    DATA_CHECK(
+      vm, expr.id() == ID_symbol, "SSA expression symbols are symbols");
+    DATA_CHECK(vm, expr.get_bool(ID_C_SSA_symbol), "wrong SSA expression ID");
   }
 
-  static std::pair<irep_idt, irep_idt> build_identifier(
-    const exprt &src,
-    const irep_idt &l0,
-    const irep_idt &l1,
-    const irep_idt &l2);
-
-  /* Used to determine whether or not an identifier can be built
-   * before trying and getting an exception */
-  static bool can_build_identifier(const exprt &src);
+  static void validate(
+    const exprt &expr,
+    const namespacet &ns,
+    const validation_modet vm = validation_modet::INVARIANT)
+  {
+    check(expr, vm);
+    validate_full_expr(
+      static_cast<const exprt &>(expr.find(ID_expression)), ns, vm);
+  }
 };
 
-/*! \brief Cast a generic exprt to an \ref ssa_exprt
- *
- * This is an unchecked conversion. \a expr must be known to be \ref
- * ssa_exprt.
- *
- * \param expr Source expression
- * \return Object of type \ref ssa_exprt
- *
- * \ingroup gr_std_expr
-*/
+/// Cast a generic exprt to an \ref ssa_exprt. This is an unchecked conversion.
+/// \a expr must be known to be \ref  ssa_exprt.
+/// \param expr: Source expression
+/// \return Object of type \ref ssa_exprt
+/// \ingroup gr_std_expr
 inline const ssa_exprt &to_ssa_expr(const exprt &expr)
 {
-  assert(expr.id()==ID_symbol &&
-         expr.get_bool(ID_C_SSA_symbol) &&
-         !expr.has_operands());
+  PRECONDITION(
+    expr.id() == ID_symbol && expr.get_bool(ID_C_SSA_symbol) &&
+    !expr.has_operands());
   return static_cast<const ssa_exprt &>(expr);
 }
 
-/*! \copydoc to_ssa_expr(const exprt &)
- * \ingroup gr_std_expr
-*/
+/// \copydoc to_ssa_expr(const exprt &)
+/// \ingroup gr_std_expr
 inline ssa_exprt &to_ssa_expr(exprt &expr)
 {
-  assert(expr.id()==ID_symbol &&
-         expr.get_bool(ID_C_SSA_symbol) &&
-         !expr.has_operands());
+  PRECONDITION(
+    expr.id() == ID_symbol && expr.get_bool(ID_C_SSA_symbol) &&
+    !expr.has_operands());
   return static_cast<ssa_exprt &>(expr);
 }
 

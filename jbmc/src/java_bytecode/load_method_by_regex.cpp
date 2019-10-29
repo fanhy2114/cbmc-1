@@ -34,7 +34,7 @@ static std::regex build_regex_from_pattern(const std::string &pattern)
 /// is, does it have a colon separtor.
 /// \param pattern: The user provided pattern
 /// \return True if no descriptor is found (that is, the only : relates to the
-/// java:: prefix.
+///   java:: prefix.
 bool does_pattern_miss_descriptor(const std::string &pattern)
 {
   const size_t descriptor_index = pattern.rfind(':');
@@ -48,7 +48,7 @@ bool does_pattern_miss_descriptor(const std::string &pattern)
 
 /// Create a lambda that returns the symbols that the given pattern should be
 /// loaded.If the pattern doesn't include a colon for matching the descriptor,
-/// append a `:\(.*\).*` to the regex. Note this will mean all overloaded
+/// append a :\(.*\).* to the regex. Note this will mean all overloaded
 /// methods will be marked as extra entry points for CI lazy loading.
 /// If the pattern doesn't include the java:: prefix, prefix that
 /// \param pattern: The user provided pattern

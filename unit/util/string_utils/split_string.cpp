@@ -1,6 +1,10 @@
-/*
-  Author: Diffblue Ltd.
-*/
+/*******************************************************************\
+
+Module: Unit tests of split_string
+
+Author: Diffblue Ltd.
+
+\*******************************************************************/
 
 /// \file
 /// split_string Unit Tests
@@ -22,7 +26,7 @@ struct expected_resultst
 /// \param string: The string to split
 /// \param delimiter: The delimter to split on
 /// \param expected_results: The results expected for each of the versions of
-/// the method
+///   the method
 void run_on_all_variants(
   std::string string,
   char delimiter,
@@ -30,8 +34,8 @@ void run_on_all_variants(
 {
   WHEN("Not stripping, not removing empty")
   {
-    std::vector<std::string> result;
-    split_string(string, delimiter, result, false, false);
+    std::vector<std::string> result =
+      split_string(string, delimiter, false, false);
 
     THEN("Should get expected vector")
     {
@@ -44,8 +48,8 @@ void run_on_all_variants(
   }
   WHEN("Not stripping, removing empty")
   {
-    std::vector<std::string> result;
-    split_string(string, delimiter, result, false, true);
+    std::vector<std::string> result =
+      split_string(string, delimiter, false, true);
 
     THEN("Should get expected vector")
     {
@@ -58,8 +62,8 @@ void run_on_all_variants(
   }
   WHEN("Stripping, not removing empty")
   {
-    std::vector<std::string> result;
-    split_string(string, delimiter, result, true, false);
+    std::vector<std::string> result =
+      split_string(string, delimiter, true, false);
 
     THEN("Should get expected vector")
     {
@@ -72,8 +76,8 @@ void run_on_all_variants(
   }
   WHEN("Stripping and removing empty")
   {
-    std::vector<std::string> result;
-    split_string(string, delimiter, result, true, true);
+    std::vector<std::string> result =
+    split_string(string, delimiter, true, true);
 
     THEN("Should get expected vector")
     {
@@ -141,8 +145,8 @@ SCENARIO("split_string", "[core][utils][string_utils][split_string]")
 
     WHEN("Not stripping, not removing empty")
     {
-      std::vector<std::string> result;
-      split_string(string, delimiter, result, false, false);
+      std::vector<std::string> result =
+        split_string(string, delimiter, false, false);
 
       THEN("Should get expected vector")
       {
@@ -154,8 +158,8 @@ SCENARIO("split_string", "[core][utils][string_utils][split_string]")
     }
     WHEN("Not stripping, removing empty")
     {
-      std::vector<std::string> result;
-      split_string(string, delimiter, result, false, true);
+      std::vector<std::string> result =
+        split_string(string, delimiter, false, true);
 
       THEN("Should get expected vector")
       {

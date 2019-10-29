@@ -11,7 +11,11 @@ Author: Daniel Kroening, kroening@kroening.com
 
 #include "all_properties_class.h"
 
+#include <algorithm>
 #include <chrono>
+
+#include <goto-checker/bmc_util.h>
+#include <goto-checker/report_util.h>
 
 #include <util/xml.h>
 #include <util/json.h>
@@ -22,8 +26,6 @@ Author: Daniel Kroening, kroening@kroening.com
 #include <goto-symex/build_goto_trace.h>
 #include <goto-programs/xml_goto_trace.h>
 #include <goto-programs/json_goto_trace.h>
-
-#include "bv_cbmc.h"
 
 void bmc_all_propertiest::goal_covered(const cover_goalst::goalt &)
 {
@@ -56,7 +58,9 @@ safety_checkert::resultt bmc_all_propertiest::operator()()
 
   auto solver_start=std::chrono::steady_clock::now();
 
-  bmc.do_conversion();
+  convert_symex_target_equation(
+    bmc.equation, bmc.prop_conv, get_message_handler());
+  bmc.freeze_program_variables();
 
   // Collect _all_ goals in `goal_map'.
   // This maps property IDs to 'goalt'
@@ -74,20 +78,16 @@ safety_checkert::resultt bmc_all_propertiest::operator()()
   {
     if(it->is_assert())
     {
-      irep_idt property_id;
+      irep_idt property_id = it->get_property_id();
 
-      if(it->source.pc->is_assert())
-        property_id=it->source.pc->source_location.get_property_id();
-      else if(it->source.pc->is_goto())
-      {
-        // this is likely an unwinding assertion
-        property_id=id2string(
-          it->source.pc->source_location.get_function())+".unwind."+
-          std::to_string(it->source.pc->loop_number);
-        goal_map[property_id].description=it->comment;
-      }
-      else
+      if(property_id.empty())
         continue;
+
+      if(it->source.pc->is_goto())
+      {
+        // goto may yield an unwinding assertion
+        goal_map[property_id].description = it->comment;
+      }
 
       goal_map[property_id].instances.push_back(it);
     }
@@ -131,9 +131,10 @@ safety_checkert::resultt bmc_all_propertiest::operator()()
   {
     auto solver_stop = std::chrono::steady_clock::now();
 
-    status() << "Runtime decision procedure: "
-             << std::chrono::duration<double>(solver_stop-solver_start).count()
-             << "s" << eom;
+    statistics()
+      << "Runtime decision procedure: "
+      << std::chrono::duration<double>(solver_stop - solver_start).count()
+      << "s" << eom;
   }
 
   // report
@@ -145,26 +146,87 @@ safety_checkert::resultt bmc_all_propertiest::operator()()
   bool safe=(cover_goals.number_covered()==0);
 
   if(safe)
-    bmc.report_success(); // legacy, might go away
+    report_success(bmc.ui_message_handler); // legacy, might go away
   else
-    bmc.report_failure(); // legacy, might go away
+    report_failure(bmc.ui_message_handler); // legacy, might go away
 
   return safe?safety_checkert::resultt::SAFE:safety_checkert::resultt::UNSAFE;
 }
 
 void bmc_all_propertiest::report(const cover_goalst &cover_goals)
 {
-  switch(bmc.ui)
+  switch(bmc.ui_message_handler.get_ui())
   {
   case ui_message_handlert::uit::PLAIN:
     {
       result() << "\n** Results:" << eom;
 
-      for(const auto &goal_pair : goal_map)
-        result() << "[" << goal_pair.first << "] "
-                 << goal_pair.second.description << ": "
-                 << goal_pair.second.status_string()
-                 << eom;
+      // collect goals in a vector
+      std::vector<goal_mapt::const_iterator> goals;
+
+      for(auto g_it = goal_map.begin(); g_it != goal_map.end(); g_it++)
+        goals.push_back(g_it);
+
+      // now determine an ordering for those goals:
+      // 1. alphabetical ordering of file name
+      // 2. numerical ordering of line number
+      // 3. alphabetical ordering of goal ID
+      std::sort(
+        goals.begin(),
+        goals.end(),
+        [](goal_mapt::const_iterator git1, goal_mapt::const_iterator git2) {
+          const auto &g1 = git1->second.source_location;
+          const auto &g2 = git2->second.source_location;
+          if(g1.get_file() != g2.get_file())
+            return id2string(g1.get_file()) < id2string(g2.get_file());
+          else if(!g1.get_line().empty() && !g2.get_line().empty())
+            return std::stoul(id2string(g1.get_line())) <
+                   std::stoul(id2string(g2.get_line()));
+          else
+            return id2string(git1->first) < id2string(git2->first);
+        });
+
+      // now show in the order we have determined
+
+      irep_idt previous_function;
+      irep_idt current_file;
+      for(const auto &g : goals)
+      {
+        const auto &l = g->second.source_location;
+
+        if(l.get_function() != previous_function)
+        {
+          if(!previous_function.empty())
+            result() << '\n';
+          previous_function = l.get_function();
+          if(!previous_function.empty())
+          {
+            current_file = l.get_file();
+            if(!current_file.empty())
+              result() << current_file << ' ';
+            if(!l.get_function().empty())
+              result() << "function " << l.get_function();
+            result() << eom;
+          }
+        }
+
+        result() << faint << '[' << g->first << "] " << reset;
+
+        if(l.get_file() != current_file)
+          result() << "file " << l.get_file() << ' ';
+
+        if(!l.get_line().empty())
+          result() << "line " << l.get_line() << ' ';
+
+        result() << g->second.description << ": ";
+
+        if(g->second.status == goalt::statust::SUCCESS)
+          result() << green;
+        else
+          result() << red;
+
+        result() << g->second.status_string() << reset << eom;
+      }
 
       if(bmc.options.get_bool_option("trace"))
       {
@@ -190,9 +252,11 @@ void bmc_all_propertiest::report(const cover_goalst &cover_goals)
     {
       for(const auto &g : goal_map)
       {
-        xmlt xml_result("result");
-        xml_result.set_attribute("property", id2string(g.first));
-        xml_result.set_attribute("status", g.second.status_string());
+        xmlt xml_result(
+          "result",
+          {{"property", id2string(g.first)},
+           {"status", g.second.status_string()}},
+          {});
 
         if(g.second.status==goalt::statust::FAILURE)
           convert(bmc.ns, g.second.goto_trace, xml_result.new_element());
@@ -204,8 +268,10 @@ void bmc_all_propertiest::report(const cover_goalst &cover_goals)
 
     case ui_message_handlert::uit::JSON_UI:
     {
+      if(result().tellp() > 0)
+        result() << eom; // force end of previous message
       json_stream_objectt &json_result =
-        result().json_stream().push_back_stream_object();
+        bmc.ui_message_handler.get_json_stream().push_back_stream_object();
       json_stream_arrayt &result_array =
         json_result.push_back_stream_array("result");
 
@@ -229,11 +295,10 @@ void bmc_all_propertiest::report(const cover_goalst &cover_goals)
   }
 }
 
-safety_checkert::resultt bmct::all_properties(
-  const goto_functionst &goto_functions,
-  prop_convt &solver)
+safety_checkert::resultt
+bmct::all_properties(const goto_functionst &goto_functions)
 {
-  bmc_all_propertiest bmc_all_properties(goto_functions, solver, *this);
+  bmc_all_propertiest bmc_all_properties(goto_functions, prop_conv, *this);
   bmc_all_properties.set_message_handler(get_message_handler());
   return bmc_all_properties();
 }

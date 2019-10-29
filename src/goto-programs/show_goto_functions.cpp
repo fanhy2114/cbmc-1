@@ -11,12 +11,8 @@ Author: Peter Schrammel
 
 #include "show_goto_functions.h"
 
-#include <iostream>
-
 #include <util/xml.h>
 #include <util/json.h>
-#include <util/json_expr.h>
-#include <util/xml_expr.h>
 #include <util/cprover_prefix.h>
 #include <util/prefix.h>
 
@@ -52,24 +48,32 @@ void show_goto_functions(
   break;
 
   case ui_message_handlert::uit::PLAIN:
-    if(list_only)
     {
-      for(const auto &fun : goto_functions.function_map)
-      {
-        const symbolt &symbol = ns.lookup(fun.first);
-        msg.status() << '\n'
-                     << symbol.display_name() << " /* " << symbol.name
-                     << (fun.second.body_available() ? ""
-                                                     : ", body not available")
-                     << " */";
-      }
+      // sort alphabetically
+      const auto sorted = goto_functions.sorted();
 
-      msg.status() << messaget::eom;
-    }
-    else
-    {
-      goto_functions.output(ns, msg.status());
-      msg.status() << messaget::eom;
+      for(const auto &fun : sorted)
+      {
+        const symbolt &symbol = ns.lookup(fun->first);
+        const bool has_body = fun->second.body_available();
+
+        if(list_only)
+        {
+          msg.status() << '\n'
+                       << symbol.display_name() << " /* " << symbol.name
+                       << (has_body ? "" : ", body not available") << " */";
+          msg.status() << messaget::eom;
+        }
+        else if(has_body)
+        {
+          msg.status() << "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\n";
+
+          msg.status() << messaget::bold << symbol.display_name()
+                       << messaget::reset << " /* " << symbol.name << " */\n";
+          fun->second.body.output(ns, symbol.name, msg.status());
+          msg.status() << messaget::eom;
+        }
+      }
     }
 
     break;

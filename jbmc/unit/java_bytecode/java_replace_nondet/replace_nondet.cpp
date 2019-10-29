@@ -1,9 +1,9 @@
 /*******************************************************************\
 
- Module: Tests for the replace nondet pass to make sure it works both
-         when remove_returns has been run before and after the call.
+Module: Tests for the replace nondet pass to make sure it works both
+        when remove_returns has been run before and after the call.
 
- Author: Diffblue Ltd.
+Author: Diffblue Ltd.
 
 \*******************************************************************/
 
@@ -16,7 +16,7 @@
 #include <goto-programs/remove_returns.h>
 
 #include <java_bytecode/convert_java_nondet.h>
-#include <java_bytecode/object_factory_parameters.h>
+#include <java_bytecode/java_object_factory_parameters.h>
 #include <java_bytecode/remove_instanceof.h>
 #include <java_bytecode/replace_java_nondet.h>
 
@@ -141,7 +141,9 @@ void load_and_test_method(
 
   // Emulate some of the passes that we'd normally do before replace_java_nondet
   // is called.
-  remove_instanceof(goto_function, symbol_table, null_message_handler);
+  class_hierarchyt class_hierarchy(symbol_table);
+  remove_instanceof(
+    goto_function, symbol_table, class_hierarchy, null_message_handler);
 
   remove_virtual_functions(model_function);
 
@@ -164,7 +166,7 @@ void load_and_test_method(
     validate_nondet_method_removed(goto_function.body.instructions);
   }
 
-  object_factory_parameterst params{};
+  java_object_factory_parameterst params{};
 
   THEN(
     "Replace and convert nondet should work after remove returns has been "

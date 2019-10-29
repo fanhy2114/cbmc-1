@@ -70,21 +70,30 @@ Formatting is enforced using clang-format. For more information about this, see
   /// This sentence, until the first dot followed by whitespace, becomes
   /// the brief description. More detailed text follows. Feel free to
   /// break this into paragraphs to aid readability.
-  /// \param arg_name: This parameter doesn't need much description
-  /// \param [out] long_arg_name: This parameter is mutated by the function.
-  ///   Extra info about the parameter gets indented an extra two columns,
+  /// \param arg: This parameter doesn't need much description
+  /// \param long_arg: This parameter needs a long description. Extra
+  ///   information about the parameter gets indented an extra two columns,
   ///   like this.
+  /// \param [out] out_arg: This parameter is mutated by the function, and
+  ///   its value at the beginning of the function is not used
+  /// \param [in,out] in_out_arg: This parameter is mutated by the function, and
+  ///   its value at the beginning of the function is used
   /// \return The return value is literally the value returned by the
-  ///   function. For out-parameters, use "\param [out]".
-  return_typet my_function(argt arg_name, argt &long_arg_name)
+  ///   function. For out-parameters, use "\param [out]" or  "\param [in,out]".
+  ret_typet function(argt arg, argt long_arg, argt &out_arg, argt &in_out_arg)
   ```
 - The priority of documentation is readability. Therefore, feel free to use
   Doxygen features, or to add whitespace for multi-paragraph comment blocks if
   necessary.
-- A comment block should immediately precede the definition of the entity it
-  documents, which will generally mean that it will live in the source file.
-  This allows us to take advantage of the one definition rule. If each entity
-  is defined only once, then it is also documented only once.
+- For functions or methods that provide an interface to a module, a comment
+  block should immediately precede the declaration of the entity
+  it documents. This implies that it will live in the header file.
+  The documentions should focus on the externally visible behavior, and
+  should discuss the implementation only to the extent necessary for
+  understanding usage. The implementation should be explained using
+  comments in the definition of the function or method.
+- Functions or methods that are internal to a module are documented in a
+  comment block that precedes the definition.
 - The documentation block must *immediately* precede the entity it documents.
   Don't insert empty lines between docs and functions, because this will
   confuse Doxygen.
@@ -155,7 +164,7 @@ Formatting is enforced using clang-format. For more information about this, see
 
 # C++ features
 - Do not use namespaces, except for anonymous namespaces.
-- Prefer use of `typedef` instead of `using`.
+- Prefer use of `using` instead of `typedef`.
 - Prefer use of `class` instead of `struct`.
 - Write type modifiers before the type specifier.
 - Make references `const` whenever possible
@@ -191,13 +200,21 @@ Formatting is enforced using clang-format. For more information about this, see
   - The type is explicitly repeated on the RHS (e.g. a constructor call)
   - Adding the type will increase confusion (e.g. iterators, function pointers)
 - Avoid `assert`. If the condition is an actual invariant, use INVARIANT,
-  PRECONDITION, POSTCONDITION, CHECK_RETURN, UNREACHABLE or DATA_INVARIANT. If
-  there are possible reasons why it might fail, throw an exception.
+  PRECONDITION, POSTCONDITION, CHECK_RETURN, UNREACHABLE or DATA_INVARIANT (also
+  see the documentation of the macros in `src/util/invariant.h`). If there are
+  possible reasons why it might fail, throw an exception.
+    - Use "should" style statements for messages in invariants (e.g. "array
+      should have a non-zero size") to make both the violation and the expected
+      behavior clear. (As opposed to "no zero size arrays" where it isn't clear
+      if the zero-size array is the problem, or the lack of it).
+    - The statements should start with a lower case letter.
 - All raw pointers (such as those returned by `symbol_tablet::lookup`) are
   assumed to be non-owning, and should not be `delete`d. Raw pointers that
   point to heap-allocated memory should be private data members of an object
   which safely manages the pointer. As such, `new` should only be used in
   constructors, and `delete` in destructors. Never use `malloc` or `free`.
+- Prefer brace style initialisation (i.e. `type_name{arguments...}`) over
+  parentheses for constructor calls
 
 # CProver conventions
 - Avoid if at all possible using irept methods like `get(ID_name)`, instead cast

@@ -16,18 +16,18 @@ Author: Daniel Kroening, kroening@kroening.com
 #include <util/arith_tools.h>
 #include <util/c_types.h>
 #include <util/config.h>
+#include <util/invariant.h>
 #include <util/message.h>
-#include <util/std_expr.h>
 #include <util/std_code.h>
+#include <util/std_expr.h>
+#include <util/string_constant.h>
 #include <util/symbol_table.h>
 
 #include <goto-programs/format_strings.h>
 #include <goto-programs/goto_model.h>
 #include <goto-programs/remove_skip.h>
 
-exprt is_zero_string(
-  const exprt &what,
-  bool write)
+predicate_exprt is_zero_string(const exprt &what, bool write)
 {
   predicate_exprt result("is_zero_string");
   result.copy_to_operands(what);
@@ -279,9 +279,9 @@ void string_instrumentationt::do_sprintf(
 
   if(arguments.size()<2)
   {
-    error().source_location=target->source_location;
-    error() << "sprintf expected to have two or more arguments" << eom;
-    throw 0;
+    throw incorrect_source_program_exceptiont(
+      "sprintf expected to have two or more arguments",
+      target->source_location);
   }
 
   goto_programt tmp;
@@ -321,10 +321,9 @@ void string_instrumentationt::do_snprintf(
 
   if(arguments.size()<3)
   {
-    error().source_location=target->source_location;
-    error() << "snprintf expected to have three or more arguments"
-            << eom;
-    throw 0;
+    throw incorrect_source_program_exceptiont(
+      "snprintf expected to have three or more arguments",
+      target->source_location);
   }
 
   goto_programt tmp;
@@ -364,9 +363,8 @@ void string_instrumentationt::do_fscanf(
 
   if(arguments.size()<2)
   {
-    error().source_location=target->source_location;
-    error() << "fscanf expected to have two or more arguments" << eom;
-    throw 0;
+    throw incorrect_source_program_exceptiont(
+      "fscanf expected to have two or more arguments", target->source_location);
   }
 
   goto_programt tmp;
@@ -402,8 +400,8 @@ void string_instrumentationt::do_format_string_read(
      format_arg.op0().id()==ID_index &&
      format_arg.op0().op0().id()==ID_string_constant)
   {
-    format_token_listt token_list=
-      parse_format_string(format_arg.op0().op0().get_string(ID_value));
+    format_token_listt token_list = parse_format_string(
+      id2string(to_string_constant(format_arg.op0().op0()).get_value()));
 
     std::size_t args=0;
 
@@ -412,7 +410,6 @@ void string_instrumentationt::do_format_string_read(
       if(token.type==format_tokent::token_typet::STRING)
       {
         const exprt &arg=arguments[argument_start_inx+args];
-        const typet &arg_type=ns.follow(arg.type());
 
         if(arg.id()!=ID_string_constant) // we don't need to check constants
         {
@@ -425,12 +422,9 @@ void string_instrumentationt::do_format_string_read(
 
           exprt temp(arg);
 
-          if(arg_type.id()!=ID_pointer)
+          if(arg.type().id() != ID_pointer)
           {
-            index_exprt index;
-            index.array()=temp;
-            index.index()=from_integer(0, index_type());
-            index.type()=arg_type.subtype();
+            index_exprt index(temp, from_integer(0, index_type()));
             temp=address_of_exprt(index);
           }
 
@@ -455,33 +449,26 @@ void string_instrumentationt::do_format_string_read(
     format_ass->make_assertion(is_zero_string(arguments[1]));
     format_ass->source_location=target->source_location;
     format_ass->source_location.set_property_class("string");
-    std::string comment("zero-termination of format string of ");
-    comment += function_name;
-    format_ass->source_location.set_comment(comment);
+    format_ass->source_location.set_comment(
+      "zero-termination of format string of " + function_name);
 
     for(std::size_t i=2; i<arguments.size(); i++)
     {
       const exprt &arg=arguments[i];
-      const typet &arg_type=ns.follow(arguments[i].type());
 
-      if(arguments[i].id()!=ID_string_constant &&
-         is_string_type(arg_type))
+      if(arguments[i].id() != ID_string_constant && is_string_type(arg.type()))
       {
         goto_programt::targett assertion=dest.add_instruction();
         assertion->source_location=target->source_location;
         assertion->source_location.set_property_class("string");
-        std::string comment("zero-termination of string argument of ");
-        comment += function_name;
-        assertion->source_location.set_comment(comment);
+        assertion->source_location.set_comment(
+          "zero-termination of string argument of " + function_name);
 
         exprt temp(arg);
 
-        if(arg_type.id()!=ID_pointer)
+        if(arg.type().id() != ID_pointer)
         {
-          index_exprt index;
-          index.array()=temp;
-          index.index()=from_integer(0, index_type());
-          index.type()=arg_type.subtype();
+          index_exprt index(temp, from_integer(0, index_type()));
           temp=address_of_exprt(index);
         }
 
@@ -505,8 +492,8 @@ void string_instrumentationt::do_format_string_write(
      format_arg.op0().id()==ID_index &&
      format_arg.op0().op0().id()==ID_string_constant) // constant format
   {
-    format_token_listt token_list=
-      parse_format_string(format_arg.op0().op0().get_string(ID_value));
+    format_token_listt token_list = parse_format_string(
+      id2string(to_string_constant(format_arg.op0().op0()).get_value()));
 
     std::size_t args=0;
 
@@ -524,7 +511,7 @@ void string_instrumentationt::do_format_string_write(
         case format_tokent::token_typet::STRING:
         {
           const exprt &argument=arguments[argument_start_inx+args];
-          const typet &arg_type=ns.follow(argument.type());
+          const typet &arg_type = argument.type();
 
           goto_programt::targett assertion=dest.add_instruction();
           assertion->source_location=target->source_location;
@@ -576,7 +563,7 @@ void string_instrumentationt::do_format_string_write(
         default: // everything else
         {
           const exprt &argument=arguments[argument_start_inx+args];
-          const typet &arg_type=ns.follow(argument.type());
+          const typet &arg_type = argument.type();
 
           goto_programt::targett assignment=dest.add_instruction(ASSIGN);
           assignment->source_location=target->source_location;
@@ -597,7 +584,7 @@ void string_instrumentationt::do_format_string_write(
   {
     for(std::size_t i=argument_start_inx; i<arguments.size(); i++)
     {
-      const typet &arg_type=ns.follow(arguments[i].type());
+      const typet &arg_type = arguments[i].type();
 
       // Note: is_string_type() is a `good guess' here. Actually
       // any of the pointers could point into an array. But it
@@ -650,9 +637,8 @@ void string_instrumentationt::do_strchr(
 
   if(arguments.size()!=2)
   {
-    error().source_location=target->source_location;
-    error() << "strchr expected to have two arguments" << eom;
-    throw 0;
+    throw incorrect_source_program_exceptiont(
+      "strchr expected to have two arguments", target->source_location);
   }
 
   goto_programt tmp;
@@ -677,9 +663,8 @@ void string_instrumentationt::do_strrchr(
 
   if(arguments.size()!=2)
   {
-    error().source_location=target->source_location;
-    error() << "strrchr expected to have two arguments" << eom;
-    throw 0;
+    throw incorrect_source_program_exceptiont(
+      "strrchr expected to have two arguments", target->source_location);
   }
 
   goto_programt tmp;
@@ -704,9 +689,8 @@ void string_instrumentationt::do_strstr(
 
   if(arguments.size()!=2)
   {
-    error().source_location=target->source_location;
-    error() << "strstr expected to have two arguments" << eom;
-    throw 0;
+    throw incorrect_source_program_exceptiont(
+      "strstr expected to have two arguments", target->source_location);
   }
 
   goto_programt tmp;
@@ -738,9 +722,8 @@ void string_instrumentationt::do_strtok(
 
   if(arguments.size()!=2)
   {
-    error().source_location=target->source_location;
-    error() << "strtok expected to have two arguments" << eom;
-    throw 0;
+    throw incorrect_source_program_exceptiont(
+      "strtok expected to have two arguments", target->source_location);
   }
 
   goto_programt tmp;
@@ -919,10 +902,8 @@ void string_instrumentationt::invalidate_buffer(
     bufp=buffer;
   else
   {
-    index_exprt index;
-    index.array()=buffer;
-    index.index()=from_integer(0, index_type());
-    index.type()=buf_type.subtype();
+    index_exprt index(
+      buffer, from_integer(0, index_type()), buf_type.subtype());
     bufp=address_of_exprt(index);
   }
 

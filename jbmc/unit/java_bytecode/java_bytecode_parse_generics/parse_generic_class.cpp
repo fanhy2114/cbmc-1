@@ -1,8 +1,8 @@
 /*******************************************************************\
 
- Module: Unit tests for parsing generic classes
+Module: Unit tests for parsing generic classes
 
- Author: Diffblue Ltd.
+Author: Diffblue Ltd.
 
 \*******************************************************************/
 
@@ -26,9 +26,8 @@ SCENARIO(
       REQUIRE(new_symbol_table.has_symbol(class_prefix));
 
       const symbolt &class_symbol = new_symbol_table.lookup_ref(class_prefix);
-      const java_generic_class_typet &java_generic_class =
-        require_type::require_complete_java_generic_class(
-          class_symbol.type, {class_prefix + "::T"});
+      require_type::require_complete_java_generic_class(
+        class_symbol.type, {class_prefix + "::T"});
 
       const struct_typet class_struct = to_struct_type(class_symbol.type);
       THEN("It has field t")
@@ -48,7 +47,7 @@ SCENARIO(
         const struct_union_typet::componentt &field_g =
           require_type::require_component(class_struct, "g");
         require_type::require_pointer(
-          field_g.type(), symbol_typet("java::Generic"));
+          field_g.type(), struct_tag_typet("java::Generic"));
 
         THEN("It is generic with parameter pointing to java.lang.Integer")
         {
@@ -78,9 +77,8 @@ SCENARIO(
       REQUIRE(new_symbol_table.has_symbol(class_prefix));
 
       const symbolt &class_symbol = new_symbol_table.lookup_ref(class_prefix);
-      const java_generic_class_typet &java_generic_class =
-        require_type::require_complete_java_generic_class(
-          class_symbol.type, {class_prefix + "::T", class_prefix + "::U"});
+      require_type::require_complete_java_generic_class(
+        class_symbol.type, {class_prefix + "::T", class_prefix + "::U"});
 
       const struct_typet class_struct = to_struct_type(class_symbol.type);
       THEN("It has field t")

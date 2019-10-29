@@ -14,6 +14,7 @@ Author: Daniel Kroening, kroening@kroening.com
 #include <iostream>
 #include <fstream>
 
+#include <util/invariant.h>
 #include <util/json.h>
 #include <util/prefix.h>
 #include <util/simplify_expr.h>
@@ -148,7 +149,9 @@ void taint_analysist::instrument(
               case taint_parse_treet::rulet::THIS:
                 if(have_this)
                 {
-                  assert(!function_call.arguments().empty());
+                  DATA_INVARIANT(
+                    !function_call.arguments().empty(),
+                    "`this` implies at least one argument in function call");
                   where=function_call.arguments()[0];
                 }
                 break;
@@ -172,9 +175,10 @@ void taint_analysist::instrument(
               case taint_parse_treet::rulet::SINK:
                 {
                   goto_programt::targett t=insert_before.add_instruction();
-                  binary_predicate_exprt get_may("get_may");
-                  get_may.op0()=where;
-                  get_may.op1()=address_of_exprt(string_constantt(rule.taint));
+                  binary_predicate_exprt get_may(
+                    where,
+                    "get_may",
+                    address_of_exprt(string_constantt(rule.taint)));
                   t->make_assertion(not_exprt(get_may));
                   t->source_location=instruction.source_location;
                   t->source_location.set_property_class(
@@ -281,8 +285,7 @@ bool taint_analysist::operator()(
            f_it->first!=goto_functionst::entry_point())
         {
           goto_programt::targett t=calls.add_instruction();
-          code_function_callt call;
-          call.function()=ns.lookup(f_it->first).symbol_expr();
+          const code_function_callt call(ns.lookup(f_it->first).symbol_expr());
           t->make_function_call(call);
           calls.add_instruction()->make_goto(end.instructions.begin());
           goto_programt::targett g=gotos.add_instruction();
@@ -350,13 +353,13 @@ bool taint_analysist::operator()(
 
         if(use_json)
         {
-          json_objectt json;
-          json["bugClass"] =
-            json_stringt(i_it->source_location.get_property_class());
-          json["file"] = json_stringt(i_it->source_location.get_file());
-          json["line"]=
-            json_numbert(id2string(i_it->source_location.get_line()));
-          json_result.array.push_back(json);
+          json_objectt json(
+            {{"bugClass",
+              json_stringt(i_it->source_location.get_property_class())},
+             {"file", json_stringt(i_it->source_location.get_file())},
+             {"line",
+              json_numbert(id2string(i_it->source_location.get_line()))}});
+          json_result.push_back(std::move(json));
         }
         else
         {

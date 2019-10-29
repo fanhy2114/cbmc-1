@@ -8,9 +8,6 @@ Author: Daniel Kroening, kroening@kroening.com
 
 #include "byte_operators.h"
 
-#include <cassert>
-
-#include "invariant.h"
 #include "config.h"
 
 irep_idt byte_extract_id()
@@ -26,6 +23,8 @@ irep_idt byte_extract_id()
   default:
     UNREACHABLE;
   }
+
+  UNREACHABLE;
 }
 
 irep_idt byte_update_id()
@@ -41,4 +40,6 @@ irep_idt byte_update_id()
   default:
     UNREACHABLE;
   }
+
+  UNREACHABLE;
 }

@@ -1,9 +1,9 @@
 /*******************************************************************\
 
- Module: Java string library preprocess.
-         Test for converting an expression to a string expression.
+Module: Java string library preprocess.
+        Test for converting an expression to a string expression.
 
- Author: Diffblue Ltd.
+Author: Diffblue Ltd.
 
 \*******************************************************************/
 
@@ -43,10 +43,10 @@ SCENARIO(
     namespacet ns(symbol_table);
 
     // Declare a String named arg
-    symbol_typet java_string_type("java::java.lang.String");
+    struct_tag_typet java_string_type("java::java.lang.String");
     symbol_exprt expr("arg", java_string_type);
 
-    object_factory_parameterst object_factory_parameters;
+    java_object_factory_parameterst object_factory_parameters;
     object_factory_parameters.max_nondet_string_length = 20;
     object_factory_parameters.function_id = "test";
 
@@ -59,7 +59,7 @@ SCENARIO(
         symbol_table,
         loc,
         false,
-        allocation_typet::DYNAMIC,
+        lifetimet::DYNAMIC,
         object_factory_parameters,
         update_in_placet::NO_UPDATE_IN_PLACE);
 
@@ -77,27 +77,28 @@ SCENARIO(
               std::regex_replace(line, spaces, " "), numbers, ""));
         }
 
-        const std::vector<std::string> reference_code = { // NOLINT
+        // clang-format off
+        // NOLINTNEXTLINE
+        const std::vector<std::string> reference_code = {
           "int tmp_object_factory;",
           "tmp_object_factory = NONDET(int);",
-          "__CPROVER_assume(tmp_object_factory >= 0);",
-          "__CPROVER_assume(tmp_object_factory <= 20);",
-          "char (*string_data_pointer)[INFINITY()];",
-          "string_data_pointer = "
+          CPROVER_PREFIX "assume(tmp_object_factory >= 0);",
+          CPROVER_PREFIX "assume(tmp_object_factory <= 20);",
+          "char (*nondet_infinite_array_pointer)[INFINITY()];",
+          "nondet_infinite_array_pointer = "
             "ALLOCATE(char [INFINITY()], INFINITY(), false);",
-          "char nondet_infinite_array[INFINITY()];",
-          "nondet_infinite_array = NONDET(char [INFINITY()]);",
-          "*string_data_pointer = nondet_infinite_array;",
+          "*nondet_infinite_array_pointer = NONDET(char [INFINITY()]);",
           "int return_array;",
           "return_array = cprover_associate_array_to_pointer_func"
-            "(*string_data_pointer, *string_data_pointer);",
+            "(*nondet_infinite_array_pointer, *nondet_infinite_array_pointer);",
           "int return_array;",
           "return_array = cprover_associate_length_to_array_func"
-            "(*string_data_pointer, tmp_object_factory);",
+            "(*nondet_infinite_array_pointer, tmp_object_factory);",
           "arg = { .@java.lang.Object={ .@class_identifier"
             "=\"java::java.lang.String\" },"
             " .length=tmp_object_factory, "
-            ".data=*string_data_pointer };"};
+            ".data=*nondet_infinite_array_pointer };"};
+        // clang-format on
 
         for(std::size_t i = 0;
             i < code_string.size() && i < reference_code.size();

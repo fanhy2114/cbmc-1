@@ -1,8 +1,8 @@
 /*******************************************************************\
 
- Module: Unit tests for ait
+Module: Unit tests for ait
 
- Author: Diffblue Ltd.
+Author: Diffblue Ltd.
 
 \*******************************************************************/
 
@@ -10,6 +10,7 @@
 /// Unit tests for ait
 
 #include <testing-utils/catch.hpp>
+#include <testing-utils/message.h>
 
 #include <analyses/ai.h>
 
@@ -35,7 +36,13 @@ public:
 
   optionalt<unsigned> path_length;
 
-  void transform(locationt, locationt, ai_baset &, const namespacet &) override
+  void transform(
+    const irep_idt &,
+    locationt,
+    const irep_idt &,
+    locationt,
+    ai_baset &,
+    const namespacet &) override
   {
     if(*path_length < 100)
       ++*path_length;
@@ -63,7 +70,7 @@ public:
     return true;
   }
 
-  bool merge(const instruction_counter_domaint &b, locationt from, locationt to)
+  bool merge(const instruction_counter_domaint &b, locationt, locationt)
   {
     if(b.is_bottom())
       return false;
@@ -239,8 +246,7 @@ SCENARIO(
 
   goto_model.symbol_table.add(start);
 
-  null_message_handlert nullout;
-  goto_convert(goto_model, nullout);
+  goto_convert(goto_model, null_message_handler);
 
   WHEN("The target program is analysed")
   {

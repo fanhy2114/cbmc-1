@@ -25,16 +25,11 @@ void goto_symext::symex_decl(statet &state)
 
   const codet &code = instruction.code;
 
-  if(code.operands().size()==2)
-    throw "two-operand decl not supported here";
+  // two-operand decl not supported here
+  // we handle the decl with only one operand
+  PRECONDITION(code.operands().size() == 1);
 
-  if(code.operands().size()!=1)
-    throw "decl expects one operand";
-
-  if(code.op0().id()!=ID_symbol)
-    throw "decl expects symbol as first operand";
-
-  symex_decl(state, to_symbol_expr(code.op0()));
+  symex_decl(state, to_code_decl(code).symbol());
 }
 
 void goto_symext::symex_decl(statet &state, const symbol_exprt &expr)
@@ -51,7 +46,7 @@ void goto_symext::symex_decl(statet &state, const symbol_exprt &expr)
   ssa.update_type();
 
   // in case of pointers, put something into the value set
-  if(ns.follow(expr.type()).id()==ID_pointer)
+  if(expr.type().id() == ID_pointer)
   {
     exprt failed=
       get_failed_symbol(expr, ns);
@@ -68,15 +63,15 @@ void goto_symext::symex_decl(statet &state, const symbol_exprt &expr)
   }
 
   // prevent propagation
-  state.propagation.remove(l1_identifier);
+  state.propagation.erase(l1_identifier);
 
   // L2 renaming
   // inlining may yield multiple declarations of the same identifier
   // within the same L1 context
-  if(state.level2.current_names.find(l1_identifier)==
-     state.level2.current_names.end())
-    state.level2.current_names[l1_identifier]=std::make_pair(ssa, 0);
-  state.level2.increase_counter(l1_identifier);
+  const auto level2_it =
+    state.level2.current_names.emplace(l1_identifier, std::make_pair(ssa, 0))
+      .first;
+  symex_renaming_levelt::increase_counter(level2_it);
   const bool record_events=state.record_events;
   state.record_events=false;
   state.rename(ssa, ns);

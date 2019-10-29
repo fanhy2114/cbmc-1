@@ -36,6 +36,7 @@ public:
   {
     GENERIC,
     BOOLECTOR,
+    CPROVER_SMT2,
     CVC3,
     CVC4,
     MATHSAT,
@@ -76,6 +77,11 @@ public:
     case solvert::BOOLECTOR:
       break;
 
+    case solvert::CPROVER_SMT2:
+      use_array_of_bool = true;
+      emit_set_logic = false;
+      break;
+
     case solvert::CVC3:
       break;
 
@@ -112,7 +118,7 @@ public:
   virtual void set_to(const exprt &expr, bool value);
   virtual exprt get(const exprt &expr) const;
   virtual std::string decision_procedure_text() const { return "SMT2"; }
-  virtual void print_assignment(std::ostream &out) const;
+  virtual void print_assignment(std::ostream &) const;
   virtual tvt l_get(literalt l) const;
   virtual void set_assumptions(const bvt &bv) { assumptions=bv; }
 
@@ -244,11 +250,11 @@ protected:
   std::string floatbv_suffix(const exprt &) const;
   std::set<irep_idt> bvfp_set; // already converted
 
-  class smt2_symbolt:public exprt
+  class smt2_symbolt : public nullary_exprt
   {
   public:
-    smt2_symbolt(const irep_idt &_identifier, const typet &_type):
-      exprt(ID_smt2_symbol, _type)
+    smt2_symbolt(const irep_idt &_identifier, const typet &_type)
+      : nullary_exprt(ID_smt2_symbol, _type)
     { set(ID_identifier, _identifier); }
 
     const irep_idt &get_identifier() const
@@ -281,10 +287,11 @@ protected:
   // keeps track of all non-Boolean symbols and their value
   struct identifiert
   {
+    bool is_bound;
     typet type;
     exprt value;
 
-    identifiert()
+    identifiert() : is_bound(false)
     {
       type.make_nil();
       value.make_nil();

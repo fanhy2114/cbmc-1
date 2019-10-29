@@ -1,9 +1,9 @@
 /*******************************************************************\
 
- Module: typedef for optional class template. To be replaced with
- std::optional once C++17 support is enabled
+Module: typedef for optional class template. To be replaced with
+        std::optional once C++17 support is enabled
 
- Author: Diffblue Ltd.
+Author: Diffblue Ltd.
 
 \*******************************************************************/
 
@@ -35,5 +35,7 @@ template<typename T>
 using optionalt=nonstd::optional<T>; // NOLINT template typedef
 
 typedef nonstd::bad_optional_access bad_optional_accesst;
+
+using nonstd::nullopt;
 
 #endif // CPROVER_UTIL_OPTIONAL_H

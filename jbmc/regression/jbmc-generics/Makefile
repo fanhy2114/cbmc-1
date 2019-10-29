@@ -3,12 +3,12 @@ default: tests.log
 include ../../src/config.inc
 
 test:
-	@../$(CPROVER_DIR)/regression/test.pl -p -c ../../../src/jbmc/jbmc
-	@../$(CPROVER_DIR)/regression/test.pl -p -c "../../../src/jbmc/jbmc --symex-driven-lazy-loading" -X symex-driven-lazy-loading-expected-failure -s symex-driven-loading
+	@../$(CPROVER_DIR)/regression/test.pl -p -c "../../../src/jbmc/jbmc --validate-goto-model --validate-ssa-equation"
+	@../$(CPROVER_DIR)/regression/test.pl -p -c "../../../src/jbmc/jbmc --validate-goto-model --validate-ssa-equation --symex-driven-lazy-loading" -X symex-driven-lazy-loading-expected-failure -s symex-driven-loading
 
 tests.log: ../$(CPROVER_DIR)/regression/test.pl
-	@../$(CPROVER_DIR)/regression/test.pl -p -c ../../../src/jbmc/jbmc
-	@../$(CPROVER_DIR)/regression/test.pl -p -c "../../../src/jbmc/jbmc --symex-driven-lazy-loading" -X symex-driven-lazy-loading-expected-failure -s symex-driven-loading
+	@../$(CPROVER_DIR)/regression/test.pl -p -c "../../../src/jbmc/jbmc --validate-goto-model --validate-ssa-equation"
+	@../$(CPROVER_DIR)/regression/test.pl -p -c "../../../src/jbmc/jbmc --validate-goto-model --validate-ssa-equation --symex-driven-lazy-loading" -X symex-driven-lazy-loading-expected-failure -s symex-driven-loading
 
 show:
 	@for dir in *; do \
@@ -20,7 +20,7 @@ show:
 clean:
 	find -name '*.out' -execdir $(RM) '{}' \;
 	find -name '*.gb' -execdir $(RM) '{}' \;
-	$(RM) tests.log
+	$(RM) tests.log tests-symex-driven-loading.log
 
 %.class: %.java ../../src/org.cprover.jar
 	javac -g -cp ../../src/org.cprover.jar:. $<

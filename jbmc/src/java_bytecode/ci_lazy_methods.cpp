@@ -1,8 +1,8 @@
 /*******************************************************************\
 
- Module: Java Bytecode
+Module: Java Bytecode
 
- Author: Diffblue Ltd.
+Author: Diffblue Ltd.
 
 \*******************************************************************/
 
@@ -30,6 +30,10 @@
 ///   implementation for `List` interface.
 /// \param pointer_type_selector: selector to handle correct pointer types
 /// \param message_handler: the message handler to use for output
+/// \param synthetic_methods: map from synthetic method names to the type of
+///   synthetic method (e.g. stub class static initialiser). Indicates that
+///   these method bodies are produced internally, rather than generated from
+///   Java bytecode.
 ci_lazy_methodst::ci_lazy_methodst(
   const symbol_tablet &symbol_table,
   const irep_idt &main_class,
@@ -61,7 +65,7 @@ ci_lazy_methodst::ci_lazy_methodst(
 ///   class
 static bool references_class_model(const exprt &expr)
 {
-  static const symbol_typet class_type("java::java.lang.Class");
+  static const struct_tag_typet class_type("java::java.lang.Class");
 
   for(auto it = expr.depth_begin(); it != expr.depth_end(); ++it)
   {
@@ -103,15 +107,12 @@ bool ci_lazy_methodst::operator()(
 
   // Add any extra entry points specified; we should elaborate these in the
   // same way as the main function.
-  std::vector<irep_idt> extra_entry_points;
   for(const auto &extra_function_generator : lazy_methods_extra_entry_points)
   {
-    const auto &extra_methods = extra_function_generator(symbol_table);
-    extra_entry_points.insert(
-      extra_entry_points.end(), extra_methods.begin(), extra_methods.end());
+    std::vector<irep_idt> extra_methods =
+      extra_function_generator(symbol_table);
+    methods_to_convert_later.insert(extra_methods.begin(), extra_methods.end());
   }
-  methods_to_convert_later.insert(
-    extra_entry_points.begin(), extra_entry_points.end());
 
   std::unordered_set<irep_idt> instantiated_classes;
 
@@ -233,6 +234,12 @@ bool ci_lazy_methodst::handle_virtual_methods_with_no_callees(
   const std::unordered_set<exprt, irep_hash> &virtual_function_calls,
   symbol_tablet &symbol_table)
 {
+  ci_lazy_methods_neededt lazy_methods_loader(
+    methods_to_convert_later,
+    instantiated_classes,
+    symbol_table,
+    pointer_type_selector);
+
   bool any_new_classes = false;
   for(const exprt &virtual_function_call : virtual_function_calls)
   {
@@ -246,12 +253,40 @@ bool ci_lazy_methodst::handle_virtual_methods_with_no_callees(
     if(!candidate_target_methods.empty())
       continue;
 
+    const java_method_typet &java_method_type =
+      to_java_method_type(virtual_function_call.type());
+
     // Add the call class to instantiated_classes and assert that it
-    // didn't already exist
+    // didn't already exist. It can't be instantiated already, otherwise it
+    // would give a concrete definition of the called method, and
+    // candidate_target_methods would be non-empty.
     const irep_idt &call_class = virtual_function_call.get(ID_C_class);
-    auto ret_class = instantiated_classes.insert(call_class);
-    CHECK_RETURN(ret_class.second);
+    bool was_missing = instantiated_classes.count(call_class) == 0;
+    CHECK_RETURN(was_missing);
     any_new_classes = true;
+
+    const typet &this_type = java_method_type.get_this()->type();
+    if(
+      const pointer_typet *this_pointer_type =
+        type_try_dynamic_cast<pointer_typet>(this_type))
+    {
+      lazy_methods_loader.add_all_needed_classes(*this_pointer_type);
+    }
+
+    // That should in particular have added call_class to the possibly
+    // instantiated types.
+    bool still_missing = instantiated_classes.count(call_class) == 0;
+    CHECK_RETURN(!still_missing);
+
+    // Make sure we add our return type as required, as we may not have
+    // seen any concrete instances of it being created.
+    const typet &return_type = java_method_type.return_type();
+    if(
+      const pointer_typet *return_pointer_type =
+        type_try_dynamic_cast<pointer_typet>(return_type))
+    {
+      lazy_methods_loader.add_all_needed_classes(*return_pointer_type);
+    }
 
     // Check that `get_virtual_method_target` returns a method now
     const irep_idt &call_basename =
@@ -300,9 +335,7 @@ ci_lazy_methodst::convert_and_analyze_method(
     symbol_table,
     pointer_type_selector);
 
-  const bool could_not_convert_function =
-    method_converter(method_name, needed_methods);
-  if(could_not_convert_function)
+  if(method_converter(method_name, needed_methods))
     return result;
 
   const exprt &method_body = symbol_table.lookup_ref(method_name).value;
@@ -381,7 +414,7 @@ void ci_lazy_methodst::initialize_instantiated_classes(
     {
       if(param.type().id()==ID_pointer)
       {
-        const pointer_typet &original_pointer=to_pointer_type(param.type());
+        const pointer_typet &original_pointer = to_pointer_type(param.type());
         needed_lazy_methods.add_all_needed_classes(original_pointer);
       }
     }
@@ -398,7 +431,6 @@ void ci_lazy_methodst::initialize_instantiated_classes(
   for(const auto &id : extra_instantiated_classes)
     needed_lazy_methods.add_needed_class("java::" + id2string(id));
 }
-
 
 /// Get places where virtual functions are called.
 /// \param e: expression tree to search
@@ -466,7 +498,7 @@ void ci_lazy_methodst::get_virtual_method_targets(
 /// \param e: expression tree to search
 /// \param symbol_table: global symbol table
 /// \param [out] needed: Populated with global variable symbols referenced from
-/// `e` or its children.
+///   `e` or its children.
 void ci_lazy_methodst::gather_needed_globals(
   const exprt &e,
   const symbol_tablet &symbol_table,

@@ -22,6 +22,10 @@ class json_arrayt;
 
 class jsont
 {
+protected:
+  typedef std::vector<jsont> arrayt;
+  typedef std::map<std::string, jsont> objectt;
+
 public:
   enum class kindt
   {
@@ -112,7 +116,17 @@ public:
 
   static const jsont null_json_object;
 
+  static void output_key(std::ostream &out, const std::string &key);
+
+  static void
+  output_object(std::ostream &out, const objectt &object, unsigned indent);
+
+  std::string value;
+
 protected:
+  arrayt array;
+  objectt object;
+
   static void escape_string(const std::string &, std::ostream &);
 
   explicit jsont(kindt _kind):kind(_kind)
@@ -123,18 +137,14 @@ protected:
   {
   }
 
-public:
-  // should become protected
-  typedef std::vector<jsont> arrayt;
-  arrayt array;
+  jsont(kindt _kind, arrayt &&entries) : kind(_kind), array(std::move(entries))
+  {
+  }
 
-  typedef std::map<std::string, jsont> objectt;
-  objectt object;
-  static void
-  output_object(std::ostream &out, const objectt &object, unsigned indent);
-  static void output_key(std::ostream &out, const std::string &key);
-
-  std::string value;
+  jsont(kindt _kind, objectt &&objects)
+    : kind(_kind), object(std::move(objects))
+  {
+  }
 };
 
 inline std::ostream &operator<<(std::ostream &out, const jsont &src)
@@ -150,6 +160,11 @@ public:
   {
   }
 
+  explicit json_arrayt(arrayt &&entries)
+    : jsont(kindt::J_ARRAY, std::move(entries))
+  {
+  }
+
   void resize(std::size_t size)
   {
     array.resize(size);
@@ -160,9 +175,20 @@ public:
     return array.size();
   }
 
+  bool empty() const
+  {
+    return array.empty();
+  }
+
   jsont &push_back(const jsont &json)
   {
     array.push_back(json);
+    return array.back();
+  }
+
+  jsont &push_back(jsont &&json)
+  {
+    array.push_back(std::move(json));
     return array.back();
   }
 
@@ -178,32 +204,32 @@ public:
     array.emplace_back(std::forward<argumentst>(arguments)...);
   }
 
-  std::vector<jsont>::iterator begin()
+  arrayt::iterator begin()
   {
     return array.begin();
   }
 
-  std::vector<jsont>::const_iterator begin() const
+  arrayt::const_iterator begin() const
   {
     return array.begin();
   }
 
-  std::vector<jsont>::const_iterator cbegin() const
+  arrayt::const_iterator cbegin() const
   {
     return array.cbegin();
   }
 
-  std::vector<jsont>::iterator end()
+  arrayt::iterator end()
   {
     return array.end();
   }
 
-  std::vector<jsont>::const_iterator end() const
+  arrayt::const_iterator end() const
   {
     return array.end();
   }
 
-  std::vector<jsont>::const_iterator cend() const
+  arrayt::const_iterator cend() const
   {
     return array.cend();
   }
@@ -244,7 +270,16 @@ public:
 class json_objectt:public jsont
 {
 public:
+  using value_type = objectt::value_type;
+  using iterator = objectt::iterator;
+  using const_iterator = objectt::const_iterator;
+
   json_objectt():jsont(kindt::J_OBJECT)
+  {
+  }
+
+  explicit json_objectt(objectt &&objects)
+    : jsont(kindt::J_OBJECT, std::move(objects))
   {
   }
 
@@ -255,11 +290,56 @@ public:
 
   const jsont &operator[](const std::string &key) const
   {
-    objectt::const_iterator it=object.find(key);
+    const_iterator it = object.find(key);
     if(it==object.end())
       return null_json_object;
     else
       return it->second;
+  }
+
+  iterator insert(const_iterator it, value_type value)
+  {
+    return object.insert(it, std::move(value));
+  }
+
+  iterator find(const std::string &key)
+  {
+    return object.find(key);
+  }
+
+  const_iterator find(const std::string &key) const
+  {
+    return object.find(key);
+  }
+
+  iterator begin()
+  {
+    return object.begin();
+  }
+
+  const_iterator begin() const
+  {
+    return object.begin();
+  }
+
+  const_iterator cbegin() const
+  {
+    return object.cbegin();
+  }
+
+  iterator end()
+  {
+    return object.end();
+  }
+
+  const_iterator end() const
+  {
+    return object.end();
+  }
+
+  const_iterator cend() const
+  {
+    return object.cend();
   }
 };
 
@@ -287,10 +367,34 @@ inline json_arrayt &jsont::make_array()
   return static_cast<json_arrayt &>(*this);
 }
 
+inline json_arrayt &to_json_array(jsont &json)
+{
+  PRECONDITION(json.kind == jsont::kindt::J_ARRAY);
+  return static_cast<json_arrayt &>(json);
+}
+
+inline const json_arrayt &to_json_array(const jsont &json)
+{
+  PRECONDITION(json.kind == jsont::kindt::J_ARRAY);
+  return static_cast<const json_arrayt &>(json);
+}
+
 inline json_objectt &jsont::make_object()
 {
   kind=kindt::J_OBJECT;
   return static_cast<json_objectt &>(*this);
+}
+
+inline json_objectt &to_json_object(jsont &json)
+{
+  PRECONDITION(json.kind == jsont::kindt::J_OBJECT);
+  return static_cast<json_objectt &>(json);
+}
+
+inline const json_objectt &to_json_object(const jsont &json)
+{
+  PRECONDITION(json.kind == jsont::kindt::J_OBJECT);
+  return static_cast<const json_objectt &>(json);
 }
 
 #endif // CPROVER_UTIL_JSON_H

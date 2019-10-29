@@ -13,18 +13,21 @@ Author: Peter Schrammel
 
 #include <chrono>
 
-#include <util/threeval.h>
 #include <util/arith_tools.h>
-#include <util/symbol.h>
-#include <util/std_expr.h>
 #include <util/message.h>
-#include <util/xml_expr.h>
+#include <util/std_expr.h>
+#include <util/symbol.h>
+#include <util/threeval.h>
+#include <util/xml_irep.h>
 
 #include <solvers/prop/minimize.h>
 #include <solvers/prop/literal_expr.h>
 
 #include <goto-symex/build_goto_trace.h>
 #include <goto-programs/xml_goto_trace.h>
+
+#include <goto-checker/bmc_util.h>
+#include <goto-checker/report_util.h>
 
 #include "counterexample_beautification.h"
 
@@ -81,7 +84,7 @@ fault_localizationt::get_failed_property()
 bool fault_localizationt::check(const lpointst &lpoints,
                                 const lpoints_valuet &value)
 {
-  assert(value.size()==lpoints.size());
+  PRECONDITION(value.size() == lpoints.size());
   bvt assumptions;
   lpoints_valuet::const_iterator v_it=value.begin();
   for(const auto &l : lpoints)
@@ -142,7 +145,7 @@ void fault_localizationt::run(irep_idt goal_id)
 {
   // find failed property
   failed=get_failed_property();
-  assert(failed!=bmc.equation.SSA_steps.end());
+  PRECONDITION(failed != bmc.equation.SSA_steps.end());
 
   if(goal_id==ID_nil)
     goal_id=failed->source.pc->source_location.get_property_id();
@@ -247,7 +250,9 @@ fault_localizationt::run_decision_procedure(prop_convt &prop_conv)
 
   auto solver_start=std::chrono::steady_clock::now();
 
-  bmc.do_conversion();
+  convert_symex_target_equation(
+    bmc.equation, bmc.prop_conv, get_message_handler());
+  bmc.freeze_program_variables();
 
   freeze_guards();
 
@@ -259,9 +264,10 @@ fault_localizationt::run_decision_procedure(prop_convt &prop_conv)
 
   {
     auto solver_stop=std::chrono::steady_clock::now();
-    status() << "Runtime decision procedure: "
-             << std::chrono::duration<double>(solver_stop-solver_start).count()
-             << "s" << eom;
+    statistics()
+      << "Runtime decision procedure: "
+      << std::chrono::duration<double>(solver_stop - solver_start).count()
+      << "s" << eom;
   }
 
   return dec_result;
@@ -272,7 +278,7 @@ safety_checkert::resultt fault_localizationt::stop_on_fail()
   switch(run_decision_procedure(bmc.prop_conv))
   {
   case decision_proceduret::resultt::D_UNSATISFIABLE:
-    bmc.report_success();
+    report_success(bmc.ui_message_handler);
     return safety_checkert::resultt::SAFE;
 
   case decision_proceduret::resultt::D_SATISFIABLE:
@@ -280,15 +286,22 @@ safety_checkert::resultt fault_localizationt::stop_on_fail()
     {
       if(options.get_bool_option("beautify"))
         counterexample_beautificationt()(
-          dynamic_cast<bv_cbmct &>(bmc.prop_conv), bmc.equation);
+          dynamic_cast<boolbvt &>(bmc.prop_conv), bmc.equation);
 
-      bmc.error_trace();
+      build_error_trace(
+        bmc.error_trace,
+        bmc.ns,
+        bmc.equation,
+        bmc.prop_conv,
+        bmc.ui_message_handler);
+      output_error_trace(
+        bmc.error_trace, bmc.ns, bmc.trace_options(), bmc.ui_message_handler);
     }
 
     // localize faults
     run(ID_nil);
 
-    switch(bmc.ui)
+    switch(bmc.ui_message_handler.get_ui())
     {
     case ui_message_handlert::uit::PLAIN:
     {
@@ -298,9 +311,7 @@ safety_checkert::resultt fault_localizationt::stop_on_fail()
     }
     case ui_message_handlert::uit::XML_UI:
     {
-      xmlt dest("fault-localization");
-      xmlt xml_diagnosis=report_xml(ID_nil);
-      dest.new_element().swap(xml_diagnosis);
+      xmlt dest("fault-localization", {}, {report_xml(ID_nil)});
       status() << dest;
       break;
     }
@@ -309,7 +320,7 @@ safety_checkert::resultt fault_localizationt::stop_on_fail()
       break;
     }
 
-    bmc.report_failure();
+    report_failure(bmc.ui_message_handler);
     return safety_checkert::resultt::UNSAFE;
 
   default:
@@ -317,6 +328,8 @@ safety_checkert::resultt fault_localizationt::stop_on_fail()
 
     return safety_checkert::resultt::ERROR;
   }
+
+  UNREACHABLE;
 }
 
 void fault_localizationt::goal_covered(
@@ -353,7 +366,7 @@ void fault_localizationt::report(
 {
   bmc_all_propertiest::report(cover_goals);
 
-  switch(bmc.ui)
+  switch(bmc.ui_message_handler.get_ui())
   {
   case ui_message_handlert::uit::PLAIN:
     if(cover_goals.number_covered()>0)

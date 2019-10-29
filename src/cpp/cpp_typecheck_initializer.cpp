@@ -94,9 +94,8 @@ void cpp_typecheckt::convert_initializer(symbolt &symbol)
           ait!=code_type.parameters().end();
           ait++)
       {
-        exprt new_object("new_object");
+        exprt new_object(ID_new_object, ait->type());
         new_object.set(ID_C_lvalue, true);
-        new_object.type() = ait->type();
 
         if(ait->get(ID_C_base_name)==ID_this)
         {
@@ -124,7 +123,7 @@ void cpp_typecheckt::convert_initializer(symbolt &symbol)
           address_of_exprt(
             lookup(resolved_expr.get(ID_component_name)).symbol_expr());
 
-        symbol.value.type().add("to-member") = resolved_expr.op0().type();
+        symbol.value.type().add(ID_to_member) = resolved_expr.op0().type();
       }
       else
         UNREACHABLE;
@@ -143,8 +142,8 @@ void cpp_typecheckt::convert_initializer(symbolt &symbol)
 
     typecheck_expr(symbol.value);
 
-    if(symbol.value.type().find("to-member").is_not_nil())
-      symbol.type.add("to-member") = symbol.value.type().find("to-member");
+    if(symbol.value.type().find(ID_to_member).is_not_nil())
+      symbol.type.add(ID_to_member) = symbol.value.type().find(ID_to_member);
 
     if(symbol.value.id()==ID_initializer_list ||
        symbol.value.id()==ID_string_constant)
@@ -180,10 +179,13 @@ void cpp_typecheckt::convert_initializer(symbolt &symbol)
     exprt::operandst ops;
     ops.push_back(symbol.value);
 
-    symbol.value = cpp_constructor(
-      symbol.value.source_location(),
-      expr_symbol,
-      ops);
+    auto constructor =
+      cpp_constructor(symbol.value.source_location(), expr_symbol, ops);
+
+    if(constructor.has_value())
+      symbol.value = constructor.value();
+    else
+      symbol.value = nil_exprt();
   }
 }
 
@@ -197,10 +199,17 @@ void cpp_typecheckt::zero_initializer(
 
   if(final_type.id()==ID_struct)
   {
-    forall_irep(cit, final_type.find(ID_components).get_sub())
-    {
-      const exprt &component=static_cast<const exprt &>(*cit);
+    const auto &struct_type = to_struct_type(final_type);
 
+    if(struct_type.is_incomplete())
+    {
+      error().source_location = source_location;
+      error() << "cannot zero-initialize incomplete struct" << eom;
+      throw 0;
+    }
+
+    for(const auto &component : struct_type.components())
+    {
       if(component.type().id()==ID_code)
         continue;
 
@@ -210,7 +219,7 @@ void cpp_typecheckt::zero_initializer(
       if(component.get_bool(ID_is_static))
         continue;
 
-      member_exprt member(object, component.get(ID_name), component.type());
+      member_exprt member(object, component.get_name(), component.type());
 
       // recursive call
       zero_initializer(member, component.type(), source_location, ops);
@@ -225,10 +234,7 @@ void cpp_typecheckt::zero_initializer(
     if(size_expr.id()==ID_infinity)
       return; // don't initialize
 
-    mp_integer size;
-
-    bool to_int=to_integer(size_expr, size);
-    CHECK_RETURN(!to_int);
+    const mp_integer size = numeric_cast_v<mp_integer>(size_expr);
     CHECK_RETURN(size>=0);
 
     exprt::operandst empty_operands;
@@ -241,15 +247,22 @@ void cpp_typecheckt::zero_initializer(
   }
   else if(final_type.id()==ID_union)
   {
+    const auto &union_type = to_union_type(final_type);
+
+    if(union_type.is_incomplete())
+    {
+      error().source_location = source_location;
+      error() << "cannot zero-initialize incomplete union" << eom;
+      throw 0;
+    }
+
     // Select the largest component for zero-initialization
     mp_integer max_comp_size=0;
 
-    exprt comp=nil_exprt();
+    union_typet::componentt comp;
 
-    forall_irep(it, final_type.find(ID_components).get_sub())
+    for(const auto &component : union_type.components())
     {
-      const exprt &component=static_cast<const exprt &>(*it);
-
       assert(component.type().is_not_nil());
 
       if(component.type().id()==ID_code)
@@ -270,12 +283,7 @@ void cpp_typecheckt::zero_initializer(
 
     if(max_comp_size>0)
     {
-      irept name(ID_name);
-      name.set(ID_identifier, comp.get(ID_base_name));
-      name.set(ID_C_source_location, source_location);
-
-      cpp_namet cpp_name;
-      cpp_name.move_to_sub(name);
+      const cpp_namet cpp_name(comp.get_base_name(), source_location);
 
       exprt member(ID_member);
       member.copy_to_operands(object);
@@ -304,22 +312,18 @@ void cpp_typecheckt::zero_initializer(
     typecheck_code(assign);
     ops.push_back(assign);
   }
-  else if(final_type.id()==ID_incomplete_struct ||
-          final_type.id()==ID_incomplete_union)
-  {
-    error().source_location=source_location;
-    error() << "cannot zero-initialize incomplete compound" << eom;
-    throw 0;
-  }
   else
   {
-    exprt value=
-      ::zero_initializer(
-        final_type, source_location, *this, get_message_handler());
+    const auto value = ::zero_initializer(final_type, source_location, *this);
+    if(!value.has_value())
+    {
+      error().source_location = source_location;
+      error() << "cannot zero-initialize `" << to_string(final_type) << "'"
+              << eom;
+      throw 0;
+    }
 
-    code_assignt assign;
-    assign.lhs()=object;
-    assign.rhs()=value;
+    code_assignt assign(object, *value);
     assign.add_source_location()=source_location;
 
     typecheck_expr(assign.op0());

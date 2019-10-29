@@ -1,4 +1,5 @@
-SRC = arith_tools.cpp \
+SRC = allocate_objects.cpp \
+      arith_tools.cpp \
       array_name.cpp \
       base_type.cpp \
       bv_arithmetic.cpp \
@@ -13,6 +14,7 @@ SRC = arith_tools.cpp \
       expr.cpp \
       expr_initializer.cpp \
       expr_util.cpp \
+      exception_utils.cpp \
       file_util.cpp \
       find_macros.cpp \
       find_symbols.cpp \
@@ -35,16 +37,18 @@ SRC = arith_tools.cpp \
       irep_serialization.cpp \
       invariant_utils.cpp \
       json.cpp \
-      json_expr.cpp \
       json_irep.cpp \
       json_stream.cpp \
       lispexpr.cpp \
       lispirep.cpp \
+      mathematical_types.cpp \
       memory_info.cpp \
       merge_irep.cpp \
       message.cpp \
       mp_arith.cpp \
       namespace.cpp \
+      nondet.cpp \
+      object_factory_parameters.cpp \
       options.cpp \
       parse_options.cpp \
       parser.cpp \
@@ -93,9 +97,11 @@ SRC = arith_tools.cpp \
       union_find.cpp \
       union_find_replace.cpp \
       unwrap_nested_exception.cpp \
+      validate_code.cpp \
+      validate_expressions.cpp \
+      validate_types.cpp \
       version.cpp \
       xml.cpp \
-      xml_expr.cpp \
       xml_irep.cpp \
       # Empty last line
 

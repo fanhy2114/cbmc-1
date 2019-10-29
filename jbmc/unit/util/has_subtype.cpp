@@ -1,8 +1,8 @@
 /*******************************************************************\
 
- Module: Unit tests for has_subtype in expr_util.cpp
+Module: Unit tests for has_subtype in expr_util.cpp
 
- Author: Diffblue Ltd.
+Author: Diffblue Ltd.
 
 \*******************************************************************/
 
@@ -66,8 +66,8 @@ SCENARIO("has_subtype", "[core][utils][has_subtype]")
 
   GIVEN("a recursive struct definition")
   {
-    symbol_typet symbol_type("A-struct");
-    struct_typet::componentt comp("ptr", pointer_type(symbol_type));
+    struct_tag_typet struct_tag("A-struct");
+    struct_typet::componentt comp("ptr", pointer_type(struct_tag));
     struct_typet struct_type;
     struct_type.components().push_back(comp);
 
@@ -80,11 +80,11 @@ SCENARIO("has_subtype", "[core][utils][has_subtype]")
     THEN("has_subtype terminates")
     {
       REQUIRE_FALSE(
-        has_subtype(struct_type, [&](const typet &t) { return false; }, ns));
+        has_subtype(struct_type, [&](const typet &) { return false; }, ns));
     }
     THEN("symbol type is a subtype")
     {
-      REQUIRE(has_subtype(struct_type, is_type(pointer_type(symbol_type)), ns));
+      REQUIRE(has_subtype(struct_type, is_type(pointer_type(struct_tag)), ns));
     }
     THEN("struct type is a subtype")
     {

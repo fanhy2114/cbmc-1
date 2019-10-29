@@ -14,12 +14,15 @@ Author: Daniel Kroening, kroening@kroening.com
 #include <cassert>
 #include <memory>
 
-#include <util/std_expr.h>
-#include <util/symbol_table.h>
-#include <util/replace_symbol.h>
+#include <util/exception_utils.h>
 #include <util/make_unique.h>
+#include <util/replace_symbol.h>
+#include <util/std_expr.h>
+#include <util/string2int.h>
+#include <util/symbol_table.h>
 
 #include <analyses/dirty.h>
+<<<<<<< HEAD
 // __FHY_ADD_BEGIN__
 #include <iostream>
 #include "goto-programs/show_symbol_table.h"
@@ -29,6 +32,27 @@ Author: Daniel Kroening, kroening@kroening.com
 // __FHY_ADD_END__
 void goto_symext::symex_transition(
   statet &state,
+=======
+
+symex_configt::symex_configt(const optionst &options)
+  : max_depth(options.get_unsigned_int_option("depth")),
+    doing_path_exploration(options.is_set("paths")),
+    allow_pointer_unsoundness(
+      options.get_bool_option("allow-pointer-unsoundness")),
+    constant_propagation(options.get_bool_option("propagation")),
+    self_loops_to_assumptions(
+      options.get_bool_option("self-loops-to-assumptions")),
+    simplify_opt(options.get_bool_option("simplify")),
+    unwinding_assertions(options.get_bool_option("unwinding-assertions")),
+    partial_loops(options.get_bool_option("partial-loops")),
+    debug_level(unsafe_string2int(options.get_option("debug-level"))),
+    run_validation_checks(options.get_bool_option("validate-ssa-equation"))
+{
+}
+
+void symex_transition(
+  goto_symext::statet &state,
+>>>>>>> fca695a7b12cb7b1562e3b47cfc564ef691492c5
   goto_programt::const_targett to,
   bool is_backwards_goto)
 {
@@ -39,7 +63,7 @@ void goto_symext::symex_transition(
     // 1. the transition from state.source.pc to "to" is not a backwards goto
     // or
     // 2. we are arriving from an outer loop
-    statet::framet &frame=state.top();
+    goto_symext::statet::framet &frame = state.top();
     const goto_programt::instructiont &instruction=*to;
     for(const auto &i_e : instruction.incoming_edges)
       if(i_e->is_goto() && i_e->is_backwards_goto() &&
@@ -51,12 +75,20 @@ void goto_symext::symex_transition(
   state.source.pc=to;
 }
 
+void symex_transition(goto_symext::statet &state)
+{
+  goto_programt::const_targett next = state.source.pc;
+  ++next;
+  symex_transition(state, next, false);
+}
+
 void goto_symext::vcc(
   const exprt &vcc_expr,
   const std::string &msg,
   statet &state)
 {
-  total_vccs++;
+  state.total_vccs++;
+  path_segment_vccs++;
 
   exprt expr=vcc_expr;
 
@@ -74,7 +106,7 @@ void goto_symext::vcc(
 
   state.guard.guard_expr(expr);
 
-  remaining_vccs++;
+  state.remaining_vccs++;
   target.assertion(state.guard.as_expr(), expr, msg, state.source);
 }
 
@@ -113,25 +145,25 @@ void goto_symext::rewrite_quantifiers(exprt &expr, statet &state)
   {
     // forall X. P -> P
     // we keep the quantified variable unique by means of L2 renaming
-    PRECONDITION(expr.operands().size()==2);
-    PRECONDITION(expr.op0().id()==ID_symbol);
-    symbol_exprt tmp0=
-      to_symbol_expr(to_ssa_expr(expr.op0()).get_original_expr());
+    auto &quant_expr = to_quantifier_expr(expr);
+    symbol_exprt tmp0 =
+      to_symbol_expr(to_ssa_expr(quant_expr.symbol()).get_original_expr());
     symex_decl(state, tmp0);
-    exprt tmp=expr.op1();
-    expr.swap(tmp);
+    exprt tmp = quant_expr.where();
+    quant_expr.swap(tmp);
   }
 }
 
 void goto_symext::initialize_entry_point(
   statet &state,
   const get_goto_functiont &get_goto_function,
+  const irep_idt &function_identifier,
   const goto_programt::const_targett pc,
   const goto_programt::const_targett limit)
 {
   PRECONDITION(!state.threads.empty());
   PRECONDITION(!state.call_stack().empty());
-  state.source=symex_targett::sourcet(pc);
+  state.source = symex_targett::sourcet(function_identifier, pc);
   state.top().end_of_function=limit;
   state.top().calling_location.pc=state.top().end_of_function;
   state.symex_target=&target;
@@ -140,20 +172,48 @@ void goto_symext::initialize_entry_point(
     !pc->function.empty(), "all symexed instructions should have a function");
 
   const goto_functiont &entry_point_function = get_goto_function(pc->function);
+<<<<<<< HEAD
+=======
+
+  state.top().hidden_function = entry_point_function.is_hidden();
+
+>>>>>>> fca695a7b12cb7b1562e3b47cfc564ef691492c5
   auto emplace_safe_pointers_result =
-    safe_pointers.emplace(pc->function, local_safe_pointerst{ns});
+    state.safe_pointers.emplace(pc->function, local_safe_pointerst{ns});
   if(emplace_safe_pointers_result.second)
     emplace_safe_pointers_result.first->second(entry_point_function.body);
 
   state.dirty.populate_dirty_for_function(pc->function, entry_point_function);
 
-  symex_transition(state, state.source.pc);
+  symex_transition(state, state.source.pc, false);
+}
+
+static void
+switch_to_thread(goto_symex_statet &state, const unsigned int thread_nb)
+{
+  PRECONDITION(state.source.thread_nr < state.threads.size());
+  PRECONDITION(thread_nb < state.threads.size());
+
+  // save PC
+  state.threads[state.source.thread_nr].pc = state.source.pc;
+  state.threads[state.source.thread_nr].atomic_section_id =
+    state.atomic_section_id;
+
+  // get new PC
+  state.source.thread_nr = thread_nb;
+  state.source.pc = state.threads[thread_nb].pc;
+
+  state.guard = state.threads[thread_nb].guard;
 }
 
 void goto_symext::symex_threaded_step(
   statet &state, const get_goto_functiont &get_goto_function)
 {
   symex_step(get_goto_function, state);
+
+  _total_vccs = state.total_vccs;
+  _remaining_vccs = state.remaining_vccs;
+
   if(should_pause_symex)
     return;
 
@@ -165,8 +225,8 @@ void goto_symext::symex_threaded_step(
 #if 0
     std::cout << "********* Now executing thread " << t << '\n';
 #endif
-    state.switch_to_thread(t);
-    symex_transition(state, state.source.pc);
+    switch_to_thread(state, t);
+    symex_transition(state, state.source.pc, false);
   }
 }
 
@@ -247,36 +307,6 @@ void goto_symext::resume_symex_from_saved_state(
       new_symbol_table);
 }
 
-void goto_symext::symex_instruction_range(
-  statet &state,
-  const goto_functionst &goto_functions,
-  const goto_programt::const_targett first,
-  const goto_programt::const_targett limit)
-{
-  symex_instruction_range(
-    state, get_function_from_goto_functions(goto_functions), first, limit);
-}
-
-void goto_symext::symex_instruction_range(
-  statet &state,
-  const get_goto_functiont &get_goto_function,
-  const goto_programt::const_targett first,
-  const goto_programt::const_targett limit)
-{
-  initialize_entry_point(state, get_goto_function, first, limit);
-  ns = namespacet(outer_symbol_table, state.symbol_table);
-  while(state.source.pc->function!=limit->function || state.source.pc!=limit)
-    symex_threaded_step(state, get_goto_function);
-}
-
-void goto_symext::symex_from_entry_point_of(
-  const goto_functionst &goto_functions,
-  symbol_tablet &new_symbol_table)
-{
-  symex_from_entry_point_of(
-    get_function_from_goto_functions(goto_functions), new_symbol_table);
-}
-
 void goto_symext::symex_from_entry_point_of(
   const get_goto_functiont &get_goto_function,
   symbol_tablet &new_symbol_table)
@@ -293,14 +323,21 @@ void goto_symext::symex_from_entry_point_of(
   }
   catch(const std::out_of_range &)
   {
-    throw "the program has no entry point";
+    throw unsupported_operation_exceptiont("the program has no entry point");
   }
 
   statet state;
+<<<<<<< HEAD
 	
+=======
+
+  state.run_validation_checks = symex_config.run_validation_checks;
+
+>>>>>>> fca695a7b12cb7b1562e3b47cfc564ef691492c5
   initialize_entry_point(
     state,
     get_goto_function,
+    goto_functionst::entry_point(),
     start_function->body.instructions.begin(),
     prev(start_function->body.instructions.end()));
   
@@ -325,11 +362,11 @@ void goto_symext::symex_step(
 
   const goto_programt::instructiont &instruction=*state.source.pc;
 
-  if(!doing_path_exploration)
+  if(!symex_config.doing_path_exploration)
     merge_gotos(state);
 
   // depth exceeded?
-  if(max_depth != 0 && state.depth > max_depth)
+  if(symex_config.max_depth != 0 && state.depth > symex_config.max_depth)
     state.guard.add(false_exprt());
   state.depth++;
 
@@ -471,9 +508,9 @@ void goto_symext::symex_step(
     break;
 
   case NO_INSTRUCTION_TYPE:
-    throw "symex got NO_INSTRUCTION";
+    throw unsupported_operation_exceptiont("symex got NO_INSTRUCTION");
 
   default:
-    throw "symex got unexpected instruction";
+    UNREACHABLE;
   }
 }

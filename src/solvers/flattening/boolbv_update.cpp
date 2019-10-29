@@ -42,10 +42,6 @@ void boolbvt::convert_update_rec(
   const exprt &new_value,
   bvt &bv)
 {
-  if(type.id()==ID_symbol)
-    convert_update_rec(
-      designators, d, ns.follow(type), offset, new_value, bv);
-
   if(d>=designators.size())
   {
     // done
@@ -79,18 +75,16 @@ void boolbvt::convert_update_rec(
 
     const array_typet &array_type=to_array_type(type);
 
-    const typet &subtype=ns.follow(array_type.subtype());
+    const typet &subtype = array_type.subtype();
 
     std::size_t element_size=boolbv_width(subtype);
 
     // iterate over array
-    mp_integer size;
-    if(to_integer(array_type.size(), size))
-      throw "update: failed to get array size";
+    const std::size_t size = numeric_cast_v<std::size_t>(array_type.size());
 
     bvt tmp_bv=bv;
 
-    for(std::size_t i=0; i!=integer2size_t(size); ++i)
+    for(std::size_t i = 0; i != size; ++i)
     {
       std::size_t new_offset=offset+i*element_size;
 
@@ -112,10 +106,9 @@ void boolbvt::convert_update_rec(
   {
     const irep_idt &component_name=designator.get(ID_component_name);
 
-    if(type.id()==ID_struct)
+    if(ns.follow(type).id() == ID_struct)
     {
-      const struct_typet &struct_type=
-        to_struct_type(type);
+      const struct_typet &struct_type = to_struct_type(ns.follow(type));
 
       std::size_t struct_offset=0;
 
@@ -125,17 +118,14 @@ void boolbvt::convert_update_rec(
       const struct_typet::componentst &components=
         struct_type.components();
 
-      for(struct_typet::componentst::const_iterator
-          it=components.begin();
-          it!=components.end();
-          it++)
+      for(const auto &c : components)
       {
-        const typet &subtype=it->type();
+        const typet &subtype = c.type();
         std::size_t sub_width=boolbv_width(subtype);
 
-        if(it->get_name()==component_name)
+        if(c.get_name() == component_name)
         {
-          component=*it;
+          component = c;
           break; // done
         }
 
@@ -145,7 +135,7 @@ void boolbvt::convert_update_rec(
       if(component.is_nil())
         throw "update: failed to find struct component";
 
-      const typet &new_type=ns.follow(component.type());
+      const typet &new_type = component.type();
 
       std::size_t new_offset=offset+struct_offset;
 
@@ -153,10 +143,9 @@ void boolbvt::convert_update_rec(
       convert_update_rec(
         designators, d+1, new_type, new_offset, new_value, bv);
     }
-    else if(type.id()==ID_union)
+    else if(ns.follow(type).id() == ID_union)
     {
-      const union_typet &union_type=
-        to_union_type(type);
+      const union_typet &union_type = to_union_type(ns.follow(type));
 
       const union_typet::componentt &component=
         union_type.get_component(component_name);
@@ -166,7 +155,7 @@ void boolbvt::convert_update_rec(
 
       // this only adjusts the type, the offset stays as-is
 
-      const typet &new_type=ns.follow(component.type());
+      const typet &new_type = component.type();
 
       // recursive call
       convert_update_rec(

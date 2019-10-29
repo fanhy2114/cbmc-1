@@ -18,6 +18,7 @@ Author: Michael Tautschnig, Daniel Kroening
 #include <util/rename_symbol.h>
 
 #include <linking/linking_class.h>
+#include <util/exception_utils.h>
 
 #include "goto_model.h"
 
@@ -140,7 +141,7 @@ static bool link_functions(
       rename_symbols_in_function(dest_it->second, final_id, macro_application);
     }
 
-  if(!object_type_updates.expr_map.empty())
+  if(!object_type_updates.empty())
   {
     Forall_goto_functions(dest_it, dest_functions)
       Forall_goto_program_instructions(iit, dest_it->second.body)
@@ -171,15 +172,18 @@ void link_goto_model(
                    message_handler);
 
   if(linking.typecheck_main())
-    throw 0;
-
+  {
+    throw invalid_source_file_exceptiont("typechecking main failed");
+  }
   if(link_functions(
-      dest.symbol_table,
-      dest.goto_functions,
-      src.symbol_table,
-      src.goto_functions,
-      linking.rename_symbol,
-      weak_symbols,
-      linking.object_type_updates))
-    throw 0;
+       dest.symbol_table,
+       dest.goto_functions,
+       src.symbol_table,
+       src.goto_functions,
+       linking.rename_symbol,
+       weak_symbols,
+       linking.object_type_updates))
+  {
+    throw invalid_source_file_exceptiont("linking failed");
+  }
 }

@@ -20,6 +20,8 @@ Author: Daniel Kroening, kroening@kroening.com
 #include <util/ui_message.h>
 #include <util/decision_procedure.h>
 
+#include <goto-checker/symex_bmc.h>
+
 #include <goto-programs/goto_trace.h>
 
 #include <goto-symex/symex_target_equation.h>
@@ -29,10 +31,14 @@ Author: Daniel Kroening, kroening@kroening.com
 #include <goto-programs/safety_checker.h>
 #include <goto-symex/memory_model.h>
 
+<<<<<<< HEAD
 #include "symex_bmc.h"
 // __FHY_ADD_BEGIN__
 #include <vector>
 // __FHY_ADD_END__
+=======
+
+>>>>>>> fca695a7b12cb7b1562e3b47cfc564ef691492c5
 class cbmc_solverst;
 
 /// \brief Bounded model checking or path exploration for goto-programs
@@ -68,7 +74,7 @@ public:
   bmct(
     const optionst &_options,
     const symbol_tablet &outer_symbol_table,
-    message_handlert &_message_handler,
+    ui_message_handlert &_message_handler,
     prop_convt &_prop_conv,
     path_storaget &_path_storage,
     std::function<bool(void)> callback_after_symex)
@@ -85,14 +91,9 @@ public:
         options,
         path_storage),
       prop_conv(_prop_conv),
-      ui(ui_message_handlert::uit::PLAIN),
+      ui_message_handler(_message_handler),
       driver_callback_after_symex(callback_after_symex)
   {
-    symex.constant_propagation=options.get_bool_option("propagation");
-    symex.record_coverage=
-      !options.get_option("symex-coverage-report").empty();
-    symex.self_loops_to_assumptions =
-      options.get_bool_option("self-loops-to-assumptions");
   }
 
   virtual resultt run(const goto_functionst &goto_functions)
@@ -104,8 +105,6 @@ public:
   void setup();
   safety_checkert::resultt execute(abstract_goto_modelt &);
   virtual ~bmct() { }
-
-  void set_ui(ui_message_handlert::uit _ui) { ui=_ui; }
 
   // the safety_checkert interface
   virtual resultt operator()(
@@ -126,13 +125,11 @@ public:
   }
 
   static int do_language_agnostic_bmc(
-    const path_strategy_choosert &path_strategy_chooser,
     const optionst &opts,
     abstract_goto_modelt &goto_model,
-    const ui_message_handlert::uit &ui,
-    messaget &message,
-    std::function<void(bmct &, const symbol_tablet &)>
-      driver_configure_bmc = nullptr,
+    ui_message_handlert &ui,
+    std::function<void(bmct &, const symbol_tablet &)> driver_configure_bmc =
+      nullptr,
     std::function<bool(void)> callback_after_symex = nullptr);
 
 protected:
@@ -146,7 +143,7 @@ protected:
   bmct(
     const optionst &_options,
     const symbol_tablet &outer_symbol_table,
-    message_handlert &_message_handler,
+    ui_message_handlert &_message_handler,
     prop_convt &_prop_conv,
     symex_target_equationt &_equation,
     path_storaget &_path_storage,
@@ -164,12 +161,9 @@ protected:
         options,
         path_storage),
       prop_conv(_prop_conv),
-      ui(ui_message_handlert::uit::PLAIN),
+      ui_message_handler(_message_handler),
       driver_callback_after_symex(callback_after_symex)
   {
-    symex.constant_propagation = options.get_bool_option("propagation");
-    symex.record_coverage =
-      !options.get_option("symex-coverage-report").empty();
     INVARIANT(
       options.get_bool_option("paths"),
       "Should only use saved equation & goto_state constructor "
@@ -188,11 +182,11 @@ protected:
   prop_convt &prop_conv;
   std::unique_ptr<memory_model_baset> memory_model;
   // use gui format
-  ui_message_handlert::uit ui;
+  ui_message_handlert &ui_message_handler;
 
-  virtual decision_proceduret::resultt
-    run_decision_procedure(prop_convt &prop_conv);
+  virtual decision_proceduret::resultt run_decision_procedure();
 
+<<<<<<< HEAD
   virtual resultt decide(
     const goto_functionst &,
     prop_convt &);
@@ -202,31 +196,19 @@ protected:
   // __FHY_ADD_BEGIN__
   void fix_ssa();
   // __FHY_ADD_END__
-  virtual void freeze_program_variables();
+=======
+  virtual resultt decide(const goto_functionst &);
 
-  virtual void show_vcc();
-  virtual void show_vcc_plain(std::ostream &out);
-  virtual void show_vcc_json(std::ostream &out);
+>>>>>>> fca695a7b12cb7b1562e3b47cfc564ef691492c5
+  virtual void freeze_program_variables();
 
   trace_optionst trace_options()
   {
     return trace_optionst(options);
   }
 
-  virtual resultt all_properties(
-    const goto_functionst &goto_functions,
-    prop_convt &solver);
-  virtual resultt stop_on_fail(prop_convt &solver);
-  virtual void show_program();
-  virtual void report_success();
-  virtual void report_failure();
-
-  virtual void error_trace();
-  void output_graphml(resultt result);
-
-  void get_memory_model();
-  void slice();
-  void show();
+  virtual resultt all_properties(const goto_functionst &goto_functions);
+  virtual resultt stop_on_fail();
 
   bool cover(const goto_functionst &goto_functions);
 
@@ -269,7 +251,7 @@ public:
   path_explorert(
     const optionst &_options,
     const symbol_tablet &outer_symbol_table,
-    message_handlert &_message_handler,
+    ui_message_handlert &_message_handler,
     prop_convt &_prop_conv,
     symex_target_equationt &saved_equation,
     const goto_symex_statet &saved_state,
@@ -298,44 +280,6 @@ private:
   /// provided as arguments to the constructor of this class.
   void perform_symbolic_execution(
     goto_symext::get_goto_functiont get_goto_function) override;
-
-#define OPT_BMC                                                                \
-  "(program-only)"                                                             \
-  "(show-loops)"                                                               \
-  "(show-vcc)"                                                                 \
-  "(slice-formula)"                                                            \
-  "(unwinding-assertions)"                                                     \
-  "(no-unwinding-assertions)"                                                  \
-  "(no-pretty-names)"                                                          \
-  "(no-self-loops-to-assumptions)"                                             \
-  "(partial-loops)"                                                            \
-  "(paths):"                                                                   \
-  "(show-symex-strategies)"                                                    \
-  "(depth):"                                                                   \
-  "(unwind):"                                                                  \
-  "(unwindset):"                                                               \
-  "(graphml-witness):"                                                         \
-  "(unwindset):"
-
-#define HELP_BMC                                                               \
-  " --paths [strategy]           explore paths one at a time\n"                \
-  " --show-symex-strategies      list strategies for use with --paths\n"       \
-  " --program-only               only show program expression\n"               \
-  " --show-loops                 show the loops in the program\n"              \
-  " --depth nr                   limit search depth\n"                         \
-  " --unwind nr                  unwind nr times\n"                            \
-  " --unwindset L:B,...          unwind loop L with a bound of B\n"            \
-  "                              (use --show-loops to get the loop IDs)\n"     \
-  " --show-vcc                   show the verification conditions\n"           \
-  " --slice-formula              remove assignments unrelated to property\n"   \
-  " --unwinding-assertions       generate unwinding assertions (cannot be\n"   \
-  "                              used with --cover or --partial-loops)\n"      \
-  " --partial-loops              permit paths with partial loops\n"            \
-  " --no-self-loops-to-assumptions\n"                                          \
-  "                              do not simplify while(1){} to assume(0)\n"    \
-  " --no-pretty-names            do not simplify identifiers\n"                \
-  " --graphml-witness filename   write the witness in GraphML format to "      \
-  "filename\n" // NOLINT(*)
 };
 
 #endif // CPROVER_CBMC_BMC_H

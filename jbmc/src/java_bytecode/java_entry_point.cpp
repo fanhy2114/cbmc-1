@@ -22,6 +22,8 @@ Author: Daniel Kroening, kroening@kroening.com
 #include "java_object_factory.h"
 #include "java_string_literals.h"
 #include "java_utils.h"
+#include <util/fresh_symbol.h>
+#include <util/nondet.h>
 
 #define JAVA_MAIN_METHOD "main:([Ljava/lang/String;)V"
 
@@ -104,7 +106,7 @@ static const symbolt *get_class_literal_initializer(
 {
   if(symbol.value.is_not_nil())
     return nullptr;
-  if(symbol.type != symbol_typet("java::java.lang.Class"))
+  if(symbol.type != struct_tag_typet("java::java.lang.Class"))
     return nullptr;
   if(!has_suffix(id2string(symbol.name), JAVA_CLASS_MODEL_SUFFIX))
     return nullptr;
@@ -120,7 +122,7 @@ static void java_static_lifetime_init(
   symbol_table_baset &symbol_table,
   const source_locationt &source_location,
   bool assume_init_pointers_not_null,
-  object_factory_parameterst object_factory_parameters,
+  java_object_factory_parameterst object_factory_parameters,
   const select_pointer_typet &pointer_type_selector,
   bool string_refinement_enabled,
   message_handlert &message_handler)
@@ -128,6 +130,21 @@ static void java_static_lifetime_init(
   symbolt &initialize_symbol=*symbol_table.get_writeable(INITIALIZE_FUNCTION);
   code_blockt &code_block=to_code_block(to_code(initialize_symbol.value));
   object_factory_parameters.function_id = initialize_symbol.name;
+
+  // If there are strings given using --string-input-value, we need to add
+  // them to the symbol table now, so that they appear in __CPROVER_initialize
+  // and we can refer to them later when we initialize input values.
+  for(const auto &val : object_factory_parameters.string_input_values)
+  {
+    exprt my_literal(ID_java_string_literal);
+    my_literal.set(ID_value, val);
+    // We ignore the return value of the following call, we just need to
+    // make sure the string is in the symbol table.
+    get_or_create_string_literal_symbol(
+      my_literal,
+      symbol_table,
+      string_refinement_enabled);
+  }
 
   // We need to zero out all static variables, or nondet-initialize if they're
   // external. Iterate over a copy of the symtab, as its iterators are
@@ -167,48 +184,46 @@ static void java_static_lifetime_init(
         // Argument order is: name, isAnnotation, isArray, isInterface,
         // isSynthetic, isLocalClass, isMemberClass, isEnum
 
-        code_function_callt initializer_call;
-        initializer_call.function() = class_literal_init_method->symbol_expr();
-
-        code_function_callt::argumentst &args = initializer_call.arguments();
-
-        // this:
-        args.push_back(address_of_exprt(sym.symbol_expr()));
-        // name:
-        args.push_back(address_of_exprt(class_name_literal));
-        // isAnnotation:
-        args.push_back(
-          constant_bool(class_symbol.type.get_bool(ID_is_annotation)));
-        // isArray:
-        args.push_back(constant_bool(class_is_array));
-        // isInterface:
-        args.push_back(
-          constant_bool(class_symbol.type.get_bool(ID_interface)));
-        // isSynthetic:
-        args.push_back(
-          constant_bool(class_symbol.type.get_bool(ID_synthetic)));
-        // isLocalClass:
-        args.push_back(nondet_bool);
-        // isMemberClass:
-        args.push_back(nondet_bool);
-        // isEnum:
-        args.push_back(
-          constant_bool(class_symbol.type.get_bool(ID_enumeration)));
+        code_function_callt initializer_call(
+          class_literal_init_method->symbol_expr(),
+          {// this:
+           address_of_exprt(sym.symbol_expr()),
+           // name:
+           address_of_exprt(class_name_literal),
+           // isAnnotation:
+           constant_bool(class_symbol.type.get_bool(ID_is_annotation)),
+           // isArray:
+           constant_bool(class_is_array),
+           // isInterface:
+           constant_bool(class_symbol.type.get_bool(ID_interface)),
+           // isSynthetic:
+           constant_bool(class_symbol.type.get_bool(ID_synthetic)),
+           // isLocalClass:
+           nondet_bool,
+           // isMemberClass:
+           nondet_bool,
+           // isEnum:
+           constant_bool(class_symbol.type.get_bool(ID_enumeration))});
 
         // First initialize the object as prior to a constructor:
         namespacet ns(symbol_table);
 
-        exprt zero_object =
-          zero_initializer(
-            sym.type, source_locationt(), ns, message_handler);
+        auto zero_object = zero_initializer(sym.type, source_locationt(), ns);
+        if(!zero_object.has_value())
+        {
+          messaget message(message_handler);
+          message.error() << "failed to zero-initialize " << sym.name
+                          << messaget::eom;
+          throw 0;
+        }
         set_class_identifier(
-          to_struct_expr(zero_object), ns, to_symbol_type(sym.type));
+          to_struct_expr(*zero_object), ns, to_struct_tag_type(sym.type));
 
-        code_block.copy_to_operands(
-          code_assignt(sym.symbol_expr(), zero_object));
+        code_block.add(
+          std::move(code_assignt(sym.symbol_expr(), *zero_object)));
 
         // Then call the init function:
-        code_block.move_to_operands(initializer_call);
+        code_block.add(std::move(initializer_call));
       }
       else if(sym.value.is_nil() && sym.type!=empty_typet())
       {
@@ -218,9 +233,9 @@ static void java_static_lifetime_init(
                                     is_non_null_library_global(sym.name) ||
                                     assume_init_pointers_not_null;
 
-        object_factory_parameterst parameters = object_factory_parameters;
+        java_object_factory_parameterst parameters = object_factory_parameters;
         if(not_allow_null && !is_class_model)
-          parameters.max_nonnull_tree_depth = 1;
+          parameters.min_null_tree_depth = 1;
 
         gen_nondet_init(
           sym.symbol_expr(),
@@ -228,7 +243,7 @@ static void java_static_lifetime_init(
           symbol_table,
           source_location,
           false,
-          allocation_typet::GLOBAL,
+          lifetimet::STATIC_GLOBAL,
           parameters,
           pointer_type_selector,
           update_in_placet::NO_UPDATE_IN_PLACE);
@@ -278,7 +293,7 @@ exprt::operandst java_build_arguments(
   code_blockt &init_code,
   symbol_table_baset &symbol_table,
   bool assume_init_pointers_not_null,
-  object_factory_parameterst object_factory_parameters,
+  java_object_factory_parameterst object_factory_parameters,
   const select_pointer_typet &pointer_type_selector)
 {
   const java_method_typet::parameterst &parameters =
@@ -307,27 +322,104 @@ exprt::operandst java_build_arguments(
     // be null
     bool is_this=(param_number==0) && parameters[param_number].get_this();
 
-    object_factory_parameterst parameters = object_factory_parameters;
+    java_object_factory_parameterst factory_parameters =
+      object_factory_parameters;
     // only pointer must be non-null
     if(assume_init_pointers_not_null || is_this)
-      parameters.max_nonnull_tree_depth = 1;
+      factory_parameters.min_null_tree_depth = 1;
     // in main() also the array elements of the argument must be non-null
     if(is_main)
-      parameters.max_nonnull_tree_depth = 2;
+      factory_parameters.min_null_tree_depth = 2;
 
-    parameters.function_id = goto_functionst::entry_point();
+    factory_parameters.function_id = goto_functionst::entry_point();
 
-    // generate code to allocate and non-deterministicaly initialize the
-    // argument
-    main_arguments[param_number] = object_factory(
-      p.type(),
-      base_name,
-      init_code,
-      symbol_table,
-      parameters,
-      allocation_typet::LOCAL,
-      function.location,
-      pointer_type_selector);
+    namespacet ns(symbol_table);
+
+    // Generate code to allocate and non-deterministicaly initialize the
+    // argument, if the argument has different possible object types (e.g., from
+    // casts in the function body), then choose one in a non-deterministic way.
+    const auto alternatives =
+      pointer_type_selector.get_parameter_alternative_types(
+        function.name, p.get_identifier(), ns);
+    if(alternatives.empty())
+    {
+      main_arguments[param_number] = object_factory(
+        p.type(),
+        base_name,
+        init_code,
+        symbol_table,
+        factory_parameters,
+        lifetimet::AUTOMATIC_LOCAL,
+        function.location,
+        pointer_type_selector);
+    }
+    else
+    {
+      INVARIANT(!is_this, "We cannot have different types for `this` here");
+      // create a non-deterministic switch between all possible values for the
+      // type of the parameter.
+      code_switcht code_switch;
+
+      // the idea is to get a new symbol for the parameter value `tmp`
+
+      // then add a non-deterministic switch over all possible input types,
+      // construct the object type at hand and assign to `tmp`
+
+      // switch(...)
+      // {
+      //   case obj1:
+      //     tmp_expr = object_factory(...)
+      //     param = tmp_expr
+      //     break
+      //   ...
+      // }
+      // method(..., param, ...)
+      //
+
+      const symbolt result_symbol = get_fresh_aux_symbol(
+        p.type(),
+        id2string(function.name),
+        "nondet_parameter_" + std::to_string(param_number),
+        function.location,
+        ID_java,
+        symbol_table);
+      main_arguments[param_number] = result_symbol.symbol_expr();
+
+      std::vector<codet> cases(alternatives.size());
+      const auto initialize_parameter = [&](const struct_tag_typet &type) {
+        code_blockt init_code_for_type;
+        exprt init_expr_for_parameter = object_factory(
+          java_reference_type(type),
+          id2string(base_name) + "_alternative_" +
+            id2string(type.get_identifier()),
+          init_code_for_type,
+          symbol_table,
+          factory_parameters,
+          lifetimet::DYNAMIC,
+          function.location,
+          pointer_type_selector);
+        init_code_for_type.add(
+          code_assignt(
+            result_symbol.symbol_expr(),
+            typecast_exprt(init_expr_for_parameter, p.type())));
+        return init_code_for_type;
+      };
+
+      std::transform(
+        alternatives.begin(),
+        alternatives.end(),
+        cases.begin(),
+        initialize_parameter);
+
+      init_code.add(
+        generate_nondet_switch(
+          id2string(function.name) + "_" + std::to_string(param_number),
+          cases,
+          java_int_type(),
+          ID_java,
+          function.location,
+          symbol_table));
+    }
 
     // record as an input
     codet input(ID_input);
@@ -340,7 +432,7 @@ exprt::operandst java_build_arguments(
     input.op1()=main_arguments[param_number];
     input.add_source_location()=function.location;
 
-    init_code.move_to_operands(input);
+    init_code.add(std::move(input));
   }
 
   return main_arguments;
@@ -378,7 +470,7 @@ void java_record_outputs(
     output.op1()=return_symbol.symbol_expr();
     output.add_source_location()=function.location;
 
-    init_code.move_to_operands(output);
+    init_code.add(std::move(output));
   }
 
   for(std::size_t param_number=0;
@@ -401,7 +493,7 @@ void java_record_outputs(
       output.op1()=main_arguments[param_number];
       output.add_source_location()=function.location;
 
-      init_code.move_to_operands(output);
+      init_code.add(std::move(output));
     }
   }
 
@@ -419,7 +511,7 @@ void java_record_outputs(
   output.op1()=exc_symbol.symbol_expr();
   output.add_source_location()=function.location;
 
-  init_code.move_to_operands(output);
+  init_code.add(std::move(output));
 }
 
 main_function_resultt get_main_symbol(
@@ -515,14 +607,14 @@ main_function_resultt get_main_symbol(
 /// (deterministically) set to null. This is a source of underapproximation in
 /// our approach to test generation, and should perhaps be fixed in the future.
 ///
-/// \returns true if error occurred on entry point search
+/// \return true if error occurred on entry point search
 bool java_entry_point(
   symbol_table_baset &symbol_table,
   const irep_idt &main_class,
   message_handlert &message_handler,
   bool assume_init_pointers_not_null,
   bool assert_uncaught_exceptions,
-  const object_factory_parameterst &object_factory_parameters,
+  const java_object_factory_parameterst &object_factory_parameters,
   const select_pointer_typet &pointer_type_selector,
   bool string_refinement_enabled)
 {
@@ -568,19 +660,17 @@ bool java_entry_point(
 /// \param message_handler: Where to write output to
 /// \param assume_init_pointers_not_null: When creating pointers, assume they
 ///   always take a non-null value.
-/// \param max_nondet_array_length: The length of the arrays to create when
-///   filling them
-/// \param max_nondet_tree_depth: defines the maximum depth of the object tree
-///   (see java_entry_points documentation for details)
+/// \param assert_uncaught_exceptions: Add an uncaught-exception check
+/// \param object_factory_parameters: Parameters for creation of arguments
 /// \param pointer_type_selector: Logic for substituting types of pointers
-/// \returns true if error occurred on entry point search, false otherwise
+/// \return true if error occurred on entry point search, false otherwise
 bool generate_java_start_function(
   const symbolt &symbol,
   symbol_table_baset &symbol_table,
   message_handlert &message_handler,
   bool assume_init_pointers_not_null,
   bool assert_uncaught_exceptions,
-  const object_factory_parameterst &object_factory_parameters,
+  const java_object_factory_parameterst &object_factory_parameters,
   const select_pointer_typet &pointer_type_selector)
 {
   messaget message(message_handler);
@@ -598,12 +688,10 @@ bool generate_java_start_function(
       return true; // give up with error
     }
 
-    code_function_callt call_init;
-    call_init.lhs().make_nil();
+    code_function_callt call_init(init_it->second.symbol_expr());
     call_init.add_source_location()=symbol.location;
-    call_init.function()=init_it->second.symbol_expr();
 
-    init_code.move_to_operands(call_init);
+    init_code.add(std::move(call_init));
   }
 
   // build call to the main method, of the form
@@ -611,15 +699,13 @@ bool generate_java_start_function(
   // where return is a new variable
   // and arg1 ... argn are constructed below as well
 
-  code_function_callt call_main;
-
   source_locationt loc=symbol.location;
   loc.set_function(symbol.name);
   source_locationt &dloc=loc;
 
   // function to call
+  code_function_callt call_main(symbol.symbol_expr());
   call_main.add_source_location()=dloc;
-  call_main.function()=symbol.symbol_expr();
   call_main.function().add_source_location()=dloc;
 
   // if the method return type is not void, store return value in a new variable
@@ -646,10 +732,9 @@ bool generate_java_start_function(
   symbol_table.add(exc_symbol);
 
   // Zero-initialise the top-level exception catch variable:
-  init_code.copy_to_operands(
-    code_assignt(
-      exc_symbol.symbol_expr(),
-      null_pointer_exprt(to_pointer_type(exc_symbol.type))));
+  init_code.add(code_assignt(
+    exc_symbol.symbol_expr(),
+    null_pointer_exprt(to_pointer_type(exc_symbol.type))));
 
   // create code that allocates the objects used as test arguments and
   // non-deterministically initializes them
@@ -679,26 +764,26 @@ bool generate_java_start_function(
   irept catch_type_list(ID_exception_list);
   irept catch_target_list(ID_label);
 
-  call_block.move_to_operands(push_universal_handler);
+  call_block.add(std::move(push_universal_handler));
 
   // we insert the call to the method AFTER the argument initialization code
-  call_block.move_to_operands(call_main);
+  call_block.add(std::move(call_main));
 
   // Pop the handler:
   code_pop_catcht pop_handler;
-  call_block.move_to_operands(pop_handler);
-  init_code.move_to_operands(call_block);
+  call_block.add(std::move(pop_handler));
+  init_code.add(std::move(call_block));
 
   // Normal return: skip the exception handler:
-  init_code.copy_to_operands(code_gotot(after_catch.get_label()));
+  init_code.add(code_gotot(after_catch.get_label()));
 
   // Exceptional return: catch and assign to exc_symbol.
   code_landingpadt landingpad(exc_symbol.symbol_expr());
-  init_code.copy_to_operands(toplevel_catch);
-  init_code.move_to_operands(landingpad);
+  init_code.add(std::move(toplevel_catch));
+  init_code.add(std::move(landingpad));
 
   // Converge normal and exceptional return:
-  init_code.move_to_operands(after_catch);
+  init_code.add(std::move(after_catch));
 
   // declare certain (which?) variables as test outputs
   java_record_outputs(symbol, main_arguments, init_code, symbol_table);

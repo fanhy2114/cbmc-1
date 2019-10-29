@@ -12,27 +12,26 @@ Author: Daniel Kroening, kroening@kroening.com
 #ifndef CPROVER_JBMC_JBMC_PARSE_OPTIONS_H
 #define CPROVER_JBMC_JBMC_PARSE_OPTIONS_H
 
-#include <util/ui_message.h>
 #include <util/parse_options.h>
 #include <util/timestamper.h>
+#include <util/ui_message.h>
+#include <util/validation_interface.h>
 
 #include <langapi/language.h>
 
 #include <analyses/goto_check.h>
 
-#include <cbmc/bmc.h>
+#include <goto-checker/bmc_util.h>
 
-#include <goto-instrument/cover.h>
 #include <goto-programs/class_hierarchy.h>
 #include <goto-programs/goto_trace.h>
 #include <goto-programs/lazy_goto_model.h>
 #include <goto-programs/show_properties.h>
 
-#include <goto-symex/path_storage.h>
+#include <solvers/refinement/string_refinement.h>
 
 #include <java_bytecode/java_bytecode_language.h>
 
-class bmct;
 class goto_functionst;
 class optionst;
 
@@ -49,26 +48,25 @@ class optionst;
   "(classpath):(cp):(main-class):" \
   "(no-assertions)(no-assumptions)" \
   "(xml-ui)(json-ui)" \
-  "(smt1)(smt2)(fpa)(cvc3)(cvc4)(boolector)(yices)(z3)(opensmt)(mathsat)" \
+  "(smt1)(smt2)(fpa)(cvc3)(cvc4)(boolector)(yices)(z3)(mathsat)" \
   "(no-sat-preprocessor)" \
   "(beautify)" \
   "(dimacs)(refine)(max-node-refinement):(refine-arrays)(refine-arithmetic)"\
-  "(refine-strings)" /* will go away */ \
-  "(no-refine-strings)" \
-  "(string-printable)" \
-  "(string-max-input-length):" /* will go away */ \
-  "(max-nondet-string-length):" \
+  OPT_STRING_REFINEMENT \
   "(16)(32)(64)(LP64)(ILP64)(LLP64)(ILP32)(LP32)" \
   OPT_SHOW_GOTO_FUNCTIONS \
   OPT_SHOW_CLASS_HIERARCHY \
   "(show-loops)" \
-  "(show-symbol-table)(show-parse-tree)" \
+  "(show-symbol-table)" \
+  "(list-symbols)" \
+  "(show-parse-tree)" \
   OPT_SHOW_PROPERTIES \
   "(drop-unused-functions)" \
   "(property):(stop-on-fail)(trace)" \
   "(verbosity):" \
+  "(nondet-static)" \
   "(version)" \
-  "(cover):(symex-coverage-report):" \
+  "(symex-coverage-report):" \
   OPT_TIMESTAMP \
   "(i386-linux)(i386-macos)(i386-win32)(win32)(winx64)" \
   "(ppc-macos)" \
@@ -80,6 +78,7 @@ class optionst;
   "(localize-faults)(localize-faults-method):" \
   "(java-threading)" \
   OPT_GOTO_TRACE \
+  OPT_VALIDATE \
   "(symex-driven-lazy-loading)"
 // clang-format on
 
@@ -119,10 +118,10 @@ public:
 
 protected:
   ui_message_handlert ui_message_handler;
-  std::unique_ptr<cover_configt> cover_config;
-  path_strategy_choosert path_strategy_chooser;
-  object_factory_parameterst object_factory_params;
+  java_object_factory_parameterst object_factory_params;
   bool stub_objects_are_not_null;
+
+  std::unique_ptr<class_hierarchyt> class_hierarchy;
 
   void get_command_line_options(optionst &);
   int get_goto_program(

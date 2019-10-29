@@ -1,8 +1,8 @@
 /*******************************************************************\
 
- Module: Unit tests for parsing generic classes
+Module: Unit tests for parsing generic classes
 
- Author: Diffblue Ltd.
+Author: Diffblue Ltd.
 
 \*******************************************************************/
 
@@ -21,10 +21,6 @@ SCENARIO(
   std::string class_prefix = "java::BoundedGenericInnerClasses";
   REQUIRE(new_symbol_table.has_symbol(class_prefix));
 
-  const symbolt &class_symbol = new_symbol_table.lookup_ref(class_prefix);
-  const java_class_typet &java_class_type =
-    require_type::require_complete_java_non_generic_class(class_symbol.type);
-
   WHEN("Parsing an inner class with type variable")
   {
     std::string inner_name = class_prefix + "$Inner";
@@ -32,9 +28,8 @@ SCENARIO(
     THEN("The symbol type should be generic")
     {
       const symbolt &class_symbol = new_symbol_table.lookup_ref(inner_name);
-      const java_generic_class_typet &java_generic_class_type =
-        require_type::require_complete_java_generic_class(
-          class_symbol.type, {inner_name + "::E"});
+      require_type::require_complete_java_generic_class(
+        class_symbol.type, {inner_name + "::E"});
 
       THEN("The fields are of correct types")
       {
@@ -55,9 +50,8 @@ SCENARIO(
     {
       const symbolt &class_symbol =
         new_symbol_table.lookup_ref(boundedinner_name);
-      const java_generic_class_typet &java_generic_class_type =
-        require_type::require_complete_java_generic_class(
-          class_symbol.type, {boundedinner_name + "::NUM"});
+      require_type::require_complete_java_generic_class(
+        class_symbol.type, {boundedinner_name + "::NUM"});
 
       // TODO extend when bounds are parsed correctly - TG-1286
 
@@ -92,11 +86,13 @@ SCENARIO(
 
   WHEN("There is a generic field with a concrete type")
   {
+    const symbolt &class_symbol = new_symbol_table.lookup_ref(class_prefix);
+    require_type::require_complete_java_non_generic_class(class_symbol.type);
     const struct_union_typet::componentt &belem_type =
       require_type::require_component(
         to_struct_type(class_symbol.type), "belem");
     require_type::require_pointer(
-      belem_type.type(), symbol_typet(class_prefix + "$BoundedInner"));
+      belem_type.type(), struct_tag_typet(class_prefix + "$BoundedInner"));
     require_type::require_java_generic_type(
       belem_type.type(),
       {{require_type::type_argument_kindt::Inst, "java::java.lang.Integer"}});
@@ -138,10 +134,9 @@ SCENARIO(
     {
       const symbolt &class_symbol =
         new_symbol_table.lookup_ref(twoelementinner_name);
-      const java_generic_class_typet &java_generic_class_type =
-        require_type::require_complete_java_generic_class(
-          class_symbol.type,
-          {twoelementinner_name + "::K", twoelementinner_name + "::V"});
+      require_type::require_complete_java_generic_class(
+        class_symbol.type,
+        {twoelementinner_name + "::K", twoelementinner_name + "::V"});
 
       // TODO extend when bounds are parsed correctly - TG-1286
 

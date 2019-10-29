@@ -66,6 +66,8 @@ janalyzer_parse_optionst::janalyzer_parse_optionst(int argc, const char **argv)
 
 void janalyzer_parse_optionst::register_languages()
 {
+  // Need ansi C language for __CPROVER_rounding_mode
+  register_language(new_ansi_c_language);
   register_language(new_java_bytecode_language);
 }
 
@@ -76,6 +78,11 @@ void janalyzer_parse_optionst::get_command_line_options(optionst &options)
     usage_error();
     exit(CPROVER_EXIT_USAGE_ERROR);
   }
+
+  if(cmdline.isset("function"))
+    options.set_option("function", cmdline.get_value("function"));
+
+  parse_java_language_options(cmdline, options);
 
   // check assertions
   if(cmdline.isset("no-assertions"))
@@ -350,7 +357,8 @@ int janalyzer_parse_optionst::doit()
 
   try
   {
-    goto_model = initialize_goto_model(cmdline, get_message_handler());
+    goto_model =
+      initialize_goto_model(cmdline.args, get_message_handler(), options);
   }
 
   catch(const char *e)
@@ -377,7 +385,7 @@ int janalyzer_parse_optionst::doit()
   // show it?
   if(cmdline.isset("show-symbol-table"))
   {
-    ::show_symbol_table(goto_model.symbol_table, get_ui());
+    ::show_symbol_table(goto_model.symbol_table, ui_message_handler);
     return CPROVER_EXIT_SUCCESS;
   }
 
@@ -586,8 +594,8 @@ int janalyzer_parse_optionst::perform_analysis(const optionst &options)
     bool result = true;
     if(options.get_bool_option("show"))
     {
-      result = static_show_domain(
-        goto_model, *analyzer, options, out);
+      static_show_domain(goto_model, *analyzer, options, out);
+      return CPROVER_EXIT_SUCCESS;
     }
     else if(options.get_bool_option("verify"))
     {
@@ -665,13 +673,17 @@ bool janalyzer_parse_optionst::process_goto_program(const optionst &options)
     status() << "Removing function pointers and virtual functions" << eom;
     remove_function_pointers(
       get_message_handler(), goto_model, cmdline.isset("pointer-check"));
+
     // Java virtual functions -> explicit dispatch tables:
     remove_virtual_functions(goto_model);
+
     // remove Java throw and catch
     // This introduces instanceof, so order is important:
-    remove_exceptions(goto_model, get_message_handler());
-    // remove rtti
-    remove_instanceof(goto_model, get_message_handler());
+    remove_exceptions_using_instanceof(goto_model, get_message_handler());
+
+    // Java instanceof -> clsid comparison:
+    class_hierarchyt class_hierarchy(goto_model.symbol_table);
+    remove_instanceof(goto_model, class_hierarchy, get_message_handler());
 
     // do partial inlining
     status() << "Partial Inlining" << eom;
@@ -733,7 +745,12 @@ void janalyzer_parse_optionst::help()
     "Usage:                       Purpose:\n"
     "\n"
     " janalyzer [-?] [-h] [--help] show help\n"
-    " janalyzer class              name of class to be checked\n"
+    " janalyzer class              name of class or JAR file to be checked\n"
+    "                              In the case of a JAR file, if a main class can be\n" // NOLINT(*)
+    "                              inferred from --main-class, --function, or the JAR\n" // NOLINT(*)
+    "                              manifest (checked in this order), the behavior is\n" // NOLINT(*)
+    "                              the same as running janalyzer on the corresponding\n" // NOLINT(*)
+    "                              class file."
     "\n"
     "Task options:\n"
     " --show                       display the abstract domains\n"

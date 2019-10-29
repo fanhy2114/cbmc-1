@@ -15,7 +15,15 @@ Author: Daniel Kroening, kroening@kroening.com
 #include <cstdint>
 
 #ifdef _WIN32
+#include <util/pragma_push.def>
+#ifdef _MSC_VER
+#pragma warning(disable:4668)
+  // using #if/#elif on undefined macro
+#pragma warning(disable : 5039)
+// pointer or reference to potentially throwing function passed to extern C
+#endif
 #include <windows.h>
+#include <util/pragma_pop.def>
 #endif
 
 std::string narrow(const wchar_t *s)
@@ -128,7 +136,7 @@ static void utf8_append_code(unsigned int c, std::string &result)
   }
 }
 
-/// \param s UTF-32 encoded wide string
+/// \param s: UTF-32 encoded wide string
 /// \return utf8-encoded string with the same unicode characters as the input.
 std::string
 utf32_native_endian_to_utf8(const std::basic_string<unsigned int> &s)
@@ -248,7 +256,7 @@ std::wstring utf8_to_utf16_native_endian(const std::string &in)
 
 /// \param ch: UTF-16 character in architecture-native endianness encoding
 /// \param result: stream to receive string in US-ASCII format, with \\uxxxx
-///                escapes for other characters
+///   escapes for other characters
 /// \param loc: locale to check for printable characters
 static void utf16_native_endian_to_java(
   const wchar_t ch,
@@ -289,7 +297,7 @@ static void utf16_native_endian_to_java(
 
 /// \param ch: UTF-16 character in architecture-native endianness encoding
 /// \return String in US-ASCII format, with \\uxxxx escapes for other characters
-std::string utf16_native_endian_to_java(const wchar_t ch)
+std::string utf16_native_endian_to_java(const char16_t ch)
 {
   std::ostringstream result;
   const std::locale loc;

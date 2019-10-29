@@ -16,6 +16,7 @@ Author: Daniel Poetzl
 #include <goto-programs/remove_returns.h>
 
 #include <util/base_type.h>
+#include <util/exception_utils.h>
 #include <util/invariant.h>
 #include <util/irep.h>
 #include <util/string_utils.h>
@@ -102,12 +103,12 @@ void replace_callst::operator()(
       const code_assignt &ca = to_code_assign(next_it->code);
       const exprt &rhs = ca.rhs();
 
-      if(rhs.id() == ID_symbol)
-      {
-        const symbol_exprt &se = to_symbol_expr(rhs);
-        if(has_suffix(id2string(se.get_identifier()), RETURN_VALUE_SUFFIX))
-          throw "Returns must not be removed before replacing calls";
-      }
+      INVARIANT(
+        rhs.id() != ID_symbol ||
+          !has_suffix(
+            id2string(to_symbol_expr(rhs).get_identifier()),
+            RETURN_VALUE_SUFFIX),
+        "returns must not be removed before replacing calls");
     }
 
     // Finally modify the call
@@ -132,7 +133,10 @@ replace_callst::replacement_mapt replace_callst::parse_replacement_list(
       replacement_map.insert(std::make_pair(original, replacement));
 
     if(!r.second)
-      throw "Conflicting replacement for function " + original;
+    {
+      throw invalid_command_line_argument_exceptiont(
+        "conflicting replacement for function " + original, "--replace-calls");
+    }
   }
 
   return replacement_map;
@@ -146,22 +150,26 @@ void replace_callst::check_replacement_map(
   for(const auto &p : replacement_map)
   {
     if(replacement_map.find(p.second) != replacement_map.end())
-      throw "Function " + id2string(p.second) +
-        " cannot both be replaced and "
-        "be a replacement";
+      throw invalid_command_line_argument_exceptiont(
+        "function " + id2string(p.second) +
+          " cannot both be replaced and be a replacement",
+        "--replace-calls");
 
     auto it2 = goto_functions.function_map.find(p.second);
 
     if(it2 == goto_functions.function_map.end())
-      throw "Replacement function " + id2string(p.second) +
-        " needs to be present";
+      throw invalid_command_line_argument_exceptiont(
+        "replacement function " + id2string(p.second) + " needs to be present",
+        "--replace-calls");
 
     auto it1 = goto_functions.function_map.find(p.first);
     if(it1 != goto_functions.function_map.end())
     {
       if(!base_type_eq(it1->second.type, it2->second.type, ns))
-        throw "Functions " + id2string(p.first) + " and " +
-          id2string(p.second) + " are not type-compatible";
+        throw invalid_command_line_argument_exceptiont(
+          "functions " + id2string(p.first) + " and " + id2string(p.second) +
+            " are not type-compatible",
+          "--replace-calls");
     }
   }
 }

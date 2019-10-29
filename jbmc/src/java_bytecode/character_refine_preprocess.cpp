@@ -35,7 +35,7 @@ codet character_refine_preprocesst::convert_char_function(
 
 /// The returned expression is true when the first argument is in the interval
 /// defined by the lower and upper bounds (included)
-/// \param arg: Expression we want to bound
+/// \param chr: Expression we want to bound
 /// \param lower_bound: Integer lower bound
 /// \param upper_bound: Integer upper bound
 /// \return A Boolean expression
@@ -65,7 +65,7 @@ exprt character_refine_preprocesst::in_list_expr(
 
 /// Determines the number of char values needed to represent the specified
 /// character (Unicode code point).
-/// \param expr: An expression of type character
+/// \param chr: An expression of type character
 /// \param type: A type for the output
 /// \return A integer expression of the given type
 exprt character_refine_preprocesst::expr_of_char_count(
@@ -125,14 +125,13 @@ codet character_refine_preprocesst::convert_compare(conversion_inputt &target)
   return code_assignt(result, expr);
 }
 
-
 /// Converts function call to an assignment of an expression corresponding to
 /// the java method Character.digit:(CI)I. The function call has one character
 /// argument and an optional integer radix argument. If the radix is not given
 /// it is set to 36 by default.
 /// \param target: a position in a goto program
 /// \return code assigning the result of the Character.digit function to the
-///         left-hand-side of the given target
+///   left-hand-side of the given target
 codet character_refine_preprocesst::convert_digit_char(
   conversion_inputt &target)
 {
@@ -308,7 +307,7 @@ codet character_refine_preprocesst::convert_hash_code(conversion_inputt &target)
 /// Returns the leading surrogate (a high surrogate code unit) of the surrogate
 /// pair representing the specified supplementary character (Unicode code point)
 /// in the UTF-16 encoding.
-/// \param expr: An expression of type character
+/// \param chr: An expression of type character
 /// \param type: A type for the output
 /// \return An expression of the given type
 exprt character_refine_preprocesst::expr_of_high_surrogate(
@@ -319,7 +318,7 @@ exprt character_refine_preprocesst::expr_of_high_surrogate(
   exprt u400=from_integer(0x0400, type);
 
   plus_exprt high_surrogate(uD800, div_exprt(minus_exprt(chr, u10000), u400));
-  return high_surrogate;
+  return std::move(high_surrogate);
 }
 
 /// Converts function call to an assignment of an expression corresponding to
@@ -338,16 +337,18 @@ codet character_refine_preprocesst::convert_high_surrogate(
 exprt character_refine_preprocesst::expr_of_is_ascii_lower_case(
   const exprt &chr, const typet &type)
 {
+  (void)type; // unused parameter
   return in_interval_expr(chr, 'a', 'z');
 }
 
 /// Determines if the specified character is an ASCII uppercase character.
-/// \param expr: An expression of type character
+/// \param chr: An expression of type character
 /// \param type: A type for the output
 /// \return A Boolean expression
 exprt character_refine_preprocesst::expr_of_is_ascii_upper_case(
   const exprt &chr, const typet &type)
 {
+  (void)type; // unused parameter
   return in_interval_expr(chr, 'A', 'Z');
 }
 
@@ -356,7 +357,7 @@ exprt character_refine_preprocesst::expr_of_is_ascii_upper_case(
 ///    TODO: for now this is only for ASCII characters, the
 ///          following unicode categories are not yet considered:
 ///          TITLECASE_LETTER MODIFIER_LETTER OTHER_LETTER LETTER_NUMBER
-/// \param expr: An expression of type character
+/// \param chr: An expression of type character
 /// \param type: A type for the output
 /// \return An expression of the given type
 exprt character_refine_preprocesst::expr_of_is_letter(
@@ -374,7 +375,7 @@ exprt character_refine_preprocesst::expr_of_is_letter(
 ///          TITLECASE_LETTER MODIFIER_LETTER OTHER_LETTER LETTER_NUMBER
 ///          and contributory property Other_Alphabetic as defined by the
 ///          Unicode Standard.
-/// \param expr: An expression of type character
+/// \param chr: An expression of type character
 /// \param type: A type for the output
 /// \return An expression of the given type
 exprt character_refine_preprocesst::expr_of_is_alphabetic(
@@ -396,14 +397,16 @@ codet character_refine_preprocesst::convert_is_alphabetic(
 /// Determines whether the specified character (Unicode code point) is in the
 /// Basic Multilingual Plane (BMP). Such code points can be represented using a
 /// single char.
-/// \param expr: An expression of type character
+/// \param chr: An expression of type character
 /// \param type: A type for the output
 /// \return A Boolean expression
 exprt character_refine_preprocesst::expr_of_is_bmp_code_point(
   const exprt &chr, const typet &type)
 {
-  binary_relation_exprt is_bmp(chr, ID_le, from_integer(0xFFFF, chr.type()));
-  return is_bmp;
+  (void)type; // unused parameter
+  return and_exprt(
+    binary_relation_exprt(chr, ID_le, from_integer(0xFFFF, chr.type())),
+    binary_relation_exprt(chr, ID_ge, from_integer(0, chr.type())));
 }
 
 /// Converts function call to an assignment of an expression corresponding to
@@ -417,12 +420,13 @@ codet character_refine_preprocesst::convert_is_bmp_code_point(
 }
 
 /// Determines if a character is defined in Unicode.
-/// \param expr: An expression of type character
+/// \param chr: An expression of type character
 /// \param type: A type for the output
 /// \return An expression of the given type
 exprt character_refine_preprocesst::expr_of_is_defined(
   const exprt &chr, const typet &type)
 {
+  (void)type; // unused parameter
   // The following intervals are undefined in unicode, according to
   // the Unicode Character Database: http://www.unicode.org/Public/UCD/latest/
   exprt::operandst intervals;
@@ -475,11 +479,11 @@ codet character_refine_preprocesst::convert_is_defined_int(
 /// DECIMAL_DIGIT_NUMBER.
 ///
 ///   TODO: for now we only support these ranges of digits:
-///         '\u0030' through '\u0039', ISO-LATIN-1 digits ('0' through '9')
-///         '\u0660' through '\u0669', Arabic-Indic digits
-///         '\u06F0' through '\u06F9', Extended Arabic-Indic digits
-///         '\u0966' through '\u096F', Devanagari digits
-///         '\uFF10' through '\uFF19', Fullwidth digits
+///         '\\u0030' through '\\u0039', ISO-LATIN-1 digits ('0' through '9')
+///         '\\u0660' through '\\u0669', Arabic-Indic digits
+///         '\\u06F0' through '\\u06F9', Extended Arabic-Indic digits
+///         '\\u0966' through '\\u096F', Devanagari digits
+///         '\\uFF10' through '\\uFF19', Fullwidth digits
 ///         Many other character ranges contain digits as well.
 /// \param chr: An expression of type character
 /// \param type: A type for the output
@@ -487,6 +491,7 @@ codet character_refine_preprocesst::convert_is_defined_int(
 exprt character_refine_preprocesst::expr_of_is_digit(
   const exprt &chr, const typet &type)
 {
+  (void)type; // unused parameter
   exprt latin_digit=in_interval_expr(chr, '0', '9');
   exprt arabic_indic_digit=in_interval_expr(chr, 0x660, 0x669);
   exprt extended_digit=in_interval_expr(chr, 0x6F0, 0x6F9);
@@ -495,7 +500,7 @@ exprt character_refine_preprocesst::expr_of_is_digit(
   or_exprt digit(
     or_exprt(latin_digit, or_exprt(arabic_indic_digit, extended_digit)),
     or_exprt(devanagari_digit, fullwidth_digit));
-  return digit;
+  return std::move(digit);
 }
 
 /// Converts function call to an assignment of an expression corresponding to
@@ -519,12 +524,13 @@ codet character_refine_preprocesst::convert_is_digit_int(
 
 /// Determines if the given char value is a Unicode high-surrogate code unit
 /// (also known as leading-surrogate code unit).
-/// \param expr: An expression of type character
+/// \param chr: An expression of type character
 /// \param type: A type for the output
 /// \return A Boolean expression
 exprt character_refine_preprocesst::expr_of_is_high_surrogate(
   const exprt &chr, const typet &type)
 {
+  (void)type; // unused parameter
   return in_interval_expr(chr, 0xD800, 0xDBFF);
 }
 
@@ -539,22 +545,23 @@ codet character_refine_preprocesst::convert_is_high_surrogate(
 }
 
 /// Determines if the character is one of ignorable in a Java identifier, that
-/// is, it is in one of these ranges: '\u0000' through '\u0008' '\u000E' through
-/// '\u001B' '\u007F' through '\u009F'
+/// is, it is in one of these ranges: '\\u0000' through '\\u0008' '\\u000E'
+/// through '\\u001B' '\\u007F' through '\\u009F'
 ///
 ///    TODO: For now, we ignore the FORMAT general category value
-/// \param expr: An expression of type character
+/// \param chr: An expression of type character
 /// \param type: A type for the output
 /// \return A Boolean expression
 exprt character_refine_preprocesst::expr_of_is_identifier_ignorable(
   const exprt &chr, const typet &type)
 {
+  (void)type; // unused parameter
   or_exprt ignorable(
     in_interval_expr(chr, 0x0000, 0x0008),
      or_exprt(
       in_interval_expr(chr, 0x000E, 0x001B),
       in_interval_expr(chr, 0x007F, 0x009F)));
-  return ignorable;
+  return std::move(ignorable);
 }
 
 /// Converts function call to an assignment of an expression corresponding to
@@ -770,12 +777,13 @@ codet character_refine_preprocesst::convert_is_low_surrogate(
 /// specification.
 ///
 ///    TODO: For now only ASCII characters are considered
-/// \param expr: An expression of type character
+/// \param chr: An expression of type character
 /// \param type: A type for the output
 /// \return An expression of the given type
 exprt character_refine_preprocesst::expr_of_is_mirrored(
   const exprt &chr, const typet &type)
 {
+  (void)type; // unused parameter
   return in_list_expr(chr, {0x28, 0x29, 0x3C, 0x3E, 0x5B, 0x5D, 0x7B, 0x7D});
 }
 
@@ -812,12 +820,13 @@ codet character_refine_preprocesst::convert_is_space(conversion_inputt &target)
 
 /// Determines if the specified character is white space according to Unicode
 /// (SPACE_SEPARATOR, LINE_SEPARATOR, or PARAGRAPH_SEPARATOR)
-/// \param expr: An expression of type character
+/// \param chr: An expression of type character
 /// \param type: A type for the output
 /// \return A Boolean expression
 exprt character_refine_preprocesst::expr_of_is_space_char(
   const exprt &chr, const typet &type)
 {
+  (void)type; // unused parameter
   std::list<mp_integer> space_characters=
     {0x20, 0x00A0, 0x1680, 0x202F, 0x205F, 0x3000, 0x2028, 0x2029};
   exprt condition0=in_list_expr(chr, space_characters);
@@ -846,12 +855,13 @@ codet character_refine_preprocesst::convert_is_space_char_int(
 
 /// Determines whether the specified character (Unicode code point) is in the
 /// supplementary character range.
-/// \param expr: An expression of type character
+/// \param chr: An expression of type character
 /// \param type: A type for the output
 /// \return A Boolean expression
 exprt character_refine_preprocesst::expr_of_is_supplementary_code_point(
   const exprt &chr, const typet &type)
 {
+  (void)type; // unused parameter
   return binary_relation_exprt(chr, ID_gt, from_integer(0xFFFF, chr.type()));
 }
 
@@ -866,12 +876,13 @@ codet character_refine_preprocesst::convert_is_supplementary_code_point(
 }
 
 /// Determines if the given char value is a Unicode surrogate code unit.
-/// \param expr: An expression of type character
+/// \param chr: An expression of type character
 /// \param type: A type for the output
 /// \return A Boolean expression
 exprt character_refine_preprocesst::expr_of_is_surrogate(
   const exprt &chr, const typet &type)
 {
+  (void)type; // unused parameter
   return in_interval_expr(chr, 0xD800, 0xDFFF);
 }
 
@@ -902,12 +913,13 @@ codet character_refine_preprocesst::convert_is_surrogate_pair(
 }
 
 /// Determines if the specified character is a titlecase character.
-/// \param expr: An expression of type character
+/// \param chr: An expression of type character
 /// \param type: A type for the output
 /// \return A Boolean expression
 exprt character_refine_preprocesst::expr_of_is_title_case(
   const exprt &chr, const typet &type)
 {
+  (void)type; // unused parameter
   std::list<mp_integer>title_case_chars=
     {0x01C5, 0x01C8, 0x01CB, 0x01F2, 0x1FBC, 0x1FCC, 0x1FFC};
   exprt::operandst conditions;
@@ -939,12 +951,13 @@ codet character_refine_preprocesst::convert_is_title_case_int(
 
 /// Determines if the specified character is in the LETTER_NUMBER category of
 /// Unicode
-/// \param expr: An expression of type character
+/// \param chr: An expression of type character
 /// \param type: A type for the output
 /// \return A Boolean expression
 exprt character_refine_preprocesst::expr_of_is_letter_number(
   const exprt &chr, const typet &type)
 {
+  (void)type; // unused parameter
   // The following set of characters is the general category "Nl" in the
   // Unicode specification.
   exprt cond0=in_interval_expr(chr, 0x16EE, 0x16F0);
@@ -966,7 +979,7 @@ exprt character_refine_preprocesst::expr_of_is_letter_number(
 ///
 ///    TODO: For now we do not allow connecting punctuation, combining mark,
 ///          non-spacing mark
-/// \param expr: An expression of type character
+/// \param chr: An expression of type character
 /// \param type: A type for the output
 /// \return A Boolean expression
 exprt character_refine_preprocesst::expr_of_is_unicode_identifier_part(
@@ -1058,6 +1071,7 @@ codet character_refine_preprocesst::convert_is_upper_case_int(
 exprt character_refine_preprocesst::expr_of_is_valid_code_point(
   const exprt &chr, const typet &type)
 {
+  (void)type; // unused parameter
   return binary_relation_exprt(chr, ID_le, from_integer(0x10FFFF, chr.type()));
 }
 
@@ -1074,14 +1088,15 @@ codet character_refine_preprocesst::convert_is_valid_code_point(
 /// Determines if the specified character is white space according to Java. It
 /// is the case when it one of the following: * a Unicode space character
 /// (SPACE_SEPARATOR, LINE_SEPARATOR, or PARAGRAPH_SEPARATOR) but is not also a
-/// non-breaking space ('\u00A0', '\u2007', '\u202F'). * it is one of these:
+/// non-breaking space ('\\u00A0', '\\u2007', '\\u202F'). * it is one of these:
 /// U+0009  U+000A U+000B U+000C U+000D U+001C U+001D U+001E U+001F
-/// \param expr: An expression of type character
+/// \param chr: An expression of type character
 /// \param type: A type for the output
 /// \return A Boolean expression
 exprt character_refine_preprocesst::expr_of_is_whitespace(
   const exprt &chr, const typet &type)
 {
+  (void)type; // unused parameter
   exprt::operandst conditions;
   std::list<mp_integer> space_characters=
     {0x20, 0x1680, 0x205F, 0x3000, 0x2028, 0x2029};
@@ -1115,7 +1130,7 @@ codet character_refine_preprocesst::convert_is_whitespace_int(
 /// Returns the trailing surrogate (a low surrogate code unit) of the surrogate
 /// pair representing the specified supplementary character (Unicode code point)
 /// in the UTF-16 encoding.
-/// \param expr: An expression of type character
+/// \param chr: An expression of type character
 /// \param type: A type for the output
 /// \return A integer expression of the given type
 exprt character_refine_preprocesst::expr_of_low_surrogate(
@@ -1138,7 +1153,7 @@ codet character_refine_preprocesst::convert_low_surrogate(
 
 /// Returns the value obtained by reversing the order of the bytes in the
 /// specified char value.
-/// \param expr: An expression of type character
+/// \param chr: An expression of type character
 /// \param type: A type for the output
 /// \return A character expression of the given type
 exprt character_refine_preprocesst::expr_of_reverse_bytes(
@@ -1164,7 +1179,7 @@ codet character_refine_preprocesst::convert_reverse_bytes(
 /// (Basic Multilingual Plane or Plane 0) value, the resulting char array has
 /// the same value as codePoint. If the specified code point is a supplementary
 /// code point, the resulting char array has the corresponding surrogate pair.
-/// \param expr: An expression of type character
+/// \param chr: An expression of type character
 /// \param type: A type for the output
 /// \return A character array expression of the given type
 exprt character_refine_preprocesst::expr_of_to_chars(
@@ -1233,8 +1248,7 @@ exprt character_refine_preprocesst::expr_of_to_lower_case(
   minus_exprt transformed(
     plus_exprt(chr, from_integer('a', type)), from_integer('A', type));
 
-  if_exprt res(expr_of_is_ascii_upper_case(chr, type), transformed, chr);
-  return res;
+  return if_exprt(expr_of_is_ascii_upper_case(chr, type), transformed, chr);
 }
 
 /// Converts function call to an assignment of an expression corresponding to
@@ -1276,7 +1290,7 @@ exprt character_refine_preprocesst::expr_of_to_title_case(
   or_exprt plus_8_set(
     plus_8_interval1, or_exprt(plus_8_interval2, plus_8_interval3));
 
-  if_exprt res(
+  return if_exprt(
     in_list_expr(chr, increment_list),
     plus_1,
     if_exprt(
@@ -1285,12 +1299,7 @@ exprt character_refine_preprocesst::expr_of_to_title_case(
       if_exprt(
         plus_8_set,
         plus_8,
-        if_exprt(
-          in_list_expr(chr, plus_9_list),
-          plus_9,
-          chr))));
-
-  return res;
+        if_exprt(in_list_expr(chr, plus_9_list), plus_9, chr))));
 }
 
 /// Converts function call to an assignment of an expression corresponding to
@@ -1326,8 +1335,7 @@ exprt character_refine_preprocesst::expr_of_to_upper_case(
   minus_exprt transformed(
     plus_exprt(chr, from_integer('A', type)), from_integer('a', type));
 
-  if_exprt res(expr_of_is_ascii_lower_case(chr, type), transformed, chr);
-  return res;
+  return if_exprt(expr_of_is_ascii_lower_case(chr, type), transformed, chr);
 }
 
 /// Converts function call to an assignment of an expression corresponding to

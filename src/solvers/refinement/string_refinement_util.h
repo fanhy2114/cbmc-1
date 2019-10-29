@@ -1,13 +1,15 @@
 /*******************************************************************\
 
- Module: String solver
+Module: String solver
 
- Author: Diffblue Ltd.
+Author: Diffblue Ltd.
 
 \*******************************************************************/
 
 #ifndef CPROVER_SOLVERS_REFINEMENT_STRING_REFINEMENT_UTIL_H
 #define CPROVER_SOLVERS_REFINEMENT_STRING_REFINEMENT_UTIL_H
+
+#include <memory>
 
 #include "string_builtin_function.h"
 #include "string_constraint.h"
@@ -37,10 +39,9 @@ bool is_char_pointer_type(const typet &type);
 /// \param type: a type
 /// \param ns: namespace
 /// \return true if a subtype of `type` is an pointer of characters.
-///         The meaning of "subtype" is in the algebraic datatype sense:
-///         for example, the subtypes of a struct are the types of its
-///         components, the subtype of a pointer is the type it points to,
-///         etc...
+///   The meaning of "subtype" is in the algebraic datatype sense: for example,
+///   the subtypes of a struct are the types of its components, the subtype of
+///   a pointer is the type it points to, etc...
 bool has_char_pointer_subtype(const typet &type, const namespacet &ns);
 
 /// \param expr: an expression

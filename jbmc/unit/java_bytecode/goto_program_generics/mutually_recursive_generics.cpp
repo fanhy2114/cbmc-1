@@ -1,8 +1,8 @@
 /*******************************************************************\
 
- Module: Unit tests for parsing mutually generic classes
+Module: Unit tests for parsing mutually generic classes
 
- Author: Diffblue Ltd.
+Author: Diffblue Ltd.
 
 \*******************************************************************/
 
@@ -47,7 +47,7 @@ SCENARIO(
     // ... which is of type `KeyValue` ...
     const auto &subtype = gen_type.subtype();
     const auto &key_value =
-      symbol_table.lookup_ref(to_symbol_type(subtype).get_identifier());
+      symbol_table.lookup_ref(to_struct_tag_type(subtype).get_identifier());
     REQUIRE(key_value.type.id() == ID_struct);
     REQUIRE(key_value.name == "java::KeyValue");
 
@@ -63,8 +63,9 @@ SCENARIO(
         next.type(),
         {{require_type::type_argument_kindt::Var, "java::KeyValue::K"},
          {require_type::type_argument_kindt::Var, "java::KeyValue::V"}});
-    REQUIRE(next_type.subtype().id() == ID_symbol);
-    const symbol_typet &next_symbol = to_symbol_type(next_type.subtype());
+    REQUIRE(next_type.subtype().id() == ID_struct_tag);
+    const struct_tag_typet &next_symbol =
+      to_struct_tag_type(next_type.subtype());
     REQUIRE(
       symbol_table.lookup_ref(next_symbol.get_identifier()).name ==
       "java::KeyValue");
@@ -75,10 +76,11 @@ SCENARIO(
         reverse.type(),
         {{require_type::type_argument_kindt::Var, "java::KeyValue::V"},
          {require_type::type_argument_kindt::Var, "java::KeyValue::K"}});
-    REQUIRE(next_type.subtype().id() == ID_symbol);
-    const symbol_typet &reverse_symbol = to_symbol_type(reverse_type.subtype());
+    REQUIRE(reverse_type.subtype().id() == ID_struct_tag);
+    const struct_tag_typet &reverse_symbol =
+      to_struct_tag_type(reverse_type.subtype());
     REQUIRE(
-      symbol_table.lookup_ref(next_symbol.get_identifier()).name ==
+      symbol_table.lookup_ref(reverse_symbol.get_identifier()).name ==
       "java::KeyValue");
   }
   WHEN("The class of type `MutuallyRecursiveGenerics` is created")
@@ -91,9 +93,9 @@ SCENARIO(
       const irep_idt &key_type,
       const irep_idt &val_type) {
       require_goto_statements::require_struct_component_assignment(
-        field, {}, "key", key_type, {}, entry_point_code);
+        field, {}, "key", key_type, {}, entry_point_code, symbol_table);
       require_goto_statements::require_struct_component_assignment(
-        field, {}, "value", val_type, {}, entry_point_code);
+        field, {}, "value", val_type, {}, entry_point_code, symbol_table);
     };
 
     const irep_idt &tmp_object_name =
@@ -110,7 +112,8 @@ SCENARIO(
           "example1",
           "java::KeyValue",
           {},
-          entry_point_code);
+          entry_point_code,
+          symbol_table);
 
       THEN(
         "Object 'example1' has field 'key' of type `String` and field `value` "
@@ -124,7 +127,13 @@ SCENARIO(
       {
         const auto &next_field =
           require_goto_statements::require_struct_component_assignment(
-            example1_field, {}, "next", "java::KeyValue", {}, entry_point_code);
+            example1_field,
+            {},
+            "next",
+            "java::KeyValue",
+            {},
+            entry_point_code,
+            symbol_table);
         has_key_and_value_field(
           next_field, "java::java.lang.String", "java::java.lang.Integer");
       }
@@ -137,7 +146,8 @@ SCENARIO(
             "reverse",
             "java::KeyValue",
             {},
-            entry_point_code);
+            entry_point_code,
+            symbol_table);
         has_key_and_value_field(
           reverse_field, "java::java.lang.Integer", "java::java.lang.String");
       }
@@ -148,7 +158,13 @@ SCENARIO(
     {
       const auto &example2_field =
         require_goto_statements::require_struct_component_assignment(
-          tmp_object_name, {}, "example2", "java::Three", {}, entry_point_code);
+          tmp_object_name,
+          {},
+          "example2",
+          "java::Three",
+          {},
+          entry_point_code,
+          symbol_table);
 
       const auto has_x_e_u_fields = [&](
         const irep_idt &field,
@@ -156,11 +172,11 @@ SCENARIO(
         const irep_idt &e_type,
         const irep_idt &u_type) {
         require_goto_statements::require_struct_component_assignment(
-          field, {}, "x", x_type, {}, entry_point_code);
+          field, {}, "x", x_type, {}, entry_point_code, symbol_table);
         require_goto_statements::require_struct_component_assignment(
-          field, {}, "e", e_type, {}, entry_point_code);
+          field, {}, "e", e_type, {}, entry_point_code, symbol_table);
         require_goto_statements::require_struct_component_assignment(
-          field, {}, "u", u_type, {}, entry_point_code);
+          field, {}, "u", u_type, {}, entry_point_code, symbol_table);
       };
 
       THEN(
@@ -182,7 +198,8 @@ SCENARIO(
               "rotate",
               "java::Three",
               {},
-              entry_point_code);
+              entry_point_code,
+              symbol_table);
           has_x_e_u_fields(
             rotate_field,
             "java::java.lang.Integer",
@@ -198,7 +215,8 @@ SCENARIO(
                 "rotate",
                 "java::Three",
                 {},
-                entry_point_code);
+                entry_point_code,
+                symbol_table);
             has_x_e_u_fields(
               rotate_rec_field,
               "java::java.lang.Character",
@@ -214,7 +232,8 @@ SCENARIO(
                 "normal",
                 "java::Three",
                 {},
-                entry_point_code);
+                entry_point_code,
+                symbol_table);
             has_x_e_u_fields(
               rotate_normal_field,
               "java::java.lang.Integer",
@@ -231,7 +250,8 @@ SCENARIO(
               "normal",
               "java::Three",
               {},
-              entry_point_code);
+              entry_point_code,
+              symbol_table);
           has_x_e_u_fields(
             normal_field,
             "java::java.lang.Byte",
@@ -246,7 +266,8 @@ SCENARIO(
                 "normal",
                 "java::Three",
                 {},
-                entry_point_code);
+                entry_point_code,
+                symbol_table);
             has_x_e_u_fields(
               normal_rec_field,
               "java::java.lang.Byte",
@@ -262,7 +283,8 @@ SCENARIO(
                 "rotate",
                 "java::Three",
                 {},
-                entry_point_code);
+                entry_point_code,
+                symbol_table);
             has_x_e_u_fields(
               normal_rotate_field,
               "java::java.lang.Integer",

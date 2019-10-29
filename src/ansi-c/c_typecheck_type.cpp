@@ -76,7 +76,8 @@ void c_typecheck_baset::typecheck_type(typet &type)
   else if(type.id()==ID_pointer)
   {
     typecheck_type(type.subtype());
-    INVARIANT(!type.get(ID_width).empty(), "pointers must have width");
+    INVARIANT(
+      to_bitvector_type(type).get_width() > 0, "pointers must have width");
   }
   else if(type.id()==ID_struct ||
           type.id()==ID_union)
@@ -89,10 +90,13 @@ void c_typecheck_baset::typecheck_type(typet &type)
     typecheck_c_bit_field_type(to_c_bit_field_type(type));
   else if(type.id()==ID_typeof)
     typecheck_typeof_type(type);
-  else if(type.id()==ID_symbol)
-    typecheck_symbol_type(to_symbol_type(type));
   else if(type.id() == ID_typedef_type)
     typecheck_typedef_type(type);
+  else if(type.id() == ID_struct_tag ||
+          type.id() == ID_union_tag)
+  {
+    // nothing to do, these stay as is
+  }
   else if(type.id()==ID_vector)
     typecheck_vector_type(to_vector_type(type));
   else if(type.id()==ID_custom_unsignedbv ||
@@ -103,7 +107,7 @@ void c_typecheck_baset::typecheck_type(typet &type)
   else if(type.id()==ID_gcc_attribute_mode)
   {
     // get that mode
-    irep_idt mode=type.get(ID_size);
+    const irep_idt gcc_attr_mode = type.get(ID_size);
 
     // A list of all modes is at
     // http://www.delorie.com/gnu/docs/gcc/gccint_53.html
@@ -129,43 +133,57 @@ void c_typecheck_baset::typecheck_type(typet &type)
 
       typet result;
 
-      if(mode=="__QI__") // 8 bits
+      if(gcc_attr_mode == "__QI__") // 8 bits
+      {
         if(is_signed)
           result=signed_char_type();
         else
           result=unsigned_char_type();
-      else if(mode=="__byte__") // 8 bits
+      }
+      else if(gcc_attr_mode == "__byte__") // 8 bits
+      {
         if(is_signed)
           result=signed_char_type();
         else
           result=unsigned_char_type();
-      else if(mode=="__HI__") // 16 bits
+      }
+      else if(gcc_attr_mode == "__HI__") // 16 bits
+      {
         if(is_signed)
           result=signed_short_int_type();
         else
           result=unsigned_short_int_type();
-      else if(mode=="__SI__") // 32 bits
+      }
+      else if(gcc_attr_mode == "__SI__") // 32 bits
+      {
         if(is_signed)
           result=signed_int_type();
         else
           result=unsigned_int_type();
-      else if(mode=="__word__") // long int, we think
+      }
+      else if(gcc_attr_mode == "__word__") // long int, we think
+      {
         if(is_signed)
           result=signed_long_int_type();
         else
           result=unsigned_long_int_type();
-      else if(mode=="__pointer__") // we think this is size_t/ssize_t
+      }
+      else if(gcc_attr_mode == "__pointer__") // size_t/ssize_t, we think
+      {
         if(is_signed)
           result=signed_size_type();
         else
           result=size_type();
-      else if(mode=="__DI__") // 64 bits
+      }
+      else if(gcc_attr_mode == "__DI__") // 64 bits
       {
         if(config.ansi_c.long_int_width==64)
+        {
           if(is_signed)
             result=signed_long_int_type();
           else
             result=unsigned_long_int_type();
+        }
         else
         {
           assert(config.ansi_c.long_long_int_width==64);
@@ -176,12 +194,15 @@ void c_typecheck_baset::typecheck_type(typet &type)
             result=unsigned_long_long_int_type();
         }
       }
-      else if(mode=="__TI__") // 128 bits
+      else if(gcc_attr_mode == "__TI__") // 128 bits
+      {
         if(is_signed)
           result=gcc_signed_int128_type();
         else
           result=gcc_unsigned_int128_type();
-      else if(mode=="__V2SI__") // vector of 2 ints, deprecated by gcc
+      }
+      else if(gcc_attr_mode == "__V2SI__") // vector of 2 ints, deprecated
+      {
         if(is_signed)
           result=vector_typet(
             signed_int_type(),
@@ -190,7 +211,9 @@ void c_typecheck_baset::typecheck_type(typet &type)
           result=vector_typet(
             unsigned_int_type(),
             from_integer(2, size_type()));
-      else if(mode=="__V4SI__") // vector of 4 ints, deprecated by gcc
+      }
+      else if(gcc_attr_mode == "__V4SI__") // vector of 4 ints, deprecated
+      {
         if(is_signed)
           result=vector_typet(
             signed_int_type(),
@@ -199,6 +222,7 @@ void c_typecheck_baset::typecheck_type(typet &type)
           result=vector_typet(
             unsigned_int_type(),
             from_integer(4, size_type()));
+      }
       else // give up, just use subtype
         result=type.subtype();
 
@@ -218,19 +242,19 @@ void c_typecheck_baset::typecheck_type(typet &type)
     {
       typet result;
 
-      if(mode=="__SF__") // 32 bits
+      if(gcc_attr_mode == "__SF__") // 32 bits
         result=float_type();
-      else if(mode=="__DF__") // 64 bits
+      else if(gcc_attr_mode == "__DF__") // 64 bits
         result=double_type();
-      else if(mode=="__TF__") // 128 bits
+      else if(gcc_attr_mode == "__TF__") // 128 bits
         result=gcc_float128_type();
-      else if(mode=="__V2SF__") // vector of 2 floats, deprecated by gcc
+      else if(gcc_attr_mode == "__V2SF__") // deprecated vector of 2 floats
         result=vector_typet(float_type(), from_integer(2, size_type()));
-      else if(mode=="__V2DF__") // vector of 2 doubles, deprecated by gcc
+      else if(gcc_attr_mode == "__V2DF__") // deprecated vector of 2 doubles
         result=vector_typet(double_type(), from_integer(2, size_type()));
-      else if(mode=="__V4SF__") // vector of 4 floats, deprecated by gcc
+      else if(gcc_attr_mode == "__V4SF__") // deprecated vector of 4 floats
         result=vector_typet(float_type(), from_integer(4, size_type()));
-      else if(mode=="__V4DF__") // vector of 4 doubles, deprecated by gcc
+      else if(gcc_attr_mode == "__V4DF__") // deprecated vector of 4 doubles
         result=vector_typet(double_type(), from_integer(4, size_type()));
       else // give up, just use subtype
         result=type.subtype();
@@ -245,11 +269,11 @@ void c_typecheck_baset::typecheck_type(typet &type)
       // gcc allows this, but clang doesn't -- see enums above
       typet result;
 
-      if(mode=="__SC__") // 32 bits
+      if(gcc_attr_mode == "__SC__") // 32 bits
         result=float_type();
-      else if(mode=="__DC__") // 64 bits
+      else if(gcc_attr_mode == "__DC__") // 64 bits
         result=double_type();
-      else if(mode=="__TC__") // 128 bits
+      else if(gcc_attr_mode == "__TC__") // 128 bits
         result=gcc_float128_type();
       else // give up, just use subtype
         result=type.subtype();
@@ -262,9 +286,9 @@ void c_typecheck_baset::typecheck_type(typet &type)
     else
     {
       error().source_location=type.source_location();
-      error() << "attribute mode `" << mode
-              << "' applied to inappropriate type `"
-              << to_string(type) << "'" << eom;
+      error() << "attribute mode `" << gcc_attr_mode
+              << "' applied to inappropriate type `" << to_string(type) << "'"
+              << eom;
       throw 0;
     }
   }
@@ -322,7 +346,8 @@ void c_typecheck_baset::typecheck_custom_type(typet &type)
     exprt f_expr=
       static_cast<const exprt &>(type.find(ID_f));
 
-    source_locationt source_location=f_expr.find_source_location();
+    const source_locationt fraction_source_location =
+      f_expr.find_source_location();
 
     typecheck_expr(f_expr);
 
@@ -331,14 +356,14 @@ void c_typecheck_baset::typecheck_custom_type(typet &type)
     mp_integer f_int;
     if(to_integer(f_expr, f_int))
     {
-      error().source_location=source_location;
+      error().source_location = fraction_source_location;
       error() << "failed to convert number of fraction bits to constant" << eom;
       throw 0;
     }
 
     if(f_int<0 || f_int>size_int)
     {
-      error().source_location=source_location;
+      error().source_location = fraction_source_location;
       error() << "fixedbv fraction width invalid" << eom;
       throw 0;
     }
@@ -353,7 +378,8 @@ void c_typecheck_baset::typecheck_custom_type(typet &type)
     exprt f_expr=
       static_cast<const exprt &>(type.find(ID_f));
 
-    source_locationt source_location=f_expr.find_source_location();
+    const source_locationt fraction_source_location =
+      f_expr.find_source_location();
 
     typecheck_expr(f_expr);
 
@@ -362,14 +388,14 @@ void c_typecheck_baset::typecheck_custom_type(typet &type)
     mp_integer f_int;
     if(to_integer(f_expr, f_int))
     {
-      error().source_location=source_location;
+      error().source_location = fraction_source_location;
       error() << "failed to convert number of fraction bits to constant" << eom;
       throw 0;
     }
 
     if(f_int<1 || f_int+1>=size_int)
     {
-      error().source_location=source_location;
+      error().source_location = fraction_source_location;
       error() << "floatbv fraction width invalid" << eom;
       throw 0;
     }
@@ -416,13 +442,13 @@ void c_typecheck_baset::typecheck_code_type(code_typet &type)
         code_typet::parametert parameter;
 
         // first fix type
-        typet &type=parameter.type();
-        type=declaration.full_type(declaration.declarator());
+        typet &param_type = parameter.type();
+        param_type = declaration.full_type(declaration.declarator());
         std::list<codet> tmp_clean_code;
         tmp_clean_code.swap(clean_code); // ignore side-effects
-        typecheck_type(type);
+        typecheck_type(param_type);
         tmp_clean_code.swap(clean_code);
-        adjust_function_parameter(type);
+        adjust_function_parameter(param_type);
 
         // adjust the identifier
         irep_idt identifier=declaration.declarator().get_name();
@@ -436,7 +462,7 @@ void c_typecheck_baset::typecheck_code_type(code_typet &type)
         else
         {
           // make visible now, later parameters might use it
-          parameter_map[identifier]=type;
+          parameter_map[identifier] = param_type;
           parameter.set_base_name(declaration.declarator().get_base_name());
           parameter.add_source_location()=
             declaration.declarator().source_location();
@@ -449,8 +475,7 @@ void c_typecheck_baset::typecheck_code_type(code_typet &type)
 
     parameter_map.clear();
 
-    if(parameters.size()==1 &&
-       follow(parameters[0].type()).id()==ID_empty)
+    if(parameters.size() == 1 && parameters[0].type().id() == ID_empty)
     {
       // if we just have one parameter of type void, remove it
       parameters.clear();
@@ -463,16 +488,16 @@ void c_typecheck_baset::typecheck_code_type(code_typet &type)
   // "A function declarator shall not specify a return type that
   // is a function type or an array type."
 
-  const typet &return_type=follow(type.return_type());
+  const typet &decl_return_type = type.return_type();
 
-  if(return_type.id()==ID_array)
+  if(decl_return_type.id() == ID_array)
   {
     error().source_location=type.source_location();
     error() << "function must not return array" << eom;
     throw 0;
   }
 
-  if(return_type.id()==ID_code)
+  if(decl_return_type.id() == ID_code)
   {
     error().source_location=type.source_location();
     error() << "function must not return function type" << eom;
@@ -483,16 +508,38 @@ void c_typecheck_baset::typecheck_code_type(code_typet &type)
 void c_typecheck_baset::typecheck_array_type(array_typet &type)
 {
   exprt &size=type.size();
-  source_locationt source_location=size.find_source_location();
+  const source_locationt size_source_location = size.find_source_location();
 
   // check subtype
   typecheck_type(type.subtype());
 
   // we don't allow void as subtype
-  if(follow(type.subtype()).id()==ID_empty)
+  if(type.subtype().id() == ID_empty)
   {
     error().source_location=type.source_location();
     error() << "array of voids" << eom;
+    throw 0;
+  }
+
+  // we don't allow incomplete structs or unions as subtype
+  const typet &followed_subtype = follow(type.subtype());
+
+  if(
+    (followed_subtype.id() == ID_struct || followed_subtype.id() == ID_union) &&
+    to_struct_union_type(followed_subtype).is_incomplete())
+  {
+    // ISO/IEC 9899 6.7.5.2
+    error().source_location = type.source_location();
+    error() << "array has incomplete element type" << eom;
+    throw 0;
+  }
+
+  // we don't allow functions as subtype
+  if(type.subtype().id() == ID_code)
+  {
+    // ISO/IEC 9899 6.7.5.2
+    error().source_location = type.source_location();
+    error() << "array of function element type" << eom;
     throw 0;
   }
 
@@ -515,7 +562,7 @@ void c_typecheck_baset::typecheck_array_type(array_typet &type)
       mp_integer s;
       if(to_integer(tmp_size, s))
       {
-        error().source_location=source_location;
+        error().source_location = size_source_location;
         error() << "failed to convert constant: "
                 << tmp_size.pretty() << eom;
         throw 0;
@@ -523,7 +570,7 @@ void c_typecheck_baset::typecheck_array_type(array_typet &type)
 
       if(s<0)
       {
-        error().source_location=source_location;
+        error().source_location = size_source_location;
         error() << "array size must not be negative, "
                    "but got " << s << eom;
         throw 0;
@@ -561,7 +608,6 @@ void c_typecheck_baset::typecheck_array_type(array_typet &type)
       }
 
       // Need to pull out! We insert new symbol.
-      source_locationt source_location=size.find_source_location();
       unsigned count=0;
       irep_idt temp_identifier;
       std::string suffix;
@@ -583,7 +629,7 @@ void c_typecheck_baset::typecheck_array_type(array_typet &type)
       new_symbol.type=size.type();
       new_symbol.type.set(ID_C_constant, true);
       new_symbol.value=size;
-      new_symbol.location=source_location;
+      new_symbol.location = size_source_location;
       new_symbol.mode = mode;
 
       symbol_table.add(new_symbol);
@@ -594,12 +640,12 @@ void c_typecheck_baset::typecheck_array_type(array_typet &type)
       symbol_expr.type()=new_symbol.type;
 
       code_declt declaration(symbol_expr);
-      declaration.add_source_location()=source_location;
+      declaration.add_source_location() = size_source_location;
 
       code_assignt assignment;
       assignment.lhs()=symbol_expr;
       assignment.rhs()=size;
-      assignment.add_source_location()=source_location;
+      assignment.add_source_location() = size_source_location;
 
       // store the code
       clean_code.push_back(declaration);
@@ -699,6 +745,16 @@ void c_typecheck_baset::typecheck_compound_type(struct_union_typet &type)
 
   bool have_body=type.find(ID_components).is_not_nil();
 
+  c_qualifierst original_qualifiers(type);
+
+  // the type symbol, which may get re-used in other declarations, must not
+  // carry any qualifiers (other than transparent_union, which isn't really a
+  // qualifier)
+  c_qualifierst remove_qualifiers;
+  remove_qualifiers.is_transparent_union =
+    original_qualifiers.is_transparent_union;
+  remove_qualifiers.write(type);
+
   if(type.find(ID_tag).is_nil())
   {
     // Anonymous? Must come with body.
@@ -712,7 +768,7 @@ void c_typecheck_baset::typecheck_compound_type(struct_union_typet &type)
 
     typecheck_compound_body(to_struct_union_type(compound_symbol.type));
 
-    std::string typestr=type2name(compound_symbol.type);
+    std::string typestr = type2name(compound_symbol.type, *this);
     compound_symbol.base_name="#anon-"+typestr;
     compound_symbol.name="tag-#anon#"+typestr;
     identifier=compound_symbol.name;
@@ -751,12 +807,8 @@ void c_typecheck_baset::typecheck_compound_type(struct_union_typet &type)
 
       typet new_type=compound_symbol.type;
 
-      if(compound_symbol.type.id()==ID_struct)
-        compound_symbol.type.id(ID_incomplete_struct);
-      else if(compound_symbol.type.id()==ID_union)
-        compound_symbol.type.id(ID_incomplete_union);
-      else
-        UNREACHABLE;
+      // mark as incomplete
+      to_struct_union_type(compound_symbol.type).make_incomplete();
 
       symbolt *new_symbol;
       move_symbol(compound_symbol, new_symbol);
@@ -771,8 +823,9 @@ void c_typecheck_baset::typecheck_compound_type(struct_union_typet &type)
     else
     {
       // yes, it exists already
-      if(s_it->second.type.id()==ID_incomplete_struct ||
-         s_it->second.type.id()==ID_incomplete_union)
+      if(
+        s_it->second.type.id() == type.id() &&
+        to_struct_union_type(s_it->second.type).is_incomplete())
       {
         // Maybe we got a body now.
         if(have_body)
@@ -795,11 +848,18 @@ void c_typecheck_baset::typecheck_compound_type(struct_union_typet &type)
     }
   }
 
-  symbol_typet symbol_type(identifier);
-  symbol_type.add_source_location()=type.source_location();
+  typet tag_type;
 
-  c_qualifierst original_qualifiers(type);
-  type.swap(symbol_type);
+  if(type.id() == ID_union)
+    tag_type = union_tag_typet(identifier);
+  else if(type.id() == ID_struct)
+    tag_type = struct_tag_typet(identifier);
+  else
+    UNREACHABLE;
+
+  tag_type.add_source_location() = type.source_location();
+  type.swap(tag_type);
+
   original_qualifiers.write(type);
 }
 
@@ -837,13 +897,17 @@ void c_typecheck_baset::typecheck_compound_body(
 
       for(const auto &declarator : declaration.declarators())
       {
-        struct_union_typet::componentt new_component;
+        struct_union_typet::componentt new_component(
+          declarator.get_base_name(), declaration.full_type(declarator));
 
-        new_component.add_source_location()=
-          declarator.source_location();
-        new_component.set(ID_name, declarator.get_base_name());
-        new_component.set(ID_pretty_name, declarator.get_base_name());
-        new_component.type()=declaration.full_type(declarator);
+        // There may be a declarator, which we use as location for
+        // the component. Otherwise, use location of the declaration.
+        const source_locationt source_location =
+          declarator.get_name().empty() ? declaration.source_location()
+                                        : declarator.source_location();
+
+        new_component.add_source_location() = source_location;
+        new_component.set_pretty_name(declarator.get_base_name());
 
         typecheck_type(new_component.type());
 
@@ -851,7 +915,7 @@ void c_typecheck_baset::typecheck_compound_body(
            (new_component.type().id()!=ID_array ||
             !to_array_type(new_component.type()).is_incomplete()))
         {
-          error().source_location=new_component.type().source_location();
+          error().source_location = source_location;
           error() << "incomplete type not permitted here" << eom;
           throw 0;
         }
@@ -878,15 +942,12 @@ void c_typecheck_baset::typecheck_compound_body(
   {
     std::unordered_set<irep_idt> members;
 
-    for(struct_union_typet::componentst::iterator
-        it=components.begin();
-        it!=components.end();
-        it++)
+    for(const auto &c : components)
     {
-      if(!members.insert(it->get_name()).second)
+      if(!members.insert(c.get_name()).second)
       {
-        error().source_location=it->source_location();
-        error() << "duplicate member '" << it->get_name() << '\'' << eom;
+        error().source_location = c.source_location();
+        error() << "duplicate member '" << c.get_name() << '\'' << eom;
         throw 0;
       }
     }
@@ -1215,13 +1276,20 @@ void c_typecheck_baset::typecheck_c_enum_type(typet &type)
     // Yes.
     const symbolt &symbol=s_it->second;
 
-    if(symbol.type.id()==ID_incomplete_c_enum)
+    if(symbol.type.id() != ID_c_enum)
+    {
+      error().source_location = source_location;
+      error() << "use of tag that does not match previous declaration" << eom;
+      throw 0;
+    }
+
+    if(to_c_enum_type(symbol.type).is_incomplete())
     {
       // Ok, overwrite the type in the symbol table.
       // This gives us the members and the subtype.
       symbol_table.get_writeable_ref(symbol.name).type=enum_tag_symbol.type;
     }
-    else if(symbol.type.id()==ID_c_enum)
+    else
     {
       // We might already have the same anonymous enum, and this is
       // simply ok. Note that the C standard treats these as
@@ -1232,12 +1300,6 @@ void c_typecheck_baset::typecheck_c_enum_type(typet &type)
         error() << "redeclaration of enum tag" << eom;
         throw 0;
       }
-    }
-    else
-    {
-      error().source_location=source_location;
-      error() << "use of tag that does not match previous declaration" << eom;
-      throw 0;
     }
   }
   else
@@ -1278,8 +1340,7 @@ void c_typecheck_baset::typecheck_c_enum_tag_type(c_enum_tag_typet &type)
     // Yes.
     const symbolt &symbol=s_it->second;
 
-    if(symbol.type.id()!=ID_c_enum &&
-       symbol.type.id()!=ID_incomplete_c_enum)
+    if(symbol.type.id() != ID_c_enum)
     {
       error().source_location=source_location;
       error() << "use of tag that does not match previous declaration" << eom;
@@ -1289,9 +1350,9 @@ void c_typecheck_baset::typecheck_c_enum_tag_type(c_enum_tag_typet &type)
   else
   {
     // no, add it as an incomplete c_enum
-    typet new_type(ID_incomplete_c_enum);
-    new_type.subtype()=signed_int_type(); // default
+    c_enum_typet new_type(signed_int_type()); // default subtype
     new_type.add(ID_tag)=tag;
+    new_type.make_incomplete();
 
     symbolt enum_tag_symbol;
 
@@ -1337,11 +1398,11 @@ void c_typecheck_baset::typecheck_c_bit_field_type(c_bit_field_typet &type)
       throw 0;
     }
 
-    type.set_width(integer2size_t(i));
+    type.set_width(numeric_cast_v<std::size_t>(i));
     type.remove(ID_size);
   }
 
-  const typet &subtype=follow(type.subtype());
+  const typet &subtype = type.subtype();
 
   std::size_t sub_width=0;
 
@@ -1361,17 +1422,17 @@ void c_typecheck_baset::typecheck_c_bit_field_type(c_bit_field_typet &type)
     // These point to an enum, which has a sub-subtype,
     // which may be smaller or larger than int, and we thus have
     // to check.
-    const typet &c_enum_type=
-      follow_tag(to_c_enum_tag_type(subtype));
+    const auto &c_enum_type =
+      to_c_enum_type(follow_tag(to_c_enum_tag_type(subtype)));
 
-    if(c_enum_type.id()==ID_incomplete_c_enum)
+    if(c_enum_type.is_incomplete())
     {
       error().source_location=type.source_location();
       error() << "bit field has incomplete enum type" << eom;
       throw 0;
     }
 
-    sub_width = c_enum_type.subtype().get_size_t(ID_width);
+    sub_width = to_bitvector_type(c_enum_type.subtype()).get_width();
   }
   else
   {
@@ -1428,32 +1489,6 @@ void c_typecheck_baset::typecheck_typeof_type(typet &type)
   c_qualifiers.write(type);
 }
 
-void c_typecheck_baset::typecheck_symbol_type(symbol_typet &type)
-{
-  // we do some consistency checking only
-  const irep_idt &identifier = type.get_identifier();
-
-  symbol_tablet::symbolst::const_iterator s_it=
-    symbol_table.symbols.find(identifier);
-
-  if(s_it==symbol_table.symbols.end())
-  {
-    error().source_location=type.source_location();
-    error() << "type symbol `" << identifier << "' not found"
-            << eom;
-    throw 0;
-  }
-
-  const symbolt &symbol=s_it->second;
-
-  if(!symbol.is_type)
-  {
-    error().source_location=type.source_location();
-    error() << "expected type symbol" << eom;
-    throw 0;
-  }
-}
-
 void c_typecheck_baset::typecheck_typedef_type(typet &type)
 {
   const irep_idt &identifier = to_typedef_type(type).get_identifier();
@@ -1493,11 +1528,11 @@ void c_typecheck_baset::typecheck_typedef_type(typet &type)
     type.set(ID_C_alignment, alignment);
 
   // CPROVER extensions
-  if(symbol.base_name=="__CPROVER_rational")
+  if(symbol.base_name == CPROVER_PREFIX "rational")
   {
     type=rational_typet();
   }
-  else if(symbol.base_name=="__CPROVER_integer")
+  else if(symbol.base_name == CPROVER_PREFIX "integer")
   {
     type=integer_typet();
   }

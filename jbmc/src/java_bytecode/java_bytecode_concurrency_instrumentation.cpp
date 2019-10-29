@@ -62,7 +62,7 @@ static symbolt add_or_get_symbol(
 /// Retrieve the first label identifier. This is used to mark the start of
 /// a thread block.
 /// /param id: unique thread block identifier
-/// /return: fully qualified label identifier
+/// /return fully qualified label identifier
 static const std::string get_first_label_id(const std::string &id)
 {
   return CPROVER_PREFIX "_THREAD_ENTRY_" + id;
@@ -71,7 +71,7 @@ static const std::string get_first_label_id(const std::string &id)
 /// Retrieve the second label identifier. This is used to mark the end of
 /// a thread block.
 /// /param id: unique thread block identifier
-/// /return: fully qualified label identifier
+/// /return fully qualified label identifier
 static const std::string get_second_label_id(const std::string &id)
 {
   return CPROVER_PREFIX "_THREAD_EXIT_" + id;
@@ -80,13 +80,13 @@ static const std::string get_second_label_id(const std::string &id)
 /// Retrieves a thread block identifier from a function call to
 /// CProver.startThread:(I)V or CProver.endThread:(I)V
 /// /param code: function call to CProver.startThread or CProver.endThread
-/// /return: unique thread block identifier
+/// /return unique thread block identifier
 static const std::string get_thread_block_identifier(
   const code_function_callt &f_code)
 {
   PRECONDITION(f_code.arguments().size() == 1);
   const exprt &expr = f_code.arguments()[0];
-  mp_integer lbl_id = binary2integer(expr.op0().get_string(ID_value), false);
+  const mp_integer lbl_id = numeric_cast_v<mp_integer>(expr.op0());
   return integer2string(lbl_id);
 }
 
@@ -122,11 +122,7 @@ static codet get_monitor_call(
     return code_skipt();
 
   // Otherwise we create a function call
-  code_function_callt call;
-  call.function() = symbol_exprt(symbol, it->second.type);
-  call.lhs().make_nil();
-  call.arguments().push_back(object);
-  return call;
+  return code_function_callt(symbol_exprt(symbol, it->second.type), {object});
 }
 
 /// Introduces a monitorexit before every return recursively.
@@ -139,10 +135,7 @@ static void monitor_exits(codet &code, const codet &monitorexit)
   if(statement == ID_return)
   {
     // Replace the return with a monitor exit plus return block
-    code_blockt return_block;
-    return_block.add(monitorexit);
-    return_block.move_to_operands(code);
-    code = return_block;
+    code = code_blockt({monitorexit, code});
   }
   else if(
     statement == ID_label || statement == ID_block ||
@@ -237,7 +230,7 @@ static void instrument_synchronized_code(
 
   // Create the finally block with the same label targeted in the catch-push
   const symbolt &tmp_symbol = get_fresh_aux_symbol(
-    java_reference_type(symbol_typet("java::java.lang.Throwable")),
+    java_reference_type(struct_tag_typet("java::java.lang.Throwable")),
     id2string(symbol.name),
     "caught-synchronized-exception",
     code.source_location(),
@@ -261,13 +254,7 @@ static void instrument_synchronized_code(
   monitor_exits(code, monitorexit);
 
   // Wrap the code into a try finally
-  code_blockt try_block;
-  try_block.move_to_operands(monitorenter);
-  try_block.move_to_operands(catch_push);
-  try_block.move_to_operands(code);
-  try_block.move_to_operands(catch_pop);
-  try_block.move_to_operands(catch_label);
-  code = try_block;
+  code = code_blockt({monitorenter, catch_push, code, catch_pop, catch_label});
 }
 
 /// Transforms the codet stored in in \p f_code, which is a call to function
@@ -288,11 +275,15 @@ static void instrument_start_thread(
 
   // Create global variable __CPROVER__next_thread_id. Used as a counter
   // in-order to to assign ids to new threads.
-  const symbolt &next_symbol =
-    add_or_get_symbol(
-        symbol_table, next_thread_id, next_thread_id,
-        java_int_type(),
-        from_integer(0, java_int_type()), false, true);
+  const symbol_exprt next_symbol_expr = add_or_get_symbol(
+                                          symbol_table,
+                                          next_thread_id,
+                                          next_thread_id,
+                                          java_int_type(),
+                                          from_integer(0, java_int_type()),
+                                          false,
+                                          true)
+                                          .symbol_expr();
 
   // Create thread-local variable __CPROVER__thread_id. Holds the id of
   // the thread.
@@ -320,26 +311,20 @@ static void instrument_start_thread(
   codet tmp_a(ID_start_thread);
   tmp_a.set(ID_destination, lbl1);
   code_gotot tmp_b(lbl2);
-  code_labelt tmp_c(lbl1);
-  tmp_c.op0() = codet(ID_skip);
+  const code_labelt tmp_c(lbl1, code_skipt());
 
-  exprt plus(ID_plus, java_int_type());
-  plus.copy_to_operands(next_symbol.symbol_expr());
-  plus.copy_to_operands(from_integer(1, java_int_type()));
-  code_assignt tmp_d(next_symbol.symbol_expr(), plus);
-  code_assignt tmp_e(current_symbol.symbol_expr(), next_symbol.symbol_expr());
+  const plus_exprt plus(next_symbol_expr, from_integer(1, java_int_type()));
+  const code_assignt tmp_d(next_symbol_expr, plus);
+  const code_assignt tmp_e(current_symbol.symbol_expr(), next_symbol_expr);
 
-  code_blockt block;
-  block.add(tmp_a);
-  block.add(tmp_b);
-  block.add(tmp_c);
-  block.add(codet(ID_atomic_begin));
-  block.add(tmp_d);
-  block.add(tmp_e);
-  block.add(codet(ID_atomic_end));
-  block.add_source_location() = f_code.source_location();
-
-  code = block;
+  code = code_blockt({tmp_a,
+                      tmp_b,
+                      tmp_c,
+                      codet(ID_atomic_begin),
+                      tmp_d,
+                      tmp_e,
+                      codet(ID_atomic_end)});
+  code.add_source_location() = f_code.source_location();
 }
 
 /// Transforms the codet stored in in \p f_code, which is a call to function
@@ -357,6 +342,7 @@ static void instrument_end_thread(
   const symbol_tablet &symbol_table)
 {
   PRECONDITION(f_code.arguments().size() == 1);
+  (void)symbol_table; // unused parameter
 
   // Build id, used to construct appropriate labels.
   // Note: java does not have labels so this should be safe
@@ -368,15 +354,11 @@ static void instrument_end_thread(
   // A: codet(id=ID_end_thread)
   // B: codet(id=ID_label,label= __CPROVER_THREAD_EXIT_<ID>)
   codet tmp_a(ID_end_thread);
-  code_labelt tmp_b(lbl2);
-  tmp_b.op0() = codet(ID_skip);
+  const code_labelt tmp_b(lbl2, code_skipt());
 
-  code_blockt block;
-  block.add(tmp_a);
-  block.add(tmp_b);
-  block.add_source_location() = code.source_location();
-
-  code = block;
+  const auto location = code.source_location();
+  code = code_blockt({tmp_a, tmp_b});
+  code.add_source_location() = location;
 }
 
 /// Transforms the codet stored in in \p f_code, which is a call to function

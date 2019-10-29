@@ -1,4 +1,4 @@
-\ingroup module_hidden 
+\ingroup module_hidden
 \page cbmc-architecture CBMC Architecture
 
 \author Martin Brain, Peter Schrammel
@@ -33,7 +33,7 @@ digraph G {
   2 [label="preprocessing,\nparsing" URL="\ref preprocessing"];
   3 [label="language\ntype-checking" URL="\ref type-checking"];
   4 [label="goto\nconversion" URL="\ref goto-conversion"];
-  5 [label="instrumentation" URL="\ref instrumentation"];
+  5 [label="instrumentation" URL="\ref section-goto-transforms"];
   6 [label="symbolic\nexecution" URL="\ref symbolic-execution"];
   7 [label="SAT/SMT\nencoding" URL="\ref sat-smt-encoding"];
   8 [label="decision\nprocedure" URL="\ref decision-procedure"];
@@ -41,10 +41,10 @@ digraph G {
 }
 \enddot
 
-The \ref cbmc-user-manual "CBMC User Manual" describes CBMC from a user
-perspective. Each node in the diagram above links to the appropriate
-class or module documentation, describing that particular stage in the
-CBMC pipeline.
+The [CPROVER User Manual](http://www.cprover.org/cprover-manual/) describes
+CBMC from a user perspective. Each node in the diagram above links to the
+appropriate class or module documentation, describing that particular stage
+in the CBMC pipeline.
 CPROVER is structured in a similar fashion to a compiler. It has
 language specific front-ends which perform limited syntactic analysis
 and then convert to an intermediate format. The intermediate format can
@@ -52,7 +52,7 @@ be output to files (this is what `goto-cc` does) and are (informally)
 referred to as “goto binaries” or “goto programs”. The back-end are
 tools process this format, either directly from the front-end or from
 it’s saved output. These include a wide range of analysis and
-transformation tools (see \ref section-other-tools).
+transformation tools (see \ref other-tools).
 
 # Concepts #
 ## {C, java bytecode} &rarr; Parse tree &rarr; Symbol table &rarr; GOTO programs &rarr; GOTO program transformations &rarr; BMC &rarr; counterexample (goto_tracet) &rarr; printing ##

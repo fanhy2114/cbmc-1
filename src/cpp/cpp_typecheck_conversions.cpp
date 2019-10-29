@@ -13,11 +13,12 @@ Author:
 
 #include <cstdlib>
 
-#include <util/config.h>
 #include <util/arith_tools.h>
-#include <util/std_types.h>
-#include <util/std_expr.h>
+#include <util/config.h>
+#include <util/expr_util.h>
 #include <util/simplify_expr.h>
+#include <util/std_expr.h>
+#include <util/std_types.h>
 
 #include <ansi-c/c_qualifiers.h>
 #include <util/c_types.h>
@@ -48,9 +49,15 @@ bool cpp_typecheckt::standard_conversion_lvalue_to_rvalue(
 {
   assert(expr.get_bool(ID_C_lvalue));
 
-  if(expr.type().id()==ID_code ||
-     expr.type().id()==ID_incomplete_struct ||
-     expr.type().id()==ID_incomplete_union)
+  if(expr.type().id() == ID_code)
+    return false;
+
+  if(
+    expr.type().id() == ID_struct &&
+    to_struct_type(expr.type()).is_incomplete())
+    return false;
+
+  if(expr.type().id() == ID_union && to_union_type(expr.type()).is_incomplete())
     return false;
 
   new_expr=expr;
@@ -220,6 +227,13 @@ bool cpp_typecheckt::standard_conversion_integral_promotion(
     return true;
   }
 
+  if(expr.type().id() == ID_bool || expr.type().id() == ID_c_bool)
+  {
+    new_expr = expr;
+    new_expr.make_typecast(int_type);
+    return true;
+  }
+
   if(expr.type().id()==ID_c_enum_tag)
   {
     new_expr=expr;
@@ -301,11 +315,13 @@ bool cpp_typecheckt::standard_conversion_integral_conversion(
      type.id()!=ID_unsignedbv)
       return false;
 
-  if(expr.type().id()!=ID_signedbv &&
-     expr.type().id()!=ID_unsignedbv &&
-     expr.type().id()!=ID_bool &&
-     expr.type().id()!=ID_c_enum_tag)
+  if(
+    expr.type().id() != ID_signedbv && expr.type().id() != ID_unsignedbv &&
+    expr.type().id() != ID_c_bool && expr.type().id() != ID_bool &&
+    expr.type().id() != ID_c_enum_tag)
+  {
     return false;
+  }
 
   if(expr.get_bool(ID_C_lvalue))
     return false;
@@ -470,12 +486,15 @@ bool cpp_typecheckt::standard_conversion_pointer(
     return true;
   }
 
-  if(type.find("to-member").is_not_nil())
+  if(type.find(ID_to_member).is_not_nil())
     return false;
 
-  if(expr.type().id() != ID_pointer ||
-     expr.type().find("to-member").is_not_nil())
+  if(
+    expr.type().id() != ID_pointer ||
+    expr.type().find(ID_to_member).is_not_nil())
+  {
     return false;
+  }
 
   typet sub_from=follow(expr.type().subtype());
   typet sub_to=follow(type.subtype());
@@ -549,13 +568,14 @@ bool cpp_typecheckt::standard_conversion_pointer_to_member(
   const typet &type,
   exprt &new_expr)
 {
-  if(type.id()!=ID_pointer ||
-     is_reference(type) ||
-     type.find("to-member").is_nil())
+  if(
+    type.id() != ID_pointer || is_reference(type) ||
+    type.find(ID_to_member).is_nil())
+  {
     return false;
+  }
 
-  if(expr.type().id() != ID_pointer ||
-     expr.type().find("to-member").is_nil())
+  if(expr.type().id() != ID_pointer || expr.type().find(ID_to_member).is_nil())
     return false;
 
   if(type.subtype()!=expr.type().subtype())
@@ -599,13 +619,11 @@ bool cpp_typecheckt::standard_conversion_pointer_to_member(
     return true;
   }
 
-  struct_typet from_struct =
-    to_struct_type(follow(static_cast<const typet &>
-      (expr.type().find("to-member"))));
+  struct_typet from_struct = to_struct_type(
+    follow(static_cast<const typet &>(expr.type().find(ID_to_member))));
 
   struct_typet to_struct =
-    to_struct_type(follow(static_cast<const typet &>
-      (type.find("to-member"))));
+    to_struct_type(follow(static_cast<const typet &>(type.find(ID_to_member))));
 
   if(subtype_typecast(to_struct, from_struct))
   {
@@ -632,16 +650,18 @@ bool cpp_typecheckt::standard_conversion_boolean(
   if(expr.get_bool(ID_C_lvalue))
     return false;
 
-  if(expr.type().id()!=ID_signedbv &&
-     expr.type().id()!=ID_unsignedbv &&
-     expr.type().id()!=ID_pointer &&
-     expr.type().id()!=ID_c_enum_tag)
+  if(
+    expr.type().id() != ID_signedbv && expr.type().id() != ID_unsignedbv &&
+    expr.type().id() != ID_pointer && expr.type().id() != ID_bool &&
+    expr.type().id() != ID_c_enum_tag)
+  {
     return false;
+  }
 
   c_qualifierst qual_from;
   qual_from.read(expr.type());
 
-  bool_typet Bool;
+  typet Bool = c_bool_type();
   qual_from.write(Bool);
 
   new_expr=expr;
@@ -781,10 +801,16 @@ bool cpp_typecheckt::standard_conversion_sequence(
 
       rank += 3;
     }
-    else if(type.id()==ID_bool)
+    else if(type.id() == ID_c_bool)
     {
       if(!standard_conversion_boolean(curr_expr, new_expr))
         return false;
+
+      rank += 3;
+    }
+    else if(type.id() == ID_bool)
+    {
+      new_expr = is_not_zero(curr_expr, *this);
 
       rank += 3;
     }
@@ -905,46 +931,32 @@ bool cpp_typecheckt::user_defined_conversion_sequence(
     }
     else
     {
-      struct_typet from_struct;
-      from_struct.make_nil();
-
-      if(from.id()==ID_struct)
-        from_struct=to_struct_type(from);
-
-      struct_typet to_struct=to_struct_type(to);
-
       bool found=false;
 
-      for(struct_typet::componentst::const_iterator
-          it=to_struct.components().begin();
-          it != to_struct.components().end();
-          it++)
+      for(const auto &component : to_struct_type(to).components())
       {
-        const irept &component=*it;
-
         if(component.get_bool(ID_from_base))
           continue;
 
-        if(component.get_bool("is_explicit"))
+        if(component.get_bool(ID_is_explicit))
           continue;
 
-        const typet &comp_type =
-          static_cast<const typet&>(component.find(ID_type));
+        const typet &comp_type = component.type();
 
         if(comp_type.id() !=ID_code)
           continue;
 
-        if(comp_type.find(ID_return_type).id() !=ID_constructor)
+        if(to_code_type(comp_type).return_type().id() != ID_constructor)
           continue;
 
         // TODO: ellipsis
 
-        const irept &parameters=comp_type.find(ID_parameters);
+        const auto &parameters = to_code_type(comp_type).parameters();
 
-        if(parameters.get_sub().size() != 2)
+        if(parameters.size() != 2)
           continue;
 
-        exprt curr_arg1=static_cast<const exprt&> (parameters.get_sub()[1]);
+        exprt curr_arg1 = parameters[1];
         typet arg1_type=curr_arg1.type();
 
         if(is_reference(arg1_type))
@@ -953,16 +965,8 @@ bool cpp_typecheckt::user_defined_conversion_sequence(
           arg1_type.swap(tmp);
         }
 
-        struct_typet arg1_struct;
-        arg1_struct.make_nil();
-        {
-          typet tmp=follow(arg1_type);
-          if(tmp.id()==ID_struct)
-            arg1_struct=to_struct_type(tmp);
-        }
-
         unsigned tmp_rank=0;
-        if(arg1_struct.is_nil())
+        if(arg1_type.id() != ID_struct_tag)
         {
             exprt tmp_expr;
             if(standard_conversion_sequence(
@@ -978,10 +982,10 @@ bool cpp_typecheckt::user_defined_conversion_sequence(
 
               tmp_expr.add_source_location()=expr.source_location();
 
-              exprt func_symb=cpp_symbol_expr(lookup(component.get(ID_name)));
+              exprt func_symb = cpp_symbol_expr(lookup(component.get_name()));
               func_symb.type()=comp_type;
               {
-                exprt tmp("already_typechecked");
+                exprt tmp(ID_already_typechecked);
                 tmp.copy_to_operands(func_symb);
                 func_symb.swap(func_symb);
               }
@@ -1002,7 +1006,7 @@ bool cpp_typecheckt::user_defined_conversion_sequence(
               rank += tmp_rank;
             }
           }
-          else if(from_struct.is_not_nil() && arg1_struct.is_not_nil())
+          else if(from.id() == ID_struct && arg1_type.id() == ID_struct_tag)
           {
             // try derived-to-base conversion
             address_of_exprt expr_pfrom(expr, pointer_type(expr.type()));
@@ -1025,14 +1029,14 @@ bool cpp_typecheckt::user_defined_conversion_sequence(
               expr_deref.set(ID_C_lvalue, true);
               expr_deref.add_source_location()=expr.source_location();
 
-              exprt new_object("new_object", type);
+              exprt new_object(ID_new_object, type);
               new_object.set(ID_C_lvalue, true);
               new_object.type().set(ID_C_constant, false);
 
-              exprt func_symb=cpp_symbol_expr(lookup(component.get(ID_name)));
+              exprt func_symb = cpp_symbol_expr(lookup(component.get_name()));
               func_symb.type()=comp_type;
               {
-                exprt tmp("already_typechecked");
+                exprt tmp(ID_already_typechecked);
                 tmp.copy_to_operands(func_symb);
                 func_symb.swap(func_symb);
               }
@@ -1062,30 +1066,20 @@ bool cpp_typecheckt::user_defined_conversion_sequence(
   // conversion operators
   if(from.id()==ID_struct)
   {
-    struct_typet from_struct=to_struct_type(from);
-
     bool found=false;
-    for(struct_typet::componentst::const_iterator
-        it=from_struct.components().begin();
-        it != from_struct.components().end(); it++)
+    for(const auto &component : to_struct_type(from).components())
     {
-      const irept &component=*it;
-      const typet comp_type=static_cast<const typet&>(component.find(ID_type));
-
       if(component.get_bool(ID_from_base))
         continue;
 
-      if(!component.get_bool("is_cast_operator"))
+      if(!component.get_bool(ID_is_cast_operator))
         continue;
 
-      assert(component.get(ID_type)==ID_code &&
-             component.find(ID_type).find(ID_parameters).get_sub().size()==1);
+      const code_typet &comp_type = to_code_type(component.type());
+      DATA_INVARIANT(
+        comp_type.parameters().size() == 1, "expected exactly one parameter");
 
-      typet this_type =
-        static_cast<const typet&>(comp_type.find(ID_parameters)
-                                           .get_sub()
-                                           .front()
-                                           .find(ID_type));
+      typet this_type = comp_type.parameters().front().type();
       this_type.set(ID_C_reference, true);
 
       exprt this_expr(expr);
@@ -1099,14 +1093,11 @@ bool cpp_typecheckt::user_defined_conversion_sequence(
       {
         // To take care of the possible virtual case,
         // we build the function as a member expression.
-        irept func_name(ID_name);
-        func_name.set(ID_identifier, component.get(ID_base_name));
-        cpp_namet cpp_func_name;
-        cpp_func_name.get_sub().push_back(func_name);
+        const cpp_namet cpp_func_name(component.get_base_name());
 
         exprt member_func(ID_member);
         member_func.add(ID_component_cpp_name)=cpp_func_name;
-        exprt ac("already_typechecked");
+        exprt ac(ID_already_typechecked);
         ac.copy_to_operands(expr);
         member_func.copy_to_operands(ac);
 
@@ -1115,7 +1106,6 @@ bool cpp_typecheckt::user_defined_conversion_sequence(
         func_expr.function().swap(member_func);
         typecheck_side_effect_function_call(func_expr);
 
-        exprt tmp_expr;
         if(standard_conversion_sequence(func_expr, type, tmp_expr, tmp_rank))
         {
           // check if it's ambiguous
@@ -1295,25 +1285,18 @@ bool cpp_typecheckt::reference_binding(
   }
 
   // conversion operators
-  typet from_type=follow(expr.type());
+  const typet &from_type = follow(expr.type());
   if(from_type.id()==ID_struct)
   {
-    struct_typet from_struct=to_struct_type(from_type);
-
-    for(struct_typet::componentst::const_iterator
-        it=from_struct.components().begin();
-        it != from_struct.components().end(); it++)
+    for(const auto &component : to_struct_type(from_type).components())
     {
-      const irept &component=*it;
-
       if(component.get_bool(ID_from_base))
         continue;
 
-      if(!component.get_bool("is_cast_operator"))
+      if(!component.get_bool(ID_is_cast_operator))
         continue;
 
-      const code_typet &component_type =
-        to_code_type(static_cast<const typet&>(component.find(ID_type)));
+      const code_typet &component_type = to_code_type(component.type());
 
       // otherwise it cannot bind directly (not an lvalue)
       if(!is_reference(component_type.return_type()))
@@ -1337,14 +1320,11 @@ bool cpp_typecheckt::reference_binding(
       {
         // To take care of the possible virtual case,
         // we build the function as a member expression.
-        irept func_name(ID_name);
-        func_name.set(ID_identifier, component.get(ID_base_name));
-        cpp_namet cpp_func_name;
-        cpp_func_name.get_sub().push_back(func_name);
+        const cpp_namet cpp_func_name(component.get_base_name());
 
         exprt member_func(ID_member);
         member_func.add(ID_component_cpp_name)=cpp_func_name;
-        exprt ac("already_typechecked");
+        exprt ac(ID_already_typechecked);
         ac.copy_to_operands(expr);
         member_func.copy_to_operands(ac);
 
@@ -1395,7 +1375,7 @@ bool cpp_typecheckt::reference_binding(
 
   exprt arg_expr=expr;
 
-  if(follow(arg_expr.type()).id()==ID_struct)
+  if(arg_expr.type().id() == ID_struct_tag)
   {
     // required to initialize the temporary
     arg_expr.set(ID_C_lvalue, true);
@@ -1602,11 +1582,11 @@ bool cpp_typecheckt::cast_away_constness(
 
   if(is_reference(nt1))
     nt1.remove(ID_C_reference);
-  nt1.remove("to-member");
+  nt1.remove(ID_to_member);
 
   if(is_reference(nt2))
     nt2.remove(ID_C_reference);
-  nt2.remove("to-member");
+  nt2.remove(ID_to_member);
 
   // substitute final subtypes
   std::vector<typet> snt1;
@@ -1662,7 +1642,7 @@ bool cpp_typecheckt::const_typecast(
   const typet &type,
   exprt &new_expr)
 {
-  assert(is_reference(expr.type())==false);
+  PRECONDITION(!is_reference(expr.type()));
 
   exprt curr_expr=expr;
 
@@ -1736,12 +1716,12 @@ bool cpp_typecheckt::dynamic_typecast(
 
   if(is_reference(type))
   {
-    if(follow(type.subtype()).id() != ID_struct)
+    if(type.subtype().id() != ID_struct_tag)
       return false;
   }
   else if(type.id()==ID_pointer)
   {
-    if(type.find("to-member").is_not_nil())
+    if(type.find(ID_to_member).is_not_nil())
       return false;
 
     if(type.subtype().id()==ID_empty)
@@ -1750,7 +1730,7 @@ bool cpp_typecheckt::dynamic_typecast(
         return false;
       UNREACHABLE; // currently not supported
     }
-    else if(follow(type.subtype()).id()==ID_struct)
+    else if(type.subtype().id() == ID_struct_tag)
     {
       if(e.get_bool(ID_C_lvalue))
       {
@@ -1825,11 +1805,10 @@ bool cpp_typecheckt::reinterpret_typecast(
     return true;
   }
 
-  if((e.type().id()==ID_unsignedbv ||
-      e.type().id()==ID_signedbv ||
-      e.type().id()==ID_bool) &&
-     type.id()==ID_pointer &&
-     !is_reference(type))
+  if(
+    (e.type().id() == ID_unsignedbv || e.type().id() == ID_signedbv ||
+     e.type().id() == ID_c_bool || e.type().id() == ID_bool) &&
+    type.id() == ID_pointer && !is_reference(type))
   {
     // integer to pointer
     if(simplify_expr(e, *this).is_zero())
@@ -1975,8 +1954,7 @@ bool cpp_typecheckt::static_typecast(
 
   if(type.id()==ID_pointer && e.type().id()==ID_pointer)
   {
-    if(type.find("to-member").is_nil()
-       && e.type().find("to-member").is_nil())
+    if(type.find(ID_to_member).is_nil() && e.type().find(ID_to_member).is_nil())
     {
       typet to=follow(type.subtype());
       typet from=follow(e.type().subtype());
@@ -2009,19 +1987,18 @@ bool cpp_typecheckt::static_typecast(
 
       return false;
     }
-    else if(type.find("to-member").is_not_nil() &&
-            e.type().find("to-member").is_not_nil())
+    else if(
+      type.find(ID_to_member).is_not_nil() &&
+      e.type().find(ID_to_member).is_not_nil())
     {
       if(type.subtype()!=e.type().subtype())
         return false;
 
-      struct_typet from_struct=
-        to_struct_type(
-          follow(static_cast<const typet&>(e.type().find("to-member"))));
+      struct_typet from_struct = to_struct_type(
+        follow(static_cast<const typet &>(e.type().find(ID_to_member))));
 
-      struct_typet to_struct=
-        to_struct_type(
-          follow(static_cast<const typet&>(type.find("to-member"))));
+      struct_typet to_struct = to_struct_type(
+        follow(static_cast<const typet &>(type.find(ID_to_member))));
 
       if(subtype_typecast(from_struct, to_struct))
       {
@@ -2031,17 +2008,17 @@ bool cpp_typecheckt::static_typecast(
       }
     }
     else if(
-      type.find("to-member").is_nil() &&
-      e.type().find("to-member").is_not_nil())
+      type.find(ID_to_member).is_nil() &&
+      e.type().find(ID_to_member).is_not_nil())
     {
       if(type.subtype() != e.type().subtype())
         return false;
 
       struct_typet from_struct = to_struct_type(
-        follow(static_cast<const typet &>(e.type().find("to-member"))));
+        follow(static_cast<const typet &>(e.type().find(ID_to_member))));
 
       new_expr = e;
-      new_expr.type().add("to-member") = from_struct;
+      new_expr.type().add(ID_to_member) = from_struct;
 
       return true;
     }

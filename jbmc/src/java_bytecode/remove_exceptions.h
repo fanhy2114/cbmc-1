@@ -14,6 +14,7 @@ Date:   December 2016
 #ifndef CPROVER_JAVA_BYTECODE_REMOVE_EXCEPTIONS_H
 #define CPROVER_JAVA_BYTECODE_REMOVE_EXCEPTIONS_H
 
+#include <goto-programs/class_hierarchy.h>
 #include <goto-programs/goto_model.h>
 
 #include <util/message.h>
@@ -22,26 +23,34 @@ Date:   December 2016
 #define INFLIGHT_EXCEPTION_VARIABLE_NAME \
   "java::" INFLIGHT_EXCEPTION_VARIABLE_BASENAME
 
-// Removes 'throw x' and CATCH-PUSH/CATCH-POP
-// and adds the required instrumentation (GOTOs and assignments)
+/// Removes 'throw x' and CATCH-PUSH/CATCH-POP
+/// and adds the required instrumentation (GOTOs and assignments)
+/// This introduces instanceof expressions.
+void remove_exceptions_using_instanceof(
+  goto_programt &,
+  symbol_table_baset &,
+  message_handlert &);
 
-enum class remove_exceptions_typest
-{
-  REMOVE_ADDED_INSTANCEOF,
-  DONT_REMOVE_INSTANCEOF,
-};
+/// Removes 'throw x' and CATCH-PUSH/CATCH-POP
+/// and adds the required instrumentation (GOTOs and assignments)
+/// This introduces instanceof expressions.
+void remove_exceptions_using_instanceof(goto_modelt &, message_handlert &);
 
+/// Removes 'throw x' and CATCH-PUSH/CATCH-POP
+/// and adds the required instrumentation (GOTOs and assignments)
+/// This does not introduce instanceof expressions.
 void remove_exceptions(
-  goto_programt &goto_program,
-  symbol_table_baset &symbol_table,
-  message_handlert &message_handler,
-  remove_exceptions_typest type =
-    remove_exceptions_typest::DONT_REMOVE_INSTANCEOF);
+  goto_programt &,
+  symbol_table_baset &,
+  const class_hierarchyt &,
+  message_handlert &);
 
+/// Removes 'throw x' and CATCH-PUSH/CATCH-POP
+/// and adds the required instrumentation (GOTOs and assignments)
+/// This does not introduce instanceof expressions.
 void remove_exceptions(
-  goto_modelt &goto_model,
-  message_handlert &message_handler,
-  remove_exceptions_typest type =
-    remove_exceptions_typest::DONT_REMOVE_INSTANCEOF);
+  goto_modelt &,
+  const class_hierarchyt &,
+  message_handlert &);
 
 #endif

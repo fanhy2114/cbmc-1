@@ -11,7 +11,7 @@ Date: July 2017
 
 /// \file
 /// Prepend a nullary call to another function
-// useful for context/ environment setting in arbitrary nodes
+/// useful for context/ environment setting in arbitrary nodes
 
 #include "splice_call.h"
 
@@ -73,9 +73,9 @@ bool splice_call(
     caller_fun->second.body.instructions.begin();
   goto_programt::targett g=
     caller_fun->second.body.insert_before(start);
-  code_function_callt splice_call;
-  splice_call.function()=ns.lookup(callee_fun->first).symbol_expr();
-  g->make_function_call(to_code_function_call(splice_call));
+  const code_function_callt splice_call(
+    ns.lookup(callee_fun->first).symbol_expr());
+  g->make_function_call(splice_call);
 
   // update counters etc.
   goto_functions.update();

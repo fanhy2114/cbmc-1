@@ -1,8 +1,8 @@
 /*******************************************************************\
 
- Module: Java Bytecode Language Conversion
+Module: Java Bytecode Language Conversion
 
- Author: Diffblue Ltd.
+Author: Diffblue Ltd.
 
 \*******************************************************************/
 
@@ -14,21 +14,13 @@
 #include "java_types.h"
 #include <util/std_types.h>
 
-/// Select what type should be used for a given pointer type. For the base class
-/// we just use the supplied type. Derived classes can override this behaviour
-/// to provide more sophisticated type selection. Generic parameters are
-/// replaced with their concrete type.
-/// \param pointer_type: The pointer type replace
-/// \param generic_parameter_specialization_map map of types for all generic
-/// parameters in the current scope
-/// \param ns Namespace for type lookups
-/// \return A pointer type where the subtype may have been modified
 pointer_typet select_pointer_typet::convert_pointer_type(
   const pointer_typet &pointer_type,
   const generic_parameter_specialization_mapt
     &generic_parameter_specialization_map,
   const namespacet &ns) const
 {
+  (void)ns; // unused parameter
   // if we have a map of generic parameters -> types and the pointer is
   // a generic parameter, specialize it with concrete types
   if(!generic_parameter_specialization_map.empty())
@@ -45,24 +37,6 @@ pointer_typet select_pointer_typet::convert_pointer_type(
   }
 }
 
-/// Specialize generic parameters in a pointer type based on the current map
-/// of parameters -> types. We specialize generics if the pointer is a java
-/// generic parameter or an array with generic parameters (java generic types
-/// are specialized recursively, their concrete types are already stored in
-/// the map and will be retrieved when needed e.g., to initialize fields).
-/// Example:
-/// - generic type: T
-/// - map: T -> U; U -> String
-/// - result: String
-///
-/// - generic type: T[]
-/// - map: T -> U; U -> String
-/// - result: String
-/// \param pointer_type pointer to be specialized
-/// \param generic_parameter_specialization_map map of types for all generic
-/// parameters in the current scope
-/// \return pointer type where generic parameters are replaced with concrete
-/// types, if set in the current scope
 pointer_typet select_pointer_typet::specialize_generics(
   const pointer_typet &pointer_type,
   const generic_parameter_specialization_mapt
@@ -108,10 +82,10 @@ pointer_typet select_pointer_typet::specialize_generics(
     visited_nodes.erase(parameter_name);
     return returned_type;
   }
-  else if(pointer_type.subtype().id() == ID_symbol)
+  else if(pointer_type.subtype().id() == ID_struct_tag)
   {
     // if the pointer is an array, recursively specialize its element type
-    const symbol_typet &array_subtype = to_symbol_type(pointer_type.subtype());
+    const auto &array_subtype = to_struct_tag_type(pointer_type.subtype());
     if(is_java_array_tag(array_subtype.get_identifier()))
     {
       const typet &array_element_type = java_array_element_type(array_subtype);
@@ -132,11 +106,21 @@ pointer_typet select_pointer_typet::specialize_generics(
 }
 
 /// Return the first concrete type instantiation if any such exists. This method
-/// is only to be called when the `specialize_generics` cannot find an
-/// instantiation due to a loop in its recursion.
-/// \param parameter_name The name of the generic parameter type we want to have
-///   instantiated
-/// \param generic_parameter_specialization_map Map of type names to
+/// is only to be called when \ref select_pointer_typet::specialize_generics
+/// cannot find an instantiation due to a loop in its recursion.
+///
+/// Example:
+/// `class MyGeneric<T,U> { MyGeneric<U,T> gen; T t;}`
+/// When instantiating `MyGeneric<Integer,String> my` we need to for example
+/// resolve the type of `my.gen.t`. The map would in this context contain
+/// - T -> (Integer, U)
+/// - U -> (String, T)
+///
+/// Note that the top of the stacks for T and U create a recursion T -> U,
+/// U-> T. We want to break it and specialize `T my.gen.t` to `String my.gen.t`.
+/// \param parameter_name: The name of the generic parameter type we want to
+///   have instantiated
+/// \param generic_parameter_specialization_map: Map of type names to
 ///   specialization stack
 /// \return The first instantiated type for the generic type or nothing if no
 ///   such instantiation exists.
@@ -173,12 +157,12 @@ select_pointer_typet::get_recursively_instantiated_type(
 /// See get_recursively instantiated_type, the additional parameters just track
 /// the recursion to prevent visiting the same depth again and specify which
 /// stack depth is analyzed.
-/// \param parameter_name The name of the generic parameter type we want to have
-///   instantiated
-/// \param generic_parameter_specialization_map Map of type names to
-/// specialization stack
-/// \param visited Tracks the visited parameter names
-/// \param depth Stack depth to analyze
+/// \param parameter_name: The name of the generic parameter type we want to
+///   have instantiated
+/// \param generic_parameter_specialization_map: Map of type names to
+///   specialization stack
+/// \param visited: Tracks the visited parameter names
+/// \param depth: Stack depth to analyze
 /// \return if this type is not a generic type, it is returned as a valid
 ///   instantiation, if nothing can be found at the given depth, en empty
 ///   optional is returned
@@ -222,4 +206,16 @@ select_pointer_typet::get_recursively_instantiated_type(
     depth);
   visited.erase(parameter_name);
   return inst_val;
+}
+
+std::set<struct_tag_typet>
+select_pointer_typet::get_parameter_alternative_types(
+  const irep_idt &function_name,
+  const irep_idt &parameter_name,
+  const namespacet &) const
+{
+  // unused parameters
+  (void)function_name;
+  (void)parameter_name;
+  return {};
 }

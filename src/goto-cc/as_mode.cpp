@@ -24,7 +24,6 @@ Author: Michael Tautschnig
 #include <cstring>
 
 #include <util/config.h>
-#include <util/cout_message.h>
 #include <util/get_base_name.h>
 #include <util/run.h>
 #include <util/tempdir.h>
@@ -267,7 +266,7 @@ int as_modet::run_as()
   std::cout << '\n';
   #endif
 
-  return run(new_argv[0], new_argv, cmdline.stdin_file);
+  return run(new_argv[0], new_argv, cmdline.stdin_file, "", "");
 }
 
 int as_modet::as_hybrid_binary()

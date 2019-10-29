@@ -31,17 +31,17 @@ We assume that you have a Debian/Ubuntu or Red Hat-like distribution.
 
    On Amazon Linux and similar distributions, do as root:
    ```
-   yum install gcc72-c++ flex bison perl-libwww-perl patch
+   yum install gcc72-c++ flex bison perl-libwww-perl patch tar
    ```
 
-   To compile JBMC, you additionally need the JDK and the java-models-library.
-   For the JDK, on Debian-like distributions, do as root:
+   To compile JBMC, you additionally need the JDK and Maven 3.
+   On Debian-like distributions, do as root:
    ```
-   apt-get install unzip openjdk-8-jdk
+   apt-get install openjdk-8-jdk maven
    ```
    On Red Hat/Fedora or derivates, do as root:
    ```
-   dnf install unzip java-1.8.0-openjdk-devel
+   dnf install java-1.8.0-openjdk-devel maven
    ```
 
 2. As a user, get the CBMC source via
@@ -55,21 +55,10 @@ We assume that you have a Debian/Ubuntu or Red Hat-like distribution.
    make -C src minisat2-download
    make -C src
    ```
+   See doc/architectural/compilation-and-development.md for instructions on how
+   to use a SAT solver other than MiniSat 2.
 
-4. Linking against an IPASIR SAT solver
-
-   Get an IPASIR package and build picosat by default
-   ```
-   make -C src ipasir-build
-   ```
-
-   Build CBMC with IPASIR and link against the ipasir solver library
-   Note: the LIBSOLVER variable could be pointed towards other solvers
-   ```
-   make -C src IPASIR=../../ipasir LIBSOLVER=$(pwd)/ipasir/libipasir.a
-   ```
-
-5. To compile JBMC, do
+4. To compile JBMC, do
    ```
    make -C jbmc/src setup-submodules
    make -C jbmc/src
@@ -77,16 +66,15 @@ We assume that you have a Debian/Ubuntu or Red Hat-like distribution.
 
 # COMPILATION ON SOLARIS 11
 
+We assume Solaris 11.4 or newer.  To build JBMC, you'll need to install
+Maven 3 manually.
+
 1. As root, get the necessary development tools:
    ```
-   pkg install system/header
-   pkgadd -d http://get.opencsw.org/now
-   /opt/csw/bin/pkgutil -U
-   /opt/csw/bin/pkgutil -i gcc5g++ bison flex git
+   pkg install gcc-c++-7 bison flex
    ```
 2. As a user, get the CBMC source via
    ```
-   export PATH=/opt/csw/bin:$PATH
    git clone https://github.com/diffblue/cbmc cbmc-git
    cd cbmc-git
    ```
@@ -109,7 +97,7 @@ We assume that you have a Debian/Ubuntu or Red Hat-like distribution.
    ```
    To compile JBMC, additionally install
    ```
-   pkg install openjdk8 wget
+   pkg install openjdk8 wget maven3
    ```
 2. As a user, get the CBMC source via
    ```
@@ -147,7 +135,8 @@ Follow these instructions:
    make -C src minisat2-download
    make -C src
    ```
-4. To compile JBMC, do
+4. To compile JBMC, you additionally need Maven 3, which has to be installed
+   manually. Then do
    ```
    make -C jbmc/src setup-submodules
    make -C jbmc/src
@@ -190,7 +179,8 @@ Follow these instructions:
    make -C src DOWNLOADER=wget minisat2-download
    make -C src
    ```
-5. To compile JBMC, open the Cygwin shell and type
+5. To compile JBMC, you additionally need the JDK and Maven 3, which have
+   to be installed manually. Then open the Cygwin shell and type
    ```
    make -C jbmc/src setup-submodules
    make -C jbmc/src
@@ -202,9 +192,9 @@ helpful for GUI-based tasks, e.g., the class viewer, debugging, etc., and can
 be used for building with MSBuild.  Note that you still need to run flex/bison
 using "make generated_files" before opening the project.
 
-# WORKING WITH CMAKE (EXPERIMENTAL)
+# WORKING WITH CMAKE
 
-There is an experimental build based on CMake instead of hand-written
+There is also a build based on CMake instead of hand-written
 makefiles. It should work on a wider variety of systems than the standard
 makefile build, and can integrate better with IDEs and static-analysis tools.
 On Windows, the CMake build does not depend on Cygwin or MinGW, and doesn't
@@ -220,7 +210,7 @@ require manual modification of build files.
      ```
    - On Red Hat/Fedora or derivates, do
      ```
-     yum install cmake
+     dnf install cmake
      ```
    - On macOS, do
      ```

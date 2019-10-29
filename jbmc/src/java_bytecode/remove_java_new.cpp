@@ -93,12 +93,12 @@ goto_programt::targett remove_java_newt::lower_java_new(
 
   // zero-initialize the object
   dereference_exprt deref(lhs, object_type);
-  exprt zero_object =
-    zero_initializer(object_type, location, ns, get_message_handler());
+  auto zero_object = zero_initializer(object_type, location, ns);
+  CHECK_RETURN(zero_object.has_value());
   set_class_identifier(
-    to_struct_expr(zero_object), ns, to_symbol_type(object_type));
+    to_struct_expr(*zero_object), ns, to_struct_tag_type(object_type));
   goto_programt::targett t_i = dest.insert_after(target);
-  t_i->make_assignment(code_assignt(deref, zero_object));
+  t_i->make_assignment(code_assignt(deref, *zero_object));
   t_i->source_location = location;
 
   return t_i;
@@ -153,12 +153,12 @@ goto_programt::targett remove_java_newt::lower_java_new_array(
 
   // Init base class:
   dereference_exprt deref(lhs, object_type);
-  exprt zero_object =
-    zero_initializer(object_type, location, ns, get_message_handler());
+  auto zero_object = zero_initializer(object_type, location, ns);
+  CHECK_RETURN(zero_object.has_value());
   set_class_identifier(
-    to_struct_expr(zero_object), ns, to_symbol_type(object_type));
+    to_struct_expr(*zero_object), ns, to_struct_tag_type(object_type));
   goto_programt::targett t_i = dest.insert_before(next);
-  t_i->make_assignment(code_assignt(deref, zero_object));
+  t_i->make_assignment(code_assignt(deref, *zero_object));
   t_i->source_location = location;
 
   // if it's an array, we need to set the length field
@@ -232,10 +232,11 @@ goto_programt::targett remove_java_newt::lower_java_new_array(
   // zero-initialize the data
   if(!rhs.get_bool(ID_skip_initialize))
   {
-    exprt zero_element = zero_initializer(
-      data.type().subtype(), location, ns, get_message_handler());
+    const auto zero_element =
+      zero_initializer(data.type().subtype(), location, ns);
+    CHECK_RETURN(zero_element.has_value());
     codet array_set(ID_array_set);
-    array_set.copy_to_operands(new_array_data_symbol, zero_element);
+    array_set.copy_to_operands(new_array_data_symbol, *zero_element);
     goto_programt::targett t_d = dest.insert_before(next);
     t_d->make_other(array_set);
     t_d->source_location = location;
@@ -265,8 +266,6 @@ goto_programt::targett remove_java_newt::lower_java_new_array(
     t_decl->make_decl(decl);
     t_decl->source_location = location;
 
-    code_fort for_loop;
-
     side_effect_exprt sub_java_new = rhs;
     sub_java_new.operands().erase(sub_java_new.operands().begin());
 
@@ -295,18 +294,19 @@ goto_programt::targett remove_java_newt::lower_java_new_array(
                               .symbol_expr();
     code_declt init_decl(init_sym);
     init_decl.add_source_location() = location;
-    for_body.move_to_operands(init_decl);
+    for_body.add(std::move(init_decl));
 
     code_assignt init_subarray(init_sym, sub_java_new);
+    for_body.add(std::move(init_subarray));
     code_assignt assign_subarray(
       deref_expr, typecast_exprt(init_sym, deref_expr.type()));
-    for_body.move_to_operands(init_subarray);
-    for_body.move_to_operands(assign_subarray);
+    for_body.add(std::move(assign_subarray));
 
-    for_loop.init() = code_assignt(tmp_i, from_integer(0, tmp_i.type()));
-    for_loop.cond() = binary_relation_exprt(tmp_i, ID_lt, rhs.op0());
-    for_loop.iter() = inc;
-    for_loop.body() = for_body;
+    const code_fort for_loop(
+      code_assignt(tmp_i, from_integer(0, tmp_i.type())),
+      binary_relation_exprt(tmp_i, ID_lt, rhs.op0()),
+      std::move(inc),
+      std::move(for_body));
 
     goto_convert(for_loop, symbol_table, tmp, get_message_handler(), ID_java);
 

@@ -23,10 +23,8 @@ void java_bytecode_parse_treet::output(std::ostream &out) const
   parsed_class.output(out);
 
   out << "Class references:\n";
-  for(class_refst::const_iterator it=class_refs.begin();
-      it!=class_refs.end();
-      it++)
-    out << "  " << *it << '\n';
+  for(const auto &class_ref : class_refs)
+    out << "  " << class_ref << '\n';
 }
 
 void java_bytecode_parse_treet::classt::output(std::ostream &out) const
@@ -42,23 +40,13 @@ void java_bytecode_parse_treet::classt::output(std::ostream &out) const
     out << " extends " << super_class;
   out << " {" << '\n';
 
-  for(fieldst::const_iterator
-      it=fields.begin();
-      it!=fields.end();
-      it++)
-  {
-    it->output(out);
-  }
+  for(const auto &field : fields)
+    field.output(out);
 
   out << '\n';
 
-  for(methodst::const_iterator
-      it=methods.begin();
-      it!=methods.end();
-      it++)
-  {
-    it->output(out);
-  }
+  for(const auto &method : methods)
+    method.output(out);
 
   out << '}' << '\n';
   out << '\n';
@@ -104,7 +92,7 @@ void java_bytecode_parse_treet::annotationt::element_value_pairt::output(
 /// \param annotation_type_name: An irep_idt representing the name of the
 ///   annotation class, e.g. java::java.lang.SuppressWarnings
 /// \return The first annotation with the given name in annotations if one
-///    exists, an empty optionalt otherwise.
+///   exists, an empty optionalt otherwise.
 optionalt<java_bytecode_parse_treet::annotationt>
 java_bytecode_parse_treet::find_annotation(
   const annotationst &annotations,
@@ -117,8 +105,8 @@ java_bytecode_parse_treet::find_annotation(
       if(annotation.type.id() != ID_pointer)
         return false;
       const typet &type = annotation.type.subtype();
-      return type.id() == ID_symbol &&
-             to_symbol_type(type).get_identifier() == annotation_type_name;
+      return type.id() == ID_struct_tag &&
+             to_struct_tag_type(type).get_identifier() == annotation_type_name;
     });
   if(annotation_it == annotations.end())
     return {};
@@ -175,16 +163,18 @@ void java_bytecode_parse_treet::methodt::output(std::ostream &out) const
     out << "    " << i.address << ": ";
     out << i.statement;
 
-    for(std::vector<exprt>::const_iterator
-        a_it=i.args.begin(); a_it!=i.args.end(); a_it++)
+    bool first = true;
+    for(const auto &arg : i.args)
     {
-      if(a_it!=i.args.begin())
+      if(first)
+        first = false;
+      else
         out << ',';
-      #if 0
-      out << ' ' << from_expr(*a_it);
-      #else
-      out << ' ' << expr2java(*a_it, ns);
-      #endif
+#if 0
+      out << ' ' << from_expr(arg);
+#else
+      out << ' ' << expr2java(arg, ns);
+#endif
     }
 
     out << '\n';

@@ -14,8 +14,9 @@ Author: Daniel Kroening, kroening@kroening.com
 
 #include <cassert>
 
-#include <util/std_expr.h>
+#include <util/expr_util.h>
 #include <util/std_code.h>
+#include <util/std_expr.h>
 
 exprt flow_insensitive_abstract_domain_baset::get_guard(
   locationt from,
@@ -28,11 +29,7 @@ exprt flow_insensitive_abstract_domain_baset::get_guard(
   next++;
 
   if(next==to)
-  {
-    exprt tmp(from->guard);
-    tmp.make_not();
-    return tmp;
-  }
+    return boolean_negate(from->guard);
 
   return from->guard;
 }
@@ -240,6 +237,9 @@ bool flow_insensitive_analysis_baset::do_function_call(
     // get the state at the beginning of the function
     locationt l_begin=goto_function.body.instructions.begin();
 
+    DATA_INVARIANT(
+      l_begin->function == f_it->first, "function names have to match");
+
     // do the edge from the call site to the beginning of the function
     new_data=state.transform(ns, l_call, l_begin);
 
@@ -314,24 +314,15 @@ bool flow_insensitive_analysis_baset::do_function_call_rec(
   }
   else if(function.id()==ID_if)
   {
-    if(function.operands().size()!=3)
-      throw "if takes three arguments";
+    const auto &if_expr = to_if_expr(function);
+
+    new_data = do_function_call_rec(
+      l_call, if_expr.true_case(), arguments, state, goto_functions);
 
     new_data =
       do_function_call_rec(
-        l_call,
-        function.op1(),
-        arguments,
-        state,
-        goto_functions);
-
-    new_data =
-      do_function_call_rec(
-        l_call,
-        function.op2(),
-        arguments,
-        state,
-        goto_functions) || new_data;
+        l_call, if_expr.false_case(), arguments, state, goto_functions) ||
+      new_data;
   }
   else if(function.id()==ID_dereference)
   {

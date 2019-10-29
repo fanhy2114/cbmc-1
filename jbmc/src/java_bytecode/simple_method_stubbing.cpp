@@ -26,7 +26,7 @@ public:
   java_simple_method_stubst(
     symbol_table_baset &_symbol_table,
     bool _assume_non_null,
-    const object_factory_parameterst &_object_factory_parameters,
+    const java_object_factory_parameterst &_object_factory_parameters,
     message_handlert &_message_handler)
     : symbol_table(_symbol_table),
       assume_non_null(_assume_non_null),
@@ -52,7 +52,7 @@ public:
 protected:
   symbol_table_baset &symbol_table;
   bool assume_non_null;
-  const object_factory_parameterst &object_factory_parameters;
+  const java_object_factory_parameterst &object_factory_parameters;
   message_handlert &message_handler;
 };
 
@@ -66,6 +66,8 @@ protected:
 ///   type.
 /// \param ptr: pointer to the memory to initialize
 /// \param loc: source location to set for the opaque method stub
+/// \param function_id: name of the function we're generated stub code for; used
+///   to ensure any generated temporaries are created in the correct scope.
 /// \param [out] parent_block: The parent block in which the new instructions
 ///   will be added.
 /// \param insert_before_index: The position in which the new instructions
@@ -108,9 +110,9 @@ void java_simple_method_stubst::create_method_stub_at(
   if(is_constructor)
     to_init = dereference_exprt(to_init, expected_base);
 
-  object_factory_parameterst parameters = object_factory_parameters;
+  java_object_factory_parameterst parameters = object_factory_parameters;
   if(assume_non_null)
-    parameters.max_nonnull_tree_depth = 1;
+    parameters.min_null_tree_depth = 1;
 
   // Generate new instructions.
   code_blockt new_instructions;
@@ -121,20 +123,20 @@ void java_simple_method_stubst::create_method_stub_at(
     symbol_table,
     loc,
     is_constructor,
-    allocation_typet::DYNAMIC,
+    lifetimet::DYNAMIC,
     parameters,
     update_in_place ? update_in_placet::MUST_UPDATE_IN_PLACE
                     : update_in_placet::NO_UPDATE_IN_PLACE);
 
   // Insert new_instructions into parent block.
-  if(!new_instructions.operands().empty())
+  if(!new_instructions.statements().empty())
   {
-    auto insert_position = parent_block.operands().begin();
+    auto insert_position = parent_block.statements().begin();
     std::advance(insert_position, insert_before_index);
-    parent_block.operands().insert(
+    parent_block.statements().insert(
       insert_position,
-      new_instructions.operands().begin(),
-      new_instructions.operands().end());
+      new_instructions.statements().begin(),
+      new_instructions.statements().end());
   }
 }
 
@@ -168,9 +170,10 @@ void java_simple_method_stubst::create_method_stub(symbolt &symbol)
       symbol_table);
     const symbol_exprt &init_symbol_expression = init_symbol.symbol_expr();
     code_assignt get_argument(
-      init_symbol_expression, symbol_exprt(this_argument.get_identifier()));
+      init_symbol_expression,
+      symbol_exprt(this_argument.get_identifier(), this_type));
     get_argument.add_source_location() = synthesized_source_location;
-    new_instructions.copy_to_operands(get_argument);
+    new_instructions.add(get_argument);
     create_method_stub_at(
       this_type,
       init_symbol_expression,
@@ -196,9 +199,9 @@ void java_simple_method_stubst::create_method_stub(symbolt &symbol)
       const exprt &to_return = to_return_symbol.symbol_expr();
       if(to_return_symbol.type.id() != ID_pointer)
       {
-        object_factory_parameterst parameters = object_factory_parameters;
+        java_object_factory_parameterst parameters = object_factory_parameters;
         if(assume_non_null)
-          parameters.max_nonnull_tree_depth = 1;
+          parameters.min_null_tree_depth = 1;
 
         gen_nondet_init(
           to_return,
@@ -206,7 +209,7 @@ void java_simple_method_stubst::create_method_stub(symbolt &symbol)
           symbol_table,
           source_locationt(),
           false,
-          allocation_typet::LOCAL, // Irrelevant as type is primitive
+          lifetimet::AUTOMATIC_LOCAL, // Irrelevant as type is primitive
           parameters,
           update_in_placet::NO_UPDATE_IN_PLACE);
       }
@@ -220,7 +223,7 @@ void java_simple_method_stubst::create_method_stub(symbolt &symbol)
           0,
           false,
           false);
-      new_instructions.copy_to_operands(code_returnt(to_return));
+      new_instructions.add(code_returnt(to_return));
     }
   }
 
@@ -253,7 +256,7 @@ void java_generate_simple_method_stub(
   const irep_idt &function_name,
   symbol_table_baset &symbol_table,
   bool assume_non_null,
-  const object_factory_parameterst &object_factory_parameters,
+  const java_object_factory_parameterst &object_factory_parameters,
   message_handlert &message_handler)
 {
   java_simple_method_stubst stub_generator(
@@ -274,7 +277,7 @@ void java_generate_simple_method_stub(
 void java_generate_simple_method_stubs(
   symbol_table_baset &symbol_table,
   bool assume_non_null,
-  const object_factory_parameterst &object_factory_parameters,
+  const java_object_factory_parameterst &object_factory_parameters,
   message_handlert &message_handler)
 {
   // The intent here is to apply stub_generator.check_method_stub() to

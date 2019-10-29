@@ -14,7 +14,7 @@ Date: April 2016
 #include "unreachable_instructions.h"
 
 #include <util/file_util.h>
-#include <util/json_expr.h>
+#include <util/json_irep.h>
 #include <util/options.h>
 #include <util/xml.h>
 
@@ -117,8 +117,6 @@ static void add_to_json(
   const dead_mapt &dead_map,
   json_arrayt &dest)
 {
-  json_objectt &entry=dest.push_back().make_object();
-
   PRECONDITION(!goto_program.instructions.empty());
   goto_programt::const_targett end_function=
     goto_program.instructions.end();
@@ -126,11 +124,12 @@ static void add_to_json(
   DATA_INVARIANT(end_function->is_end_function(),
                  "The last instruction in a goto-program must be END_FUNCTION");
 
-  entry["function"] = json_stringt(end_function->function);
-  entry["fileName"]=
-    json_stringt(concat_dir_file(
+  json_objectt entry(
+    {{"function", json_stringt(end_function->function)},
+     {"fileName",
+      json_stringt(concat_dir_file(
         id2string(end_function->source_location.get_working_directory()),
-        id2string(end_function->source_location.get_file())));
+        id2string(end_function->source_location.get_file())))}});
 
   json_arrayt &dead_ins=entry["unreachableInstructions"].make_array();
 
@@ -152,11 +151,13 @@ static void add_to_json(
     s.erase(s.size()-1);
 
     // print info for file actually with full path
-    json_objectt &i_entry=dead_ins.push_back().make_object();
     const source_locationt &l=it->second->source_location;
-    i_entry["sourceLocation"]=json(l);
-    i_entry["statement"]=json_stringt(s);
+    json_objectt i_entry(
+      {{"sourceLocation", json(l)}, {"statement", json_stringt(s)}});
+    dead_ins.push_back(std::move(i_entry));
   }
+
+  dest.push_back(std::move(entry));
 }
 
 void unreachable_instructions(
@@ -197,7 +198,7 @@ void unreachable_instructions(
     }
   }
 
-  if(json && !json_result.array.empty())
+  if(json && !json_result.empty())
     os << json_result << '\n';
 }
 
@@ -233,14 +234,13 @@ bool static_unreachable_instructions(
       }
       else
       {
-        INVARIANT(options.get_bool_option("text"),
-                  "Other output formats handled");
+        // text or console
         output_dead_plain(ns, f_it->second.body, dead_map, out);
       }
     }
   }
 
-  if(options.get_bool_option("json") && !json_result.array.empty())
+  if(options.get_bool_option("json") && !json_result.empty())
     out << json_result << '\n';
   else if(options.get_bool_option("xml"))
     out << xml_result << '\n';
@@ -256,17 +256,16 @@ static void json_output_function(
   const source_locationt &last_location,
   json_arrayt &dest)
 {
-  json_objectt &entry=dest.push_back().make_object();
-
-  entry["function"] = json_stringt(function);
-  entry["file name"]=
-    json_stringt(concat_dir_file(
+  json_objectt entry(
+    {{"function", json_stringt(function)},
+     {"file name",
+      json_stringt(concat_dir_file(
         id2string(first_location.get_working_directory()),
-        id2string(first_location.get_file())));
-  entry["first line"]=
-    json_numbert(id2string(first_location.get_line()));
-  entry["last line"]=
-    json_numbert(id2string(last_location.get_line()));
+        id2string(first_location.get_file())))},
+     {"first line", json_numbert(id2string(first_location.get_line()))},
+     {"last line", json_numbert(id2string(last_location.get_line()))}});
+
+  dest.push_back(std::move(entry));
 }
 
 static void xml_output_function(
@@ -342,14 +341,13 @@ static void list_functions(
       // this to macros/asm renaming
       continue;
 
-    if(options.get_bool_option("text"))
+    if(options.get_bool_option("json"))
     {
-      os << concat_dir_file(
-              id2string(first_location.get_working_directory()),
-              id2string(first_location.get_file())) << " "
-         << decl.base_name << " "
-         << first_location.get_line() << " "
-         << last_location.get_line() << "\n";
+      json_output_function(
+        decl.base_name,
+        first_location,
+        last_location,
+        json_result);
     }
     else if(options.get_bool_option("xml"))
     {
@@ -360,14 +358,18 @@ static void list_functions(
         xml_result);
     }
     else
-      json_output_function(
-        decl.base_name,
-        first_location,
-        last_location,
-        json_result);
+    {
+      // text or console
+      os << concat_dir_file(
+              id2string(first_location.get_working_directory()),
+              id2string(first_location.get_file())) << " "
+         << decl.base_name << " "
+         << first_location.get_line() << " "
+         << last_location.get_line() << "\n";
+    }
   }
 
-  if(options.get_bool_option("json") && !json_result.array.empty())
+  if(options.get_bool_option("json") && !json_result.empty())
     os << json_result << '\n';
   else if(options.get_bool_option("xml"))
     os << xml_result << '\n';
@@ -381,8 +383,6 @@ void unreachable_functions(
   optionst options;
   if(json)
     options.set_option("json", true);
-  else
-    options.set_option("text", true);
 
   std::unordered_set<irep_idt> called = compute_called_functions(goto_model);
 
@@ -397,8 +397,6 @@ void reachable_functions(
   optionst options;
   if(json)
     options.set_option("json", true);
-  else
-    options.set_option("text", true);
 
   std::unordered_set<irep_idt> called = compute_called_functions(goto_model);
 

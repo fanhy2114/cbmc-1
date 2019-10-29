@@ -24,6 +24,16 @@
  *
  **************************************************************************/
 
+// this is imported code, don't impose formatting rules
+// clang-format off
+
+#ifdef _MSC_VER
+#pragma warning(disable:4548)
+  // expression before comma has no effect
+#pragma warning(disable:4061)
+  // enum case is not handled in switch
+#endif
+
 #include  "miniz.h"
 
 typedef unsigned char mz_validate_uint16[sizeof(mz_uint16) == 2 ? 1 : -1];
@@ -7187,3 +7197,4 @@ mz_bool mz_zip_end(mz_zip_archive *pZip)
 #ifdef __cplusplus
 }
 #endif
+// clang-format on

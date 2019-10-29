@@ -9,7 +9,8 @@ Date: April 2016
 \*******************************************************************/
 
 /// \file
-/// Remove Virtual Function (Method) Calls
+/// Functions for replacing virtual function call with a static
+/// function calls in functions, groups of functions and goto programs
 
 #ifndef CPROVER_GOTO_PROGRAMS_REMOVE_VIRTUAL_FUNCTIONS_H
 #define CPROVER_GOTO_PROGRAMS_REMOVE_VIRTUAL_FUNCTIONS_H
@@ -24,8 +25,6 @@ class goto_model_functiont;
 class goto_modelt;
 class symbol_table_baset;
 
-// remove virtual function calls
-// and replace by case-split
 void remove_virtual_functions(
   goto_modelt &goto_model);
 
@@ -83,11 +82,11 @@ goto_programt::targett remove_virtual_function(
 /// Given a function expression representing a virtual method of a class,
 /// the function computes all overridden methods of that virtual method.
 /// \param function: The virtual function expression for which the overridden
-///                  methods will be searched for.
+///   methods will be searched for.
 /// \param symbol_table: A symbol table.
 /// \param class_hierarchy: A class hierarchy.
 /// \param [out] overridden_functions: Output collection into which all
-///                                    overridden functions will be stored.
+///   overridden functions will be stored.
 void collect_virtual_function_callees(
   const exprt &function,
   const symbol_tablet &symbol_table,

@@ -16,7 +16,7 @@ Author: Peter Schrammel
 /// Filter out functions that are not considered provided by the user
 /// \param identifier: a function name
 /// \param goto_function: a goto function
-/// \return: returns true if function is considered user-provided
+/// \return returns true if function is considered user-provided
 bool internal_functions_filtert::operator()(
   const irep_idt &identifier,
   const goto_functionst::goto_functiont &goto_function) const
@@ -46,11 +46,12 @@ bool internal_functions_filtert::operator()(
 /// Filter functions whose name match the regex
 /// \param identifier: a function name
 /// \param goto_function: a goto function
-/// \return: returns true if the function name matches
+/// \return returns true if the function name matches
 bool include_pattern_filtert::operator()(
   const irep_idt &identifier,
   const goto_functionst::goto_functiont &goto_function) const
 {
+  (void)goto_function; // unused parameter
   std::smatch string_matcher;
   return std::regex_match(id2string(identifier), string_matcher, regex_matcher);
 }
@@ -62,11 +63,12 @@ bool include_pattern_filtert::operator()(
 /// These criteria are arbitrarily chosen.
 /// \param identifier: a function name
 /// \param goto_function: a goto function
-/// \return: returns true if non-trivial
+/// \return returns true if non-trivial
 bool trivial_functions_filtert::operator()(
   const irep_idt &identifier,
   const goto_functionst::goto_functiont &goto_function) const
 {
+  (void)identifier; // unused parameter
   unsigned long count_assignments = 0, count_goto = 0;
   forall_goto_program_instructions(i_it, goto_function.body)
   {

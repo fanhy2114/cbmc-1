@@ -13,8 +13,6 @@ Author: Daniel Kroening, kroening@kroening.com
 #include <util/expr_util.h>
 #include <util/arith_tools.h>
 
-#include <langapi/language_util.h>
-
 #include <solvers/refinement/string_refinement_invariant.h>
 #include <solvers/floatbv/float_utils.h>
 
@@ -41,8 +39,7 @@ bvt bv_refinementt::convert_floatbv_op(const exprt &expr)
   if(!config_.refine_arithmetic)
     return SUB::convert_floatbv_op(expr);
 
-  if(ns.follow(expr.type()).id()!=ID_floatbv ||
-     expr.operands().size()!=3)
+  if(expr.type().id() != ID_floatbv || expr.operands().size() != 3)
     return SUB::convert_floatbv_op(expr);
 
   bvt bv;
@@ -50,7 +47,7 @@ bvt bv_refinementt::convert_floatbv_op(const exprt &expr)
   return bv;
 }
 
-bvt bv_refinementt::convert_mult(const exprt &expr)
+bvt bv_refinementt::convert_mult(const mult_exprt &expr)
 {
   if(!config_.refine_arithmetic || expr.type().id()==ID_fixedbv)
     return SUB::convert_mult(expr);
@@ -60,12 +57,12 @@ bvt bv_refinementt::convert_mult(const exprt &expr)
 
   const exprt::operandst &operands=expr.operands();
 
-  const typet &type=ns.follow(expr.type());
+  const typet &type = expr.type();
 
   PRECONDITION(operands.size()>=2);
 
   if(operands.size()>2)
-    return convert_mult(make_binary(expr)); // make binary
+    return convert_mult(to_mult_expr(make_binary(expr))); // make binary
 
   // we keep multiplication by a constant for integers
   if(type.id()!=ID_floatbv)
@@ -166,7 +163,7 @@ void bv_refinementt::check_SAT(approximationt &a)
 
   // see if the satisfying assignment is spurious in any way
 
-  const typet &type=ns.follow(a.expr.type());
+  const typet &type = a.expr.type();
 
   if(type.id()==ID_floatbv)
   {
@@ -185,11 +182,11 @@ void bv_refinementt::check_SAT(approximationt &a)
     o1.unpack(a.op1_value);
 
     // get actual rounding mode
-    mp_integer rounding_mode_int;
     exprt rounding_mode_expr = get(a.expr.op2());
-    to_integer(rounding_mode_expr, rounding_mode_int);
+    const std::size_t rounding_mode_int =
+      numeric_cast_v<std::size_t>(rounding_mode_expr);
     ieee_floatt::rounding_modet rounding_mode =
-      (ieee_floatt::rounding_modet)integer2ulong(rounding_mode_int);
+      (ieee_floatt::rounding_modet)rounding_mode_int;
 
     ieee_floatt result=o0;
     o0.rounding_mode=rounding_mode;
@@ -528,9 +525,5 @@ bv_refinementt::add_approximation(
 
 std::string bv_refinementt::approximationt::as_string() const
 {
-  #if 0
-  return from_expr(expr);
-  #else
   return std::to_string(id_nr)+"/"+id2string(expr.id());
-  #endif
 }

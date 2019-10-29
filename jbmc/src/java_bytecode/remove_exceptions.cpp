@@ -46,7 +46,7 @@ Date:   December 2016
 /// (in instruction->code.exception_list()) and a corresponding GOTO program
 /// target for each (in instruction->targets).
 /// Thrown instructions are currently always matched to tags using
-/// java_instanceof, optionally lowered to a check on the @class_identifier
+/// java_instanceof, optionally lowered to a check on the `@class_identifier`
 /// field, so a language frontend wanting to use this class must use
 /// exceptions with a Java-compatible structure.
 ///
@@ -87,14 +87,23 @@ public:
 
   explicit remove_exceptionst(
     symbol_table_baset &_symbol_table,
+    const class_hierarchyt *_class_hierarchy,
     function_may_throwt _function_may_throw,
-    bool remove_added_instanceof,
-    message_handlert &message_handler)
+    bool _remove_added_instanceof,
+    message_handlert &_message_handler)
     : symbol_table(_symbol_table),
+      class_hierarchy(_class_hierarchy),
       function_may_throw(_function_may_throw),
-      remove_added_instanceof(remove_added_instanceof),
-      message_handler(message_handler)
+      remove_added_instanceof(_remove_added_instanceof),
+      message_handler(_message_handler)
   {
+    if(remove_added_instanceof)
+    {
+      INVARIANT(
+        class_hierarchy != nullptr,
+        "remove_exceptions needs a class hierarchy to remove instanceof "
+        "statements (either supply one, or don't use REMOVE_ADDED_INSTANCEOF)");
+    }
   }
 
   void operator()(goto_functionst &goto_functions);
@@ -102,6 +111,7 @@ public:
 
 protected:
   symbol_table_baset &symbol_table;
+  const class_hierarchyt *class_hierarchy;
   function_may_throwt function_may_throw;
   bool remove_added_instanceof;
   message_handlert &message_handler;
@@ -125,19 +135,19 @@ protected:
     goto_programt &goto_program,
     const goto_programt::targett &instr_it,
     const stack_catcht &stack_catch,
-    const std::vector<exprt> &locals);
+    const std::vector<symbol_exprt> &locals);
 
   bool instrument_throw(
     goto_programt &goto_program,
     const goto_programt::targett &,
     const stack_catcht &,
-    const std::vector<exprt> &);
+    const std::vector<symbol_exprt> &);
 
   bool instrument_function_call(
     goto_programt &goto_program,
     const goto_programt::targett &,
     const stack_catcht &,
-    const std::vector<exprt> &);
+    const std::vector<symbol_exprt> &);
 
   void instrument_exceptions(
     goto_programt &goto_program);
@@ -250,13 +260,13 @@ void remove_exceptionst::instrument_exception_handler(
 /// we note  that try1{ try2 {} catch2c {} catch2d {}} catch1a() {} catch1b{}
 /// must catch in the following order: 2c 2d 1a 1b hence the numerical index
 /// is reversed whereas the letter ordering remains the same.
-/// @param stack_catch exception table
-/// @param goto_program program being evaluated
-/// @param[out] universal_try returns the try block
-///        corresponding to the desired exception handler
-/// @param[out] universal_catch returns the catch block
-///        corresponding to the exception desired exception handler
-/// @return the desired exception handler
+/// \param stack_catch: exception table
+/// \param goto_program: program being evaluated
+/// \param [out] universal_try: returns the try block corresponding to the
+///   desired exception handler
+/// \param [out] universal_catch: returns the catch block corresponding to the
+///   exception desired exception handler
+/// \return the desired exception handler
 goto_programt::targett remove_exceptionst::find_universal_exception(
   const remove_exceptionst::stack_catcht &stack_catch,
   goto_programt &goto_program,
@@ -298,7 +308,7 @@ void remove_exceptionst::add_exception_dispatch_sequence(
   goto_programt &goto_program,
   const goto_programt::targett &instr_it,
   const remove_exceptionst::stack_catcht &stack_catch,
-  const std::vector<exprt> &locals)
+  const std::vector<symbol_exprt> &locals)
 {
   // Jump to the universal handler or function end, as appropriate.
   // This will appear after the GOTO-based dynamic dispatch below
@@ -338,14 +348,21 @@ void remove_exceptionst::add_exception_dispatch_sequence(
         t_exc->function=instr_it->function;
 
         // use instanceof to check that this is the correct handler
-        symbol_typet type(stack_catch[i][j].first);
+        struct_tag_typet type(stack_catch[i][j].first);
         type_exprt expr(type);
 
         binary_predicate_exprt check(exc_thrown, ID_java_instanceof, expr);
         t_exc->guard=check;
 
         if(remove_added_instanceof)
-          remove_instanceof(t_exc, goto_program, symbol_table, message_handler);
+        {
+          remove_instanceof(
+            t_exc,
+            goto_program,
+            symbol_table,
+            *class_hierarchy,
+            message_handler);
+        }
       }
     }
   }
@@ -371,7 +388,7 @@ bool remove_exceptionst::instrument_throw(
   goto_programt &goto_program,
   const goto_programt::targett &instr_it,
   const remove_exceptionst::stack_catcht &stack_catch,
-  const std::vector<exprt> &locals)
+  const std::vector<symbol_exprt> &locals)
 {
   PRECONDITION(instr_it->type==THROW);
 
@@ -402,7 +419,7 @@ bool remove_exceptionst::instrument_function_call(
   goto_programt &goto_program,
   const goto_programt::targett &instr_it,
   const stack_catcht &stack_catch,
-  const std::vector<exprt> &locals)
+  const std::vector<symbol_exprt> &locals)
 {
   PRECONDITION(instr_it->type==FUNCTION_CALL);
 
@@ -456,8 +473,8 @@ void remove_exceptionst::instrument_exceptions(
   goto_programt &goto_program)
 {
   stack_catcht stack_catch; // stack of try-catch blocks
-  std::vector<std::vector<exprt>> stack_locals; // stack of local vars
-  std::vector<exprt> locals;
+  std::vector<std::vector<symbol_exprt>> stack_locals; // stack of local vars
+  std::vector<symbol_exprt> locals;
 
   if(goto_program.empty())
     return;
@@ -574,24 +591,24 @@ void remove_exceptionst::operator()(goto_programt &goto_program)
 }
 
 /// removes throws/CATCH-POP/CATCH-PUSH
-void remove_exceptions(
+void remove_exceptions_using_instanceof(
   symbol_table_baset &symbol_table,
   goto_functionst &goto_functions,
-  message_handlert &message_handler,
-  remove_exceptions_typest type)
+  message_handlert &message_handler)
 {
   const namespacet ns(symbol_table);
   std::map<irep_idt, std::set<irep_idt>> exceptions_map;
+
   uncaught_exceptions(goto_functions, ns, exceptions_map);
+
   remove_exceptionst::function_may_throwt function_may_throw =
     [&exceptions_map](const irep_idt &id) {
       return !exceptions_map[id].empty();
     };
+
   remove_exceptionst remove_exceptions(
-    symbol_table,
-    function_may_throw,
-    type == remove_exceptions_typest::REMOVE_ADDED_INSTANCEOF,
-    message_handler);
+    symbol_table, nullptr, function_may_throw, false, message_handler);
+
   remove_exceptions(goto_functions);
 }
 
@@ -606,32 +623,107 @@ void remove_exceptions(
 ///   may be added if not already present. It will not be initialised; that is
 ///   the caller's responsibility.
 /// \param message_handler: logging output
-/// \param type: specifies whether instanceof operations generated by this pass
-///   should be lowered to class-identifier comparisons (using
-///   remove_instanceof).
+void remove_exceptions_using_instanceof(
+  goto_programt &goto_program,
+  symbol_table_baset &symbol_table,
+  message_handlert &message_handler)
+{
+  remove_exceptionst::function_may_throwt any_function_may_throw =
+    [](const irep_idt &) { return true; };
+
+  remove_exceptionst remove_exceptions(
+    symbol_table, nullptr, any_function_may_throw, false, message_handler);
+
+  remove_exceptions(goto_program);
+}
+
+/// removes throws/CATCH-POP/CATCH-PUSH, replacing them with explicit exception
+/// propagation.
+/// \param goto_model: model to remove exceptions from. The
+///   `@inflight_exception` global may be added to its symbol table if not
+///   already present. It will not be initialised; that is the caller's
+///   responsibility.
+/// \param message_handler: logging output
+void remove_exceptions_using_instanceof(
+  goto_modelt &goto_model,
+  message_handlert &message_handler)
+{
+  remove_exceptions_using_instanceof(
+    goto_model.symbol_table, goto_model.goto_functions, message_handler);
+}
+
+/// removes throws/CATCH-POP/CATCH-PUSH
+void remove_exceptions(
+  symbol_table_baset &symbol_table,
+  goto_functionst &goto_functions,
+  const class_hierarchyt &class_hierarchy,
+  message_handlert &message_handler)
+{
+  const namespacet ns(symbol_table);
+  std::map<irep_idt, std::set<irep_idt>> exceptions_map;
+
+  uncaught_exceptions(goto_functions, ns, exceptions_map);
+
+  remove_exceptionst::function_may_throwt function_may_throw =
+    [&exceptions_map](const irep_idt &id) {
+      return !exceptions_map[id].empty();
+    };
+
+  remove_exceptionst remove_exceptions(
+    symbol_table, &class_hierarchy, function_may_throw, true, message_handler);
+
+  remove_exceptions(goto_functions);
+}
+
+/// removes throws/CATCH-POP/CATCH-PUSH from a single GOTO program, replacing
+/// them with explicit exception propagation.
+/// Note this is somewhat less accurate than the whole-goto-model version,
+/// because we can't inspect other functions to determine whether they throw
+/// or not, and therefore must assume they do and always introduce post-call
+/// exception dispatch.
+/// \param goto_program: program to remove exceptions from
+/// \param symbol_table: global symbol table. The `@inflight_exception` global
+///   may be added if not already present. It will not be initialised; that is
+///   the caller's responsibility.
+/// \param class_hierarchy: class hierarchy analysis of symbol_table.
+///   Only needed if type == REMOVE_ADDED_INSTANCEOF; otherwise may be null.
+/// \param message_handler: logging output
 void remove_exceptions(
   goto_programt &goto_program,
   symbol_table_baset &symbol_table,
-  message_handlert &message_handler,
-  remove_exceptions_typest type)
+  const class_hierarchyt &class_hierarchy,
+  message_handlert &message_handler)
 {
   remove_exceptionst::function_may_throwt any_function_may_throw =
     [](const irep_idt &) { return true; };
 
   remove_exceptionst remove_exceptions(
     symbol_table,
+    &class_hierarchy,
     any_function_may_throw,
-    type == remove_exceptions_typest::REMOVE_ADDED_INSTANCEOF,
+    true,
     message_handler);
+
   remove_exceptions(goto_program);
 }
 
-/// removes throws/CATCH-POP/CATCH-PUSH
+/// removes throws/CATCH-POP/CATCH-PUSH, replacing them with explicit exception
+/// propagation.
+/// \param goto_model: model to remove exceptions from. The
+///   `@inflight_exception` global may be added to its symbol table if not
+///   already present. It will not be initialised; that is the caller's
+///   responsibility.
+/// \param class_hierarchy: class hierarchy analysis of symbol_table.
+///   Only needed if type == REMOVE_ADDED_INSTANCEOF; otherwise may be null.
+/// \param message_handler: logging output
 void remove_exceptions(
   goto_modelt &goto_model,
-  message_handlert &message_handler,
-  remove_exceptions_typest type)
+  const class_hierarchyt &class_hierarchy,
+  message_handlert &message_handler)
 {
   remove_exceptions(
-    goto_model.symbol_table, goto_model.goto_functions, message_handler, type);
+    goto_model.symbol_table,
+    goto_model.goto_functions,
+    class_hierarchy,
+    message_handler);
 }

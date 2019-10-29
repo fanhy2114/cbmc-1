@@ -4,9 +4,9 @@
 
 #include <iterator>
 
-/// \param type Source type
+/// \param type: Source type
 /// \return The vector of implicitly generic and (explicitly) generic type
-/// parameters of the given type.
+///   parameters of the given type.
 const std::vector<java_generic_parametert>
 get_all_generic_parameters(const typet &type)
 {
@@ -37,9 +37,9 @@ get_all_generic_parameters(const typet &type)
 
 /// Add pairs to the controlled map. Own the keys and pop from their stack
 /// on destruction; otherwise do nothing.
-/// \param parameters generic parameters that are the keys of the pairs to add
-/// \param types a type to add for each parameter
-const void generic_parameter_specialization_map_keyst::insert_pairs(
+/// \param parameters: generic parameters that are the keys of the pairs to add
+/// \param types: a type to add for each parameter
+void generic_parameter_specialization_map_keyst::insert_pairs(
   const std::vector<java_generic_parametert> &parameters,
   const std::vector<reference_typet> &types)
 {
@@ -87,10 +87,10 @@ const void generic_parameter_specialization_map_keyst::insert_pairs(
 /// Add a pair of a parameter and its types for each generic parameter of the
 /// given generic pointer type to the controlled map. Own the keys and pop
 /// from their stack on destruction; otherwise do nothing.
-/// \param pointer_type pointer type to get the specialized generic types from
-/// \param pointer_subtype_struct struct type to which the generic pointer
-/// points, must be generic if the pointer is generic
-const void generic_parameter_specialization_map_keyst::insert_pairs_for_pointer(
+/// \param pointer_type: pointer type to get the specialized generic types from
+/// \param pointer_subtype_struct: struct type to which the generic pointer
+///   points, must be generic if the pointer is generic
+void generic_parameter_specialization_map_keyst::insert_pairs_for_pointer(
   const pointer_typet &pointer_type,
   const typet &pointer_subtype_struct)
 {
@@ -110,7 +110,7 @@ const void generic_parameter_specialization_map_keyst::insert_pairs_for_pointer(
     // together. Currently an incomplete class is never marked as generic. If
     // this changes in TG-1996 then the condition below should be updated.
     if(
-      !pointer_subtype_struct.get_bool(ID_incomplete_class) &&
+      !to_java_class_type(pointer_subtype_struct).get_is_stub() &&
       (is_java_generic_class_type(pointer_subtype_struct) ||
        is_java_implicitly_generic_class_type(pointer_subtype_struct)))
     {
@@ -136,29 +136,31 @@ const void generic_parameter_specialization_map_keyst::insert_pairs_for_pointer(
 /// in the form of a symbol rather than a pointer (as opposed to the function
 /// insert_pairs_for_pointer). Own the keys and pop from their stack
 /// on destruction; otherwise do nothing.
-/// \param symbol_type symbol type to get the specialized generic types from
-/// \param symbol_struct struct type of the symbol type, must be generic if
-/// the symbol is generic
-const void generic_parameter_specialization_map_keyst::insert_pairs_for_symbol(
-  const symbol_typet &symbol_type,
+/// \param struct_tag_type: symbol type to get the specialized generic types
+///   from
+/// \param symbol_struct: struct type of the symbol type, must be generic if
+///   the symbol is generic
+void generic_parameter_specialization_map_keyst::insert_pairs_for_symbol(
+  const struct_tag_typet &struct_tag_type,
   const typet &symbol_struct)
 {
   // If the struct is:
   // - an incomplete class or
   // - a class that is neither generic nor implicitly generic (this
   //  may be due to unsupported class signature)
-  // then ignore the generic types in the symbol_type and do not add any pairs.
+  // then ignore the generic types in the struct_tag_type and do not add any
+  // pairs.
   // TODO TG-1996 should decide how mocking and generics should work
   // together. Currently an incomplete class is never marked as generic. If
   // this changes in TG-1996 then the condition below should be updated.
   if(
-    is_java_generic_symbol_type(symbol_type) &&
-    !symbol_struct.get_bool(ID_incomplete_class) &&
+    is_java_generic_struct_tag_type(struct_tag_type) &&
+    !to_java_class_type(symbol_struct).get_is_stub() &&
     (is_java_generic_class_type(symbol_struct) ||
      is_java_implicitly_generic_class_type(symbol_struct)))
   {
-    const java_generic_symbol_typet &generic_symbol =
-      to_java_generic_symbol_type(symbol_type);
+    const java_generic_struct_tag_typet &generic_symbol =
+      to_java_generic_struct_tag_type(struct_tag_type);
 
     const std::vector<java_generic_parametert> &generic_parameters =
       get_all_generic_parameters(symbol_struct);

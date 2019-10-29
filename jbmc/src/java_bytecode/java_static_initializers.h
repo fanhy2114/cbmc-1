@@ -9,7 +9,7 @@ Author: Chris Smowton, chris.smowton@diffblue.com
 #ifndef CPROVER_JAVA_BYTECODE_JAVA_STATIC_INITIALIZERS_H
 #define CPROVER_JAVA_BYTECODE_JAVA_STATIC_INITIALIZERS_H
 
-#include "object_factory_parameters.h"
+#include "java_object_factory_parameters.h"
 #include "select_pointer_type.h"
 #include "synthetic_methods_map.h"
 
@@ -27,13 +27,19 @@ void create_static_initializer_wrappers(
   synthetic_methods_mapt &synthetic_methods,
   const bool thread_safe);
 
-codet get_thread_safe_clinit_wrapper_body(
+code_blockt get_thread_safe_clinit_wrapper_body(
   const irep_idt &function_id,
-  symbol_table_baset &symbol_table);
+  symbol_table_baset &symbol_table,
+  const bool nondet_static,
+  const java_object_factory_parameterst &object_factory_parameters,
+  const select_pointer_typet &pointer_type_selector);
 
-codet get_clinit_wrapper_body(
+code_ifthenelset get_clinit_wrapper_body(
   const irep_idt &function_id,
-  symbol_table_baset &symbol_table);
+  symbol_table_baset &symbol_table,
+  const bool nondet_static,
+  const java_object_factory_parameterst &object_factory_parameters,
+  const select_pointer_typet &pointer_type_selector);
 
 class stub_global_initializer_factoryt
 {
@@ -47,17 +53,17 @@ public:
     const std::unordered_set<irep_idt> &stub_globals_set,
     synthetic_methods_mapt &synthetic_methods);
 
-  codet get_stub_initializer_body(
+  code_blockt get_stub_initializer_body(
     const irep_idt &function_id,
     symbol_table_baset &symbol_table,
-    const object_factory_parameterst &object_factory_parameters,
+    const java_object_factory_parameterst &object_factory_parameters,
     const select_pointer_typet &pointer_type_selector);
 };
 
 void create_stub_global_initializers(
   symbol_tablet &symbol_table,
   const std::unordered_set<irep_idt> &stub_globals_set,
-  const object_factory_parameterst &object_factory_parameters,
+  const java_object_factory_parameterst &object_factory_parameters,
   const select_pointer_typet &pointer_type_selector);
 
 #endif

@@ -17,6 +17,8 @@ Author: Daniel Kroening, kroening@kroening.com
 #include <util/std_code.h>
 #include <util/base_type.h>
 
+#include <util/invariant.h>
+
 bool has_nondet(const exprt &dest)
 {
   forall_operands(it, dest)
@@ -164,12 +166,8 @@ void rewrite_assignment(exprt &lhs, exprt &rhs)
     irep_idt component_name=member_expr.get_component_name();
     exprt new_lhs=member_expr.struct_op();
 
-    with_exprt new_rhs;
-    new_rhs.type()=new_lhs.type();
-    new_rhs.old()=new_lhs;
-    new_rhs.where().id(ID_member_name);
+    with_exprt new_rhs(new_lhs, exprt(ID_member_name), rhs);
     new_rhs.where().set(ID_component_name, component_name);
-    new_rhs.new_value()=rhs;
 
     lhs=new_lhs;
     rhs=new_rhs;
@@ -181,11 +179,7 @@ void rewrite_assignment(exprt &lhs, exprt &rhs)
     const index_exprt index_expr=to_index_expr(lhs);
     exprt new_lhs=index_expr.array();
 
-    with_exprt new_rhs;
-    new_rhs.type()=new_lhs.type();
-    new_rhs.old()=new_lhs;
-    new_rhs.where()=index_expr.index();
-    new_rhs.new_value()=rhs;
+    with_exprt new_rhs(new_lhs, index_expr.index(), rhs);
 
     lhs=new_lhs;
     rhs=new_rhs;
@@ -257,12 +251,10 @@ exprt wp(
     return post;
   else if(statement==ID_printf)
     return post; // ignored
-  else if(statement==ID_free)
-    return post; // ignored
   else if(statement==ID_asm)
     return post; // ignored
   else if(statement==ID_fence)
     return post; // ignored
-  else
-    throw "sorry, wp("+id2string(statement)+"...) not implemented";
+  INVARIANT_WITH_DIAGNOSTICS(
+    false, "sorry, wp(", id2string(statement), "...) is not implemented");
 }

@@ -24,12 +24,14 @@ class remove_instanceoft
 {
 public:
   remove_instanceoft(
-    symbol_table_baset &symbol_table, message_handlert &message_handler)
-    : symbol_table(symbol_table)
-    , ns(symbol_table)
-    , message_handler(message_handler)
+    symbol_table_baset &symbol_table,
+    const class_hierarchyt &class_hierarchy,
+    message_handlert &message_handler)
+    : symbol_table(symbol_table),
+      class_hierarchy(class_hierarchy),
+      ns(symbol_table),
+      message_handler(message_handler)
   {
-    class_hierarchy(symbol_table);
   }
 
   // Lower instanceof for a single function
@@ -40,8 +42,8 @@ public:
 
 protected:
   symbol_table_baset &symbol_table;
+  const class_hierarchyt &class_hierarchy;
   namespacet ns;
-  class_hierarchyt class_hierarchy;
   message_handlert &message_handler;
 
   bool lower_instanceof(
@@ -85,10 +87,10 @@ bool remove_instanceoft::lower_instanceof(
 
   // Find all types we know about that satisfy the given requirement:
   INVARIANT(
-    target_type.id()==ID_symbol,
+    target_type.id() == ID_struct_tag,
     "instanceof second operand should have a simple type");
-  const irep_idt &target_name=
-    to_symbol_type(target_type).get_identifier();
+  const irep_idt &target_name =
+    to_struct_tag_type(target_type).get_identifier();
   std::vector<irep_idt> children=
     class_hierarchy.get_children_trans(target_name);
   children.push_back(target_name);
@@ -102,7 +104,7 @@ bool remove_instanceoft::lower_instanceof(
   // Make temporaries to store the class identifier (avoids repeated derefs) and
   // the instanceof result:
 
-  symbol_typet jlo=to_symbol_type(java_lang_object_type().subtype());
+  auto jlo = to_struct_tag_type(java_lang_object_type().subtype());
   exprt object_clsid = get_class_identifier_field(check_ptr, jlo, ns);
 
   symbolt &clsid_tmp_sym = get_fresh_aux_symbol(
@@ -132,13 +134,6 @@ bool remove_instanceoft::lower_instanceof(
   // possible values of T.
   // (http://docs.oracle.com/javase/specs/jls/se7/html/jls-15.html#jls-15.20.2)
 
-  code_ifthenelset is_null_branch;
-  is_null_branch.cond() =
-    equal_exprt(
-      check_ptr, null_pointer_exprt(to_pointer_type(check_ptr.type())));
-  is_null_branch.then_case() =
-    code_assignt(instanceof_result_sym.symbol_expr(), false_exprt());
-
   code_blockt else_block;
   else_block.add(code_declt(clsid_tmp_sym.symbol_expr()));
   else_block.add(code_assignt(clsid_tmp_sym.symbol_expr(), object_clsid));
@@ -153,7 +148,11 @@ bool remove_instanceoft::lower_instanceof(
   else_block.add(
     code_assignt(instanceof_result_sym.symbol_expr(), disjunction(or_ops)));
 
-  is_null_branch.else_case() = std::move(else_block);
+  const code_ifthenelset is_null_branch(
+    equal_exprt(
+      check_ptr, null_pointer_exprt(to_pointer_type(check_ptr.type()))),
+    code_assignt(instanceof_result_sym.symbol_expr(), false_exprt()),
+    std::move(else_block));
 
   // Replace the instanceof construct with instanceof_result:
   expr = instanceof_result_sym.symbol_expr();
@@ -233,21 +232,22 @@ bool remove_instanceoft::lower_instanceof(goto_programt &goto_program)
   return true;
 }
 
-
 /// Replace an instanceof in the expression or guard of the passed instruction
 /// of the given function body with an explicit class-identifier test.
 /// \remarks Extra auxiliary variables may be introduced into symbol_table.
 /// \param target: The instruction to work on.
 /// \param goto_program: The function body containing the instruction.
 /// \param symbol_table: The symbol table to add symbols to.
+/// \param class_hierarchy: class hierarchy analysis of symbol_table
 /// \param message_handler: logging output
 void remove_instanceof(
   goto_programt::targett target,
   goto_programt &goto_program,
   symbol_table_baset &symbol_table,
+  const class_hierarchyt &class_hierarchy,
   message_handlert &message_handler)
 {
-  remove_instanceoft rem(symbol_table, message_handler);
+  remove_instanceoft rem(symbol_table, class_hierarchy, message_handler);
   rem.lower_instanceof(goto_program, target);
 }
 
@@ -256,13 +256,15 @@ void remove_instanceof(
 /// \remarks Extra auxiliary variables may be introduced into symbol_table.
 /// \param function: The function to work on.
 /// \param symbol_table: The symbol table to add symbols to.
+/// \param class_hierarchy: class hierarchy analysis of symbol_table
 /// \param message_handler: logging output
 void remove_instanceof(
   goto_functionst::goto_functiont &function,
   symbol_table_baset &symbol_table,
+  const class_hierarchyt &class_hierarchy,
   message_handlert &message_handler)
 {
-  remove_instanceoft rem(symbol_table, message_handler);
+  remove_instanceoft rem(symbol_table, class_hierarchy, message_handler);
   rem.lower_instanceof(function.body);
 }
 
@@ -271,13 +273,15 @@ void remove_instanceof(
 /// \remarks Extra auxiliary variables may be introduced into symbol_table.
 /// \param goto_functions: The functions to work on.
 /// \param symbol_table: The symbol table to add symbols to.
+/// \param class_hierarchy: class hierarchy analysis of symbol_table
 /// \param message_handler: logging output
 void remove_instanceof(
   goto_functionst &goto_functions,
   symbol_table_baset &symbol_table,
+  const class_hierarchyt &class_hierarchy,
   message_handlert &message_handler)
 {
-  remove_instanceoft rem(symbol_table, message_handler);
+  remove_instanceoft rem(symbol_table, class_hierarchy, message_handler);
   bool changed=false;
   for(auto &f : goto_functions.function_map)
     changed=rem.lower_instanceof(f.second.body) || changed;
@@ -289,12 +293,18 @@ void remove_instanceof(
 /// class-identifier test.
 /// \remarks Extra auxiliary variables may be introduced into symbol_table.
 /// \param goto_model: The functions to work on and the symbol table to add
+/// \param class_hierarchy: class hierarchy analysis of goto_model's symbol
+///   table
 /// \param message_handler: logging output
-/// symbols to.
+///   symbols to.
 void remove_instanceof(
   goto_modelt &goto_model,
+  const class_hierarchyt &class_hierarchy,
   message_handlert &message_handler)
 {
   remove_instanceof(
-    goto_model.goto_functions, goto_model.symbol_table, message_handler);
+    goto_model.goto_functions,
+    goto_model.symbol_table,
+    class_hierarchy,
+    message_handler);
 }

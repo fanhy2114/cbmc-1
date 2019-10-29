@@ -13,11 +13,11 @@ SRC = anonymous_member.cpp \
       builtin_factory.cpp \
       c_misc.cpp \
       c_nondet_symbol_factory.cpp \
+      c_object_factory_parameters.cpp \
       c_preprocess.cpp \
       c_qualifiers.cpp \
       c_storage_spec.cpp \
       c_typecast.cpp \
-      c_typecheck_argc_argv.cpp \
       c_typecheck_base.cpp \
       c_typecheck_code.cpp \
       c_typecheck_expr.cpp \
@@ -114,8 +114,6 @@ cprover_library.inc: library/converter$(EXEEXT) library/*.c
 
 %.inc: %.h file_converter$(EXEEXT)
 	./file_converter$(EXEEXT) < $< > $@
-
-cprover_library.cpp: cprover_library.inc
 
 ansi_c_internal_additions$(OBJEXT): $(BUILTIN_FILES)
 

@@ -16,12 +16,15 @@ Author: Daniel Kroening, kroening@kroening.com
 #include <util/arith_tools.h>
 #include <util/array_name.h>
 #include <util/base_type.h>
-#include <util/cprover_prefix.h>
 #include <util/c_types.h>
+#include <util/config.h>
+#include <util/cprover_prefix.h>
 #include <util/expr_util.h>
 #include <util/find_symbols.h>
 #include <util/guard.h>
 #include <util/ieee_float.h>
+#include <util/invariant.h>
+#include <util/make_unique.h>
 #include <util/options.h>
 #include <util/pointer_offset_size.h>
 #include <util/pointer_predicates.h>
@@ -72,14 +75,16 @@ public:
 
   typedef goto_functionst::goto_functiont goto_functiont;
 
-  void goto_check(goto_functiont &goto_function, const irep_idt &mode);
+  void goto_check(
+    const irep_idt &function_identifier,
+    goto_functiont &goto_function);
 
   void collect_allocations(const goto_functionst &goto_functions);
 
 protected:
   const namespacet &ns;
-  local_bitvector_analysist *local_bitvector_analysis;
-  goto_programt::const_targett t;
+  std::unique_ptr<local_bitvector_analysist> local_bitvector_analysis;
+  goto_programt::const_targett current_target;
 
   void check_rec(
     const exprt &expr,
@@ -103,6 +108,7 @@ protected:
   void bounds_check(const index_exprt &, const guardt &);
   void div_by_zero_check(const div_exprt &, const guardt &);
   void mod_by_zero_check(const mod_exprt &, const guardt &);
+  void mod_overflow_check(const mod_exprt &, const guardt &);
   void undefined_shift_check(const shift_exprt &, const guardt &);
   void pointer_rel_check(const exprt &, const guardt &);
   void pointer_overflow_check(const exprt &, const guardt &);
@@ -260,8 +266,7 @@ void goto_checkt::undefined_shift_check(
   // Undefined for all types and shifts if distance exceeds width,
   // and also undefined for negative distances.
 
-  const typet &distance_type=
-    ns.follow(expr.distance().type());
+  const typet &distance_type = expr.distance().type();
 
   if(distance_type.id()==ID_signedbv)
   {
@@ -277,8 +282,7 @@ void goto_checkt::undefined_shift_check(
       guard);
   }
 
-  const typet &op_type=
-    ns.follow(expr.op().type());
+  const typet &op_type = expr.op().type();
 
   if(op_type.id()==ID_unsignedbv || op_type.id()==ID_signedbv)
   {
@@ -288,11 +292,8 @@ void goto_checkt::undefined_shift_check(
     if(width_expr.is_nil())
       throw "no number for width for operator "+expr.id_string();
 
-    binary_relation_exprt inequality(
-      expr.distance(), ID_lt, width_expr);
-
     add_guarded_claim(
-      inequality,
+      binary_relation_exprt(expr.distance(), ID_lt, width_expr),
       "shift distance too large",
       "undefined-shift",
       expr.find_source_location(),
@@ -329,7 +330,7 @@ void goto_checkt::mod_by_zero_check(
   const mod_exprt &expr,
   const guardt &guard)
 {
-  if(!enable_div_by_zero_check)
+  if(!enable_div_by_zero_check || mode == ID_java)
     return;
 
   // add divison by zero subgoal
@@ -350,6 +351,37 @@ void goto_checkt::mod_by_zero_check(
     guard);
 }
 
+/// check a mod expression for the case INT_MIN % -1
+void goto_checkt::mod_overflow_check(const mod_exprt &expr, const guardt &guard)
+{
+  if(!enable_signed_overflow_check)
+    return;
+
+  const auto &type = expr.type();
+
+  if(type.id() == ID_signedbv)
+  {
+    // INT_MIN % -1 is, in principle, defined to be zero in
+    // ANSI C, C99, C++98, and C++11. Most compilers, however,
+    // fail to produce 0, and in some cases generate an exception.
+    // C11 explicitly makes this case undefined.
+
+    notequal_exprt int_min_neq(
+      expr.op0(), to_signedbv_type(type).smallest_expr());
+
+    notequal_exprt minus_one_neq(
+      expr.op1(), from_integer(-1, expr.op1().type()));
+
+    add_guarded_claim(
+      or_exprt(int_min_neq, minus_one_neq),
+      "result of signed mod is not representable",
+      "overflow",
+      expr.find_source_location(),
+      expr,
+      guard);
+  }
+}
+
 void goto_checkt::conversion_check(
   const exprt &expr,
   const guardt &guard)
@@ -358,7 +390,7 @@ void goto_checkt::conversion_check(
     return;
 
   // First, check type.
-  const typet &type=ns.follow(expr.type());
+  const typet &type = expr.type();
 
   if(type.id()!=ID_signedbv &&
      type.id()!=ID_unsignedbv)
@@ -371,7 +403,7 @@ void goto_checkt::conversion_check(
     if(expr.operands().size()!=1)
       throw "typecast takes one operand";
 
-    const typet &old_type=ns.follow(expr.op0().type());
+    const typet &old_type = expr.op0().type();
 
     if(type.id()==ID_signedbv)
     {
@@ -531,7 +563,7 @@ void goto_checkt::integer_overflow_check(
     return;
 
   // First, check type.
-  const typet &type=ns.follow(expr.type());
+  const typet &type = expr.type();
 
   if(type.id()==ID_signedbv && !enable_signed_overflow_check)
     return;
@@ -565,11 +597,6 @@ void goto_checkt::integer_overflow_check(
 
     return;
   }
-  else if(expr.id()==ID_mod)
-  {
-    // these can't overflow
-    return;
-  }
   else if(expr.id()==ID_unary_minus)
   {
     if(type.id()==ID_signedbv)
@@ -583,6 +610,109 @@ void goto_checkt::integer_overflow_check(
       add_guarded_claim(
         not_exprt(int_min_eq),
         "arithmetic overflow on signed unary minus",
+        "overflow",
+        expr.find_source_location(),
+        expr,
+        guard);
+    }
+
+    return;
+  }
+  else if(expr.id() == ID_shl)
+  {
+    if(type.id() == ID_signedbv)
+    {
+      const auto &shl_expr = to_shl_expr(expr);
+      const auto &op = shl_expr.op();
+      const auto &op_type = to_signedbv_type(type);
+      const auto op_width = op_type.get_width();
+      const auto &distance = shl_expr.distance();
+      const auto &distance_type = distance.type();
+
+      // a left shift of a negative value is undefined;
+      // yet this isn't an overflow
+      exprt neg_value_shift;
+
+      if(op_type.id() == ID_unsignedbv)
+        neg_value_shift = false_exprt();
+      else
+        neg_value_shift =
+          binary_relation_exprt(op, ID_lt, from_integer(0, op_type));
+
+      // a shift with negative distance is undefined;
+      // yet this isn't an overflow
+      exprt neg_dist_shift;
+
+      if(distance_type.id() == ID_unsignedbv)
+        neg_dist_shift = false_exprt();
+      else
+        neg_dist_shift =
+          binary_relation_exprt(op, ID_lt, from_integer(0, distance_type));
+
+      // shifting a non-zero value by more than its width is undefined;
+      // yet this isn't an overflow
+      const exprt dist_too_large = binary_predicate_exprt(
+        distance, ID_gt, from_integer(op_width, distance_type));
+
+      const exprt op_zero = equal_exprt(op, from_integer(0, op_type));
+
+      auto new_type = to_bitvector_type(op_type);
+      new_type.set_width(op_width * 2);
+
+      const exprt op_ext = typecast_exprt(op, new_type);
+
+      const exprt op_ext_shifted = shl_exprt(op_ext, distance);
+
+      // The semantics of signed left shifts are contentious for the case
+      // that a '1' is shifted into the signed bit.
+      // Assuming 32-bit integers, 1<<31 is implementation-defined
+      // in ANSI C and C++98, but is explicitly undefined by C99,
+      // C11 and C++11.
+      bool allow_shift_into_sign_bit = true;
+
+      if(mode == ID_C)
+      {
+        if(
+          config.ansi_c.c_standard == configt::ansi_ct::c_standardt::C99 ||
+          config.ansi_c.c_standard == configt::ansi_ct::c_standardt::C11)
+        {
+          allow_shift_into_sign_bit = false;
+        }
+      }
+      else if(mode == ID_cpp)
+      {
+        if(
+          config.cpp.cpp_standard == configt::cppt::cpp_standardt::CPP11 ||
+          config.cpp.cpp_standard == configt::cppt::cpp_standardt::CPP14)
+        {
+          allow_shift_into_sign_bit = false;
+        }
+      }
+
+      const unsigned number_of_top_bits =
+        allow_shift_into_sign_bit ? op_width : op_width + 1;
+
+      const exprt top_bits = extractbits_exprt(
+        op_ext_shifted,
+        new_type.get_width() - 1,
+        new_type.get_width() - number_of_top_bits,
+        unsignedbv_typet(number_of_top_bits));
+
+      const exprt top_bits_zero =
+        equal_exprt(top_bits, from_integer(0, top_bits.type()));
+
+      // a negative distance shift isn't an overflow;
+      // a negative value shift isn't an overflow;
+      // a shift that's too far isn't an overflow;
+      // a shift of zero isn't overflow;
+      // else check the top bits
+      add_guarded_claim(
+        disjunction({neg_value_shift,
+                     neg_dist_shift,
+                     dist_too_large,
+                     op_zero,
+                     top_bits_zero}),
+        "arithmetic overflow on signed shl",
         "overflow",
         expr.find_source_location(),
         expr,
@@ -651,7 +781,7 @@ void goto_checkt::float_overflow_check(
     return;
 
   // First, check type.
-  const typet &type=ns.follow(expr.type());
+  const typet &type = expr.type();
 
   if(type.id()!=ID_floatbv)
     return;
@@ -664,7 +794,7 @@ void goto_checkt::float_overflow_check(
     // to smaller type.
     assert(expr.operands().size()==1);
 
-    if(ns.follow(expr.op0().type()).id()==ID_floatbv)
+    if(expr.op0().type().id() == ID_floatbv)
     {
       // float-to-float
       const isinf_exprt op0_inf(expr.op0());
@@ -863,11 +993,9 @@ void goto_checkt::nan_check(
   else
     UNREACHABLE;
 
-  isnan.make_not();
-
   add_guarded_claim(
-    isnan,
-    "NaN on "+expr.id_string(),
+    boolean_negate(isnan),
+    "NaN on " + expr.id_string(),
     "NaN",
     expr.find_source_location(),
     expr,
@@ -911,23 +1039,23 @@ void goto_checkt::pointer_overflow_check(
   if(!enable_pointer_overflow_check)
     return;
 
-  if(expr.id()==ID_plus ||
-     expr.id()==ID_minus)
-  {
-    if(expr.operands().size()==2)
-    {
-      exprt overflow("overflow-"+expr.id_string(), bool_typet());
-      overflow.operands()=expr.operands();
+  if(expr.id() != ID_plus && expr.id() != ID_minus)
+    return;
 
-      add_guarded_claim(
-        not_exprt(overflow),
-        "pointer arithmetic overflow on "+expr.id_string(),
-        "overflow",
-        expr.find_source_location(),
-        expr,
-        guard);
-    }
-  }
+  DATA_INVARIANT(
+    expr.operands().size() == 2,
+    "pointer arithmetic expected to have exactly 2 operands");
+
+  exprt overflow("overflow-" + expr.id_string(), bool_typet());
+  overflow.operands() = expr.operands();
+
+  add_guarded_claim(
+    not_exprt(overflow),
+    "pointer arithmetic overflow on " + expr.id_string(),
+    "overflow",
+    expr.find_source_location(),
+    expr,
+    guard);
 }
 
 void goto_checkt::pointer_validity_check(
@@ -964,7 +1092,7 @@ goto_checkt::address_check(const exprt &address, const exprt &size)
   const auto &pointer_type = to_pointer_type(address.type());
 
   local_bitvector_analysist::flagst flags =
-    local_bitvector_analysis->get(t, address);
+    local_bitvector_analysis->get(current_target, address);
 
   // For Java, we only need to check for null
   if(mode == ID_java)
@@ -996,12 +1124,16 @@ goto_checkt::address_check(const exprt &address, const exprt &size)
       alloc_disjuncts.push_back(and_exprt(lb_check, ub_check));
     }
 
-    const exprt allocs = disjunction(alloc_disjuncts);
+    const exprt in_bounds_of_some_explicit_allocation =
+      disjunction(alloc_disjuncts);
 
     if(flags.is_unknown() || flags.is_null())
     {
       conditions.push_back(conditiont(
-        or_exprt(allocs, not_exprt(null_pointer(address))), "pointer NULL"));
+        or_exprt(
+          in_bounds_of_some_explicit_allocation,
+          not_exprt(null_pointer(address))),
+        "pointer NULL"));
     }
 
     if(flags.is_unknown())
@@ -1014,21 +1146,28 @@ goto_checkt::address_check(const exprt &address, const exprt &size)
     if(flags.is_uninitialized())
     {
       conditions.push_back(conditiont(
-        or_exprt(allocs, not_exprt(invalid_pointer(address))),
+        or_exprt(
+          in_bounds_of_some_explicit_allocation,
+          not_exprt(invalid_pointer(address))),
         "pointer uninitialized"));
     }
 
     if(flags.is_unknown() || flags.is_dynamic_heap())
     {
       conditions.push_back(conditiont(
-        not_exprt(deallocated(address, ns)),
+        or_exprt(
+          in_bounds_of_some_explicit_allocation,
+          not_exprt(deallocated(address, ns))),
         "deallocated dynamic object"));
     }
 
     if(flags.is_unknown() || flags.is_dynamic_local())
     {
       conditions.push_back(conditiont(
-        not_exprt(dead_object(address, ns)), "dead object"));
+        or_exprt(
+          in_bounds_of_some_explicit_allocation,
+          not_exprt(dead_object(address, ns))),
+        "dead object"));
     }
 
     if(flags.is_unknown() || flags.is_dynamic_heap())
@@ -1038,7 +1177,10 @@ goto_checkt::address_check(const exprt &address, const exprt &size)
         dynamic_object_upper_bound(address, ns, size));
 
       conditions.push_back(conditiont(
-        implies_exprt(malloc_object(address, ns), not_exprt(dynamic_bounds_violation)),
+        or_exprt(
+          in_bounds_of_some_explicit_allocation,
+          implies_exprt(
+            malloc_object(address, ns), not_exprt(dynamic_bounds_violation))),
         "pointer outside dynamic object bounds"));
     }
 
@@ -1051,14 +1193,19 @@ goto_checkt::address_check(const exprt &address, const exprt &size)
         object_upper_bound(address, ns, size));
 
       conditions.push_back(conditiont(
-        implies_exprt(not_exprt(dynamic_object(address)), not_exprt(object_bounds_violation)),
+        or_exprt(
+          in_bounds_of_some_explicit_allocation,
+          implies_exprt(
+            not_exprt(dynamic_object(address)),
+            not_exprt(object_bounds_violation))),
         "pointer outside object bounds"));
     }
 
     if(flags.is_unknown() || flags.is_integer_address())
     {
       conditions.push_back(conditiont(
-        implies_exprt(integer_address(address), allocs),
+        implies_exprt(
+          integer_address(address), in_bounds_of_some_explicit_allocation),
         "invalid integer address"));
     }
 
@@ -1082,12 +1229,10 @@ void goto_checkt::bounds_check(
      !expr.get_bool("bounds_check"))
     return;
 
-  typet array_type=ns.follow(expr.array().type());
+  typet array_type = expr.array().type();
 
   if(array_type.id()==ID_pointer)
     throw "index got pointer as array type";
-  else if(array_type.id()==ID_incomplete_array)
-    throw "index got incomplete array";
   else if(array_type.id()!=ID_array && array_type.id()!=ID_vector)
     throw "bounds check expected array or vector type, got "
       +array_type.id_string();
@@ -1109,13 +1254,9 @@ void goto_checkt::bounds_check(
     }
     else
     {
-      mp_integer i;
+      const auto i = numeric_cast<mp_integer>(index);
 
-      if(!to_integer(index, i) && i>=0)
-      {
-        // ok
-      }
-      else
+      if(!i.has_value() || *i < 0)
       {
         exprt effective_offset=ode.offset();
 
@@ -1459,6 +1600,7 @@ void goto_checkt::check_rec(const exprt &expr, guardt &guard, bool address)
   else if(expr.id()==ID_mod)
   {
     mod_by_zero_check(to_mod_expr(expr), guard);
+    mod_overflow_check(to_mod_expr(expr), guard);
   }
   else if(expr.id()==ID_plus || expr.id()==ID_minus ||
           expr.id()==ID_mult ||
@@ -1467,11 +1609,7 @@ void goto_checkt::check_rec(const exprt &expr, guardt &guard, bool address)
     if(expr.type().id()==ID_signedbv ||
        expr.type().id()==ID_unsignedbv)
     {
-      if(expr.operands().size()==2 &&
-         expr.op0().type().id()==ID_pointer)
-        pointer_overflow_check(expr, guard);
-      else
-        integer_overflow_check(expr, guard);
+      integer_overflow_check(expr, guard);
     }
     else if(expr.type().id()==ID_floatbv)
     {
@@ -1522,22 +1660,25 @@ void goto_checkt::rw_ok_check(exprt &expr)
 }
 
 void goto_checkt::goto_check(
-  goto_functiont &goto_function,
-  const irep_idt &_mode)
+  const irep_idt &function_identifier,
+  goto_functiont &goto_function)
 {
   assertions.clear();
-  mode = _mode;
+
+  const auto &function_symbol = ns.lookup(function_identifier);
+  mode = function_symbol.mode;
 
   bool did_something = false;
 
-  local_bitvector_analysist local_bitvector_analysis_obj(goto_function);
-  local_bitvector_analysis=&local_bitvector_analysis_obj;
+  if(enable_pointer_check)
+    local_bitvector_analysis =
+      util_make_unique<local_bitvector_analysist>(goto_function);
 
   goto_programt &goto_program=goto_function.body;
 
   Forall_goto_program_instructions(it, goto_program)
   {
-    t=it;
+    current_target = it;
     goto_programt::instructiont &i=*it;
 
     new_code.clear();
@@ -1579,8 +1720,8 @@ void goto_checkt::goto_check(
       }
       else if(statement==ID_printf)
       {
-        forall_operands(it, i.code)
-          check(*it);
+        for(const auto &op : i.code.operands())
+          check(op);
       }
     }
     else if(i.is_assign())
@@ -1608,8 +1749,8 @@ void goto_checkt::goto_check(
       {
         exprt pointer=code_function_call.arguments()[0];
 
-        local_bitvector_analysist::flagst flags=
-          local_bitvector_analysis->get(t, pointer);
+        local_bitvector_analysist::flagst flags =
+          local_bitvector_analysis->get(current_target, pointer);
 
         if(flags.is_unknown() || flags.is_null())
         {
@@ -1627,8 +1768,8 @@ void goto_checkt::goto_check(
         }
       }
 
-      forall_operands(it, code_function_call)
-        check(*it);
+      for(const auto &op : code_function_call.operands())
+        check(op);
 
       // the call might invalidate any assertion
       assertions.clear();
@@ -1718,8 +1859,9 @@ void goto_checkt::goto_check(
     }
     else if(i.is_end_function())
     {
-      if(i.function==goto_functionst::entry_point() &&
-         enable_memory_leak_check)
+      if(
+        function_identifier == goto_functionst::entry_point() &&
+        enable_memory_leak_check)
       {
         const symbolt &leak=ns.lookup(CPROVER_PREFIX "memory_leak");
         const symbol_exprt leak_expr=leak.symbol_expr();
@@ -1730,7 +1872,7 @@ void goto_checkt::goto_check(
         t->code=code_assignt(leak_expr, leak_expr);
 
         source_locationt source_location;
-        source_location.set_function(i.function);
+        source_location.set_function(function_identifier);
 
         equal_exprt eq(
           leak_expr,
@@ -1789,13 +1931,13 @@ void goto_checkt::goto_check(
 }
 
 void goto_check(
+  const irep_idt &function_identifier,
+  goto_functionst::goto_functiont &goto_function,
   const namespacet &ns,
-  const optionst &options,
-  const irep_idt &mode,
-  goto_functionst::goto_functiont &goto_function)
+  const optionst &options)
 {
   goto_checkt goto_check(ns, options);
-  goto_check.goto_check(goto_function, mode);
+  goto_check.goto_check(function_identifier, goto_function);
 }
 
 void goto_check(
@@ -1809,8 +1951,7 @@ void goto_check(
 
   Forall_goto_functions(it, goto_functions)
   {
-    irep_idt mode=ns.lookup(it->first).mode;
-    goto_check.goto_check(it->second, mode);
+    goto_check.goto_check(it->first, it->second);
   }
 }
 

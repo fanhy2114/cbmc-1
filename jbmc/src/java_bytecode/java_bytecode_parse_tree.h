@@ -86,7 +86,8 @@ struct java_bytecode_parse_treet
   struct methodt : public membert
   {
     irep_idt base_name;
-    bool is_native, is_abstract, is_synchronized, is_bridge;
+    bool is_native = false, is_abstract = false, is_synchronized = false,
+         is_bridge = false, is_varargs = false;
     source_locationt source_location;
 
     typedef std::vector<instructiont> instructionst;
@@ -98,6 +99,14 @@ struct java_bytecode_parse_treet
       return instructions.back();
     }
 
+    /// Java annotations that were applied to parameters of this method
+    /// \remarks Each element in the vector corresponds to the annotations on
+    /// the parameter of this method with the matching index. A parameter that
+    /// does not have annotations can have an entry in this vector that is an
+    /// empty annotationst. Trailing parameters that have no annotations may be
+    /// entirely omitted from this vector.
+    std::vector<annotationst> parameter_annotations;
+
     struct exceptiont
     {
       exceptiont()
@@ -108,7 +117,7 @@ struct java_bytecode_parse_treet
       std::size_t start_pc;
       std::size_t end_pc;
       std::size_t handler_pc;
-      symbol_typet catch_type;
+      struct_tag_typet catch_type;
     };
 
     typedef std::vector<exceptiont> exception_tablet;
@@ -190,6 +199,11 @@ struct java_bytecode_parse_treet
   {
     classt() = default;
 
+    /// Create a class \p name.
+    explicit classt(const irep_idt &name) : name(name)
+    {
+    }
+
     // Disallow copy construction and copy assignment, but allow move
     // construction and move assignment.
     #ifndef _MSC_VER // Ommit this on MS VC2013 as move is not supported.
@@ -199,7 +213,7 @@ struct java_bytecode_parse_treet
     classt &operator=(classt &&) = default;
     #endif
 
-    irep_idt name, super_class;
+    irep_idt name, super_class, inner_name;
     bool is_abstract=false;
     bool is_enum=false;
     bool is_public=false, is_protected=false, is_private=false;
@@ -223,23 +237,24 @@ struct java_bytecode_parse_treet
     typedef std::vector<u2> u2_valuest;
     struct lambda_method_handlet
     {
-      method_handle_typet handle_type;
+      method_handle_typet handle_type = method_handle_typet::UNKNOWN_HANDLE;
       irep_idt lambda_method_name;
       irep_idt lambda_method_ref;
       irep_idt interface_type;
       irep_idt method_type;
       u2_valuest u2_values;
-      lambda_method_handlet() : handle_type(method_handle_typet::UNKNOWN_HANDLE)
+      lambda_method_handlet() = default;
+
+      /// Construct a lambda method handle with parameters \p params.
+      explicit lambda_method_handlet(const u2_valuest &params)
+        : u2_values(params)
       {
       }
 
-      static lambda_method_handlet
-      create_unknown_handle(const u2_valuest params)
+      /// Construct a lambda method handle with parameters \p params.
+      explicit lambda_method_handlet(u2_valuest &&params)
+        : u2_values(std::move(params))
       {
-        lambda_method_handlet lambda_method_handle;
-        lambda_method_handle.handle_type = method_handle_typet::UNKNOWN_HANDLE;
-        lambda_method_handle.u2_values = std::move(params);
-        return lambda_method_handle;
       }
 
       bool is_unknown_handle() const
@@ -276,7 +291,9 @@ struct java_bytecode_parse_treet
       return methods.back();
     }
 
-    void add_method_handle(size_t bootstrap_index, lambda_method_handlet handle)
+    void add_method_handle(
+      size_t bootstrap_index,
+      const lambda_method_handlet &handle)
     {
       lambda_method_handle_map[{name, bootstrap_index}] = handle;
     }
@@ -287,7 +304,6 @@ struct java_bytecode_parse_treet
     }
 
     void output(std::ostream &out) const;
-
   };
 
   classt parsed_class;
@@ -298,9 +314,14 @@ struct java_bytecode_parse_treet
   typedef std::set<irep_idt> class_refst;
   class_refst class_refs;
 
-  bool loading_successful;
+  bool loading_successful = false;
 
-  java_bytecode_parse_treet():loading_successful(false)
+  /// An empty bytecode parse tree, no class name set
+  java_bytecode_parse_treet() = default;
+
+  /// Create a blank parse tree for class \p class_name.
+  explicit java_bytecode_parse_treet(const irep_idt &class_name)
+    : parsed_class(class_name)
   {
   }
 };

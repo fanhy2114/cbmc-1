@@ -1,9 +1,9 @@
 /*******************************************************************\
 
- Module: Unit tests for calculate_max_string_length in
-   solvers/refinement/string_constraint_generator_valueof.cpp
+Module: Unit tests for calculate_max_string_length in
+        solvers/refinement/string_constraint_generator_valueof.cpp
 
- Author: Diffblue Ltd.
+Author: Diffblue Ltd.
 
 \*******************************************************************/
 
@@ -14,7 +14,7 @@
 
 /// Get the string length needed to print any value of the given type with the
 /// given radix.
-static size_t expected_length(const int radix, const typet &type)
+static size_t expected_length(unsigned long radix, const typet &type)
 {
   std::string longest("");
   if(radix==2)

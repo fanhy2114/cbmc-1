@@ -8,9 +8,9 @@ Author: Daniel Kroening, kroening@kroening.com
 
 #include "satcheck_zcore.h"
 
-#include <cassert>
 #include <fstream>
 
+#include <util/invariant.h>
 #include <util/string2int.h>
 
 #include <cstring>
@@ -25,7 +25,7 @@ satcheck_zcoret::~satcheck_zcoret()
 
 tvt satcheck_zcoret::l_get(literalt a) const
 {
-  assert(false);
+  UNREACHABLE;
   return tvt(tvt::tv_enumt::TV_UNKNOWN);
 }
 
@@ -41,7 +41,7 @@ propt::resultt satcheck_zcoret::prop_solve()
     std::string msg=
       std::to_string(no_variables()-1)+" variables, "+
       std::to_string(no_clauses())+" clauses";
-    messaget::status() << msg << messaget::eom;
+    messaget::statistics() << msg << messaget::eom;
   }
 
   // get the core

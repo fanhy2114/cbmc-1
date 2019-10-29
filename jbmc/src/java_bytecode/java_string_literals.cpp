@@ -70,7 +70,7 @@ symbol_exprt get_or_create_string_literal_symbol(
 {
   PRECONDITION(string_expr.id() == ID_java_string_literal);
   const irep_idt value = string_expr.get(ID_value);
-  const symbol_typet string_type("java::java.lang.String");
+  const struct_tag_typet string_type("java::java.lang.String");
 
   const std::string escaped_symbol_name = escape_non_alnum(id2string(value));
   const std::string escaped_symbol_name_with_prefix =
@@ -96,9 +96,9 @@ symbol_exprt get_or_create_string_literal_symbol(
 
   // Regardless of string refinement setting, at least initialize
   // the literal with @clsid = String
-  symbol_typet jlo_symbol("java::java.lang.Object");
+  struct_tag_typet jlo_symbol("java::java.lang.Object");
   const auto &jlo_struct = to_struct_type(ns.follow(jlo_symbol));
-  struct_exprt jlo_init(jlo_symbol);
+  struct_exprt jlo_init({}, jlo_symbol);
   const auto &jls_struct = to_struct_type(ns.follow(string_type));
   java_root_class_init(jlo_init, jlo_struct, "java::java.lang.String");
 
@@ -109,7 +109,7 @@ symbol_exprt get_or_create_string_literal_symbol(
     const array_exprt data =
       utf16_to_array(utf8_to_utf16_native_endian(id2string(value)));
 
-    struct_exprt literal_init(new_symbol.type);
+    struct_exprt literal_init({}, new_symbol.type);
     literal_init.operands().resize(jls_struct.components().size());
     const std::size_t jlo_nb = jls_struct.component_number("@java.lang.Object");
     literal_init.operands()[jlo_nb] = jlo_init;
@@ -183,8 +183,7 @@ symbol_exprt get_or_create_string_literal_symbol(
     // Case where something defined java.lang.String, so it has
     // a proper base class (always java.lang.Object in practical
     // JDKs seen so far)
-    struct_exprt literal_init(new_symbol.type);
-    literal_init.move_to_operands(jlo_init);
+    struct_exprt literal_init({std::move(jlo_init)}, new_symbol.type);
     for(const auto &comp : jls_struct.components())
     {
       if(comp.get_name()=="@java.lang.Object")
@@ -192,16 +191,19 @@ symbol_exprt get_or_create_string_literal_symbol(
       // Other members of JDK's java.lang.String we don't understand
       // without string-refinement. Just zero-init them; consider using
       // test-gen-like nondet object trees instead.
-      literal_init.copy_to_operands(
-        zero_initializer(comp.type(), string_expr.source_location(), ns));
+      const auto init =
+        zero_initializer(comp.type(), string_expr.source_location(), ns);
+      CHECK_RETURN(init.has_value());
+      literal_init.copy_to_operands(*init);
     }
     new_symbol.value = literal_init;
   }
-  else if(jls_struct.get_bool(ID_incomplete_class))
+  else if(to_java_class_type(jls_struct).get_is_stub())
   {
     // Case where java.lang.String was stubbed, and so directly defines
     // @class_identifier
     new_symbol.value = jlo_init;
+    new_symbol.value.type() = string_type;
   }
 
   bool add_failed = symbol_table.add(new_symbol);

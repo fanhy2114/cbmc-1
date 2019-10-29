@@ -16,8 +16,10 @@ Author: Daniel Kroening, kroening@kroening.com
 #include <iostream>
 #endif
 
+#include <util/expr_util.h>
 #include <util/std_expr.h>
 #include <util/string_utils.h>
+
 #include <goto-programs/goto_functions.h>
 
 #include "loop_utils.h"
@@ -55,9 +57,10 @@ void goto_unwindt::copy_segment(
   assert(goto_program.instructions.size()==target_vector.size());
 
   // adjust intra-segment gotos
-  for(std::size_t i=0; i<target_vector.size(); i++)
+  for(std::size_t target_index = 0; target_index < target_vector.size();
+      target_index++)
   {
-    goto_programt::targett t=target_vector[i];
+    goto_programt::targett t = target_vector[target_index];
 
     if(!t->is_goto())
       continue;
@@ -122,13 +125,11 @@ void goto_unwindt::unwind(
     t--;
     assert(t->is_backwards_goto());
 
-    exprt exit_cond;
-    exit_cond.make_false(); // default is false
+    exprt exit_cond = false_exprt(); // default is false
 
     if(!t->guard.is_true()) // cond in backedge
     {
-      exit_cond=t->guard;
-      exit_cond.make_not();
+      exit_cond = boolean_negate(t->guard);
     }
     else if(loop_head->is_goto())
     {
@@ -335,16 +336,17 @@ jsont goto_unwindt::unwind_logt::output_log_json() const
   for(location_mapt::const_iterator it=location_map.begin();
       it!=location_map.end(); it++)
   {
-    json_objectt &object=json_unwound.push_back().make_object();
-
     goto_programt::const_targett target=it->first;
     unsigned location_number=it->second;
 
-    object["originalLocationNumber"]=json_numbert(std::to_string(
-      location_number));
-    object["newLocationNumber"]=json_numbert(std::to_string(
-      target->location_number));
+    json_objectt object(
+      {{"originalLocationNumber",
+        json_numbert(std::to_string(location_number))},
+       {"newLocationNumber",
+        json_numbert(std::to_string(target->location_number))}});
+
+    json_unwound.push_back(std::move(object));
   }
 
-  return json_result;
+  return std::move(json_result);
 }

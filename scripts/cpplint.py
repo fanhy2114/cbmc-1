@@ -52,6 +52,7 @@ import sre_compile
 import string
 import sys
 import unicodedata
+import itertools
 
 
 _USAGE = """
@@ -222,7 +223,7 @@ _ERROR_CATEGORIES = [
     'readability/constructors',
     'readability/dowhile',
     'readability/fn_size',
-    'readability/function_comment'
+    'readability/function_comment',
     'readability/identifier_spacing',
     'readability/identifiers',
     'readability/inheritance',
@@ -252,6 +253,7 @@ _ERROR_CATEGORIES = [
     'runtime/string',
     'runtime/threadsafe_fn',
     'runtime/vlog',
+    'runtime/catch_test_tags',
     'whitespace/blank_line',
     'whitespace/braces',
     'whitespace/comma',
@@ -1744,6 +1746,9 @@ def CloseExpression(clean_lines, linenum, pos):
   Ideally we would want to index all opening and closing parentheses once
   and have CloseExpression be just a simple lookup, but due to preprocessor
   tricks, this is not so easy.
+
+  Note this operates on the *elided lines* - the position will be wrong if you
+  want strings (or comments) to be included.
 
   Args:
     clean_lines: A CleansedLines instance containing the file.
@@ -4653,6 +4658,23 @@ def CheckAssert(filename, clean_lines, linenum, error):
 
 
 
+def Check__CPROVER_(filename, clean_lines, linenum, error):
+  """Check for uses of __CPROVER_.
+
+  Args:
+    filename: The name of the current file.
+    clean_lines: A CleansedLines instance containing the file.
+    linenum: The number of the line to check.
+    error: The function to call with any errors found.
+  """
+  line = clean_lines.lines[linenum]
+  match = Match(r'.*__CPROVER_.*', line)
+  if match:
+    error(filename, linenum, 'build/deprecated', 4,
+          'use CPROVER_PREFIX instead of __CPROVER_')
+
+
+
 def GetLineWidth(line):
   """Determines the width of the line in column positions.
 
@@ -4880,6 +4902,7 @@ def CheckStyle(filename, clean_lines, linenum, file_extension, nesting_state,
   #CheckCheck(filename, clean_lines, linenum, error)
   CheckAltTokens(filename, clean_lines, linenum, error)
   CheckAssert(filename, clean_lines, linenum, error)
+  Check__CPROVER_(filename, clean_lines, linenum, error)
   classinfo = nesting_state.InnermostClass()
   if classinfo:
     CheckSectionSpacing(filename, clean_lines, classinfo, linenum, error)
@@ -6100,6 +6123,50 @@ def CheckMakePairUsesDeduction(filename, clean_lines, linenum, error):
           'For C++11-compatibility, omit template arguments from make_pair'
           ' OR use pair directly OR if appropriate, construct a pair directly')
 
+def AssembleString(clean_lines, start_lineno, start_linepos, end_lineno, end_linepos):
+    """
+    Concatenates all the strings between the starting line position and
+    the ending line position.
+
+    Note: this operated on the elided (no strings and comments) view of the
+    code.
+
+    Args:
+        clean_lines: All the lines
+        start_lineno: The starting line number
+        start_linepos: The index of the first character to include
+        end_lineno: The last line
+        end_linepos: The index of the first character not to include
+    """
+    if end_lineno < start_lineno:
+        return ''
+
+    if start_lineno == end_lineno:
+        return clean_lines.elided[start_lineno][start_linepos : end_linepos]
+
+    full_string = clean_lines.elided[start_lineno][start_linepos:]
+    for line in itertools.islice(clean_lines.elided, start_lineno + 1, end_lineno):
+        full_string += line
+    full_string += clean_lines.elided[end_lineno][:end_linepos]
+    return full_string
+
+def CheckCatchTestHasTags(filename, clean_lines, linenum, error):
+    line = clean_lines.elided[linenum]
+    test = Match(r'^(SCENARIO|TEST_CASE)\(', line)
+    if not test: return
+
+    closing_line, closing_linenum, closing_pos = CloseExpression(clean_lines, linenum, line.find('('))
+
+    if closing_pos == -1:
+        error(filename, linenum,
+            'runtime/catch_test_tags', 4, "Can't find closing bracket for catch test")
+
+    full_string = AssembleString(
+        clean_lines, linenum, line.find('(') + 1, closing_linenum, closing_pos - 1)
+
+    if(full_string.find(',') == -1):
+        error(filename, linenum,
+            'runtime/catch_test_tags', 4, "Can't find `,\' seperating test name and the tags: " + str(clean_lines.lines[linenum]))
 
 def CheckRedundantVirtual(filename, clean_lines, linenum, error):
   """Check if line contains a redundant "virtual" function-specifier.
@@ -6247,9 +6314,6 @@ def CheckNamespaceOrUsing(filename, clean_lines, linenum, error):
       if '{' in current_line:
         break
       current_linenum+=1
-  if Match(r'^using\s', line):
-    error(filename, linenum, 'readability/namespace', 4,
-          'Do not use using')
 
 def CheckForEndl(filename, clean_lines, linenum, error):
   """Check that the line does not contain std::endl."""
@@ -6297,6 +6361,7 @@ def ProcessLine(filename, file_extension, clean_lines, line,
   CheckInvalidIncrement(filename, clean_lines, line, error)
   CheckMakePairUsesDeduction(filename, clean_lines, line, error)
   CheckRedundantVirtual(filename, clean_lines, line, error)
+  CheckCatchTestHasTags(filename, clean_lines, line, error)
   CheckNamespaceOrUsing(filename, clean_lines, line, error)
   CheckForEndl(filename, clean_lines, line, error)
   for check_fn in extra_check_functions:

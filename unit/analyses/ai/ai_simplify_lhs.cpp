@@ -1,8 +1,8 @@
 /*******************************************************************\
 
- Module: Unit tests for ai_domain_baset::ai_simplify_lhs
+Module: Unit tests for ai_domain_baset::ai_simplify_lhs
 
- Author: Diffblue Ltd.
+Author: Diffblue Ltd.
 
 \*******************************************************************/
 
@@ -10,6 +10,7 @@
 /// Unit tests for ai_domain_baset::ai_simplify_lhs
 
 #include <testing-utils/catch.hpp>
+#include <testing-utils/message.h>
 
 #include <analyses/ai.h>
 
@@ -25,7 +26,13 @@
 class constant_simplification_mockt:public ai_domain_baset
 {
 public:
-  void transform(locationt, locationt, ai_baset &, const namespacet &) override
+  void transform(
+    const irep_idt &,
+    locationt,
+    const irep_idt &,
+    locationt,
+    ai_baset &,
+    const namespacet &) override
   {}
   void make_bottom() override
   {}
@@ -64,7 +71,7 @@ bool constant_simplification_mockt::ai_simplify(
 SCENARIO("ai_domain_baset::ai_simplify_lhs",
   "[core][analyses][ai][ai_simplify_lhs]")
 {
-  ui_message_handlert message_handler;
+  ui_message_handlert message_handler(null_message_handler);
   ansi_c_languaget language;
   language.set_message_handler(message_handler);
 
@@ -87,7 +94,7 @@ SCENARIO("ai_domain_baset::ai_simplify_lhs",
       signedbv_typet(32), from_integer(array_size, size_type()));
 
     // Verify the results of the setup
-    REQUIRE_FALSE(compile_failed);\
+    REQUIRE_FALSE(compile_failed);
     REQUIRE(simplifiable_expression.id()==ID_plus);
     exprt simplified_version=simplify_expr(simplifiable_expression, ns);
     REQUIRE(simplified_version.id()==ID_constant);

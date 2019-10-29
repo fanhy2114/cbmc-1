@@ -8,6 +8,7 @@ Author: Michael Tautschnig
 
 #include "satcheck_cadical.h"
 
+#include <util/exception_utils.h>
 #include <util/invariant.h>
 #include <util/threeval.h>
 
@@ -68,8 +69,8 @@ propt::resultt satcheck_cadicalt::prop_solve()
 {
   INVARIANT(status != statust::ERROR, "there cannot be an error");
 
-  messaget::status() << (no_variables() - 1) << " variables, " << clause_counter
-                     << " clauses" << eom;
+  messaget::statistics() << (no_variables() - 1) << " variables, "
+                         << clause_counter << " clauses" << eom;
 
   if(status == statust::UNSAT)
   {
@@ -90,7 +91,8 @@ propt::resultt satcheck_cadicalt::prop_solve()
       default:
         messaget::status() << "SAT checker: solving returned without solution"
                            << eom;
-        throw "solving inside CaDiCaL SAT solver has been interrupted";
+        throw analysis_exceptiont(
+          "solving inside CaDiCaL SAT solver has been interrupted");
     }
   }
 

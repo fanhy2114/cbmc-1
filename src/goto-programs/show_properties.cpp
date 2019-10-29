@@ -13,10 +13,8 @@ Author: Daniel Kroening, kroening@kroening.com
 
 #include <iostream>
 
-#include <util/xml.h>
-#include <util/xml_expr.h>
-#include <util/json.h>
-#include <util/json_expr.h>
+#include <util/json_irep.h>
+#include <util/xml_irep.h>
 
 #include <langapi/language_util.h>
 
@@ -73,9 +71,11 @@ void show_properties(
     case ui_message_handlert::uit::XML_UI:
       {
         // use me instead
-        xmlt xml_property("property");
-        xml_property.set_attribute("name", id2string(property_id));
-        xml_property.set_attribute("class", id2string(property_class));
+        xmlt xml_property(
+          "property",
+          {{"name", id2string(property_id)},
+           {"class", id2string(property_class)}},
+          {});
 
         xmlt &property_l=xml_property.new_element();
         property_l=xml(source_location);
@@ -129,17 +129,18 @@ void convert_properties_json(
 
     irep_idt property_id=source_location.get_property_id();
 
-    json_objectt &json_property=
-      json_properties.push_back(jsont()).make_object();
-    json_property["name"] = json_stringt(property_id);
-    json_property["class"] = json_stringt(property_class);
+    json_objectt json_property(
+      {{"name", json_stringt(property_id)},
+       {"class", json_stringt(property_class)},
+       {"sourceLocation", json(source_location)},
+       {"description", json_stringt(description)},
+       {"expression", json_stringt(from_expr(ns, identifier, ins.guard))}});
+
     if(!source_location.get_basic_block_covered_lines().empty())
       json_property["coveredLines"] =
         json_stringt(source_location.get_basic_block_covered_lines());
-    json_property["sourceLocation"]=json(source_location);
-    json_property["description"] = json_stringt(description);
-    json_property["expression"]=
-      json_stringt(from_expr(ns, identifier, ins.guard));
+
+    json_properties.push_back(std::move(json_property));
   }
 }
 
@@ -152,11 +153,9 @@ void show_properties_json(
   json_arrayt json_properties;
 
   for(const auto &fct : goto_functions.function_map)
-    if(!fct.second.is_inlined())
-      convert_properties_json(json_properties, ns, fct.first, fct.second.body);
+    convert_properties_json(json_properties, ns, fct.first, fct.second.body);
 
-  json_objectt json_result;
-  json_result["properties"] = json_properties;
+  json_objectt json_result({{"properties", json_properties}});
   msg.result() << json_result;
 }
 
@@ -170,8 +169,7 @@ void show_properties(
     show_properties_json(ns, message_handler, goto_functions);
   else
     for(const auto &fct : goto_functions.function_map)
-      if(!fct.second.is_inlined())
-        show_properties(ns, fct.first, message_handler, ui, fct.second.body);
+      show_properties(ns, fct.first, message_handler, ui, fct.second.body);
 }
 
 void show_properties(

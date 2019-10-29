@@ -17,6 +17,7 @@ Author: Chris Smowton, chris@smowton.net
 #include <langapi/mode.h>
 #include <pointer-analysis/value_set_analysis.h>
 #include <util/config.h>
+#include <util/options.h>
 
 /// An example customised value_sett. It makes a series of small changes
 /// to the underlying value_sett logic, which can then be verified by the
@@ -90,7 +91,7 @@ public:
 
   void adjust_assign_rhs_values(
     const exprt &expr,
-    const namespacet &ns,
+    const namespacet &,
     object_mapt &dest) const override
   {
     // Always add an ID_unknown to reads from variables containing
@@ -108,7 +109,7 @@ public:
 
   void apply_assign_side_effects(
     const exprt &lhs,
-    const exprt &rhs,
+    const exprt &,
     const namespacet &ns) override
   {
     // Whenever someone touches the variable "cause", null the
@@ -171,18 +172,18 @@ SCENARIO("test_value_set_analysis",
   {
     config.set_arch("none");
     config.main = "";
-    cmdlinet command_line;
 
     // This classpath is the default, but the config object
     // is global and previous unit tests may have altered it
-    command_line.set("java-cp-include-files", "CustomVSATest.class");
     config.java.classpath={"."};
-    command_line.args.push_back("pointer-analysis/CustomVSATest.jar");
+
+    optionst options;
+    options.set_option("java-cp-include-files", "CustomVSATest.class");
 
     register_language(new_java_bytecode_language);
 
-    goto_modelt goto_model =
-      initialize_goto_model(command_line, null_message_handler);
+    goto_modelt goto_model = initialize_goto_model(
+      {"pointer-analysis/CustomVSATest.jar"}, null_message_handler, options);
 
     null_message_handlert message_handler;
     remove_java_new(goto_model, message_handler);

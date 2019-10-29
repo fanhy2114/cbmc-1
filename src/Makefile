@@ -3,19 +3,19 @@ DIRS = analyses \
        assembler \
        big-int \
        cbmc \
-       clobber \
        cpp \
        goto-analyzer \
        goto-cc \
+       goto-checker \
        goto-diff \
        goto-instrument \
        goto-programs \
        goto-symex \
        jsil \
        json \
+       json-symtab-language \
        langapi \
        linking \
-       memory-models \
        pointer-analysis \
        solvers \
        util \
@@ -43,26 +43,27 @@ cpp.dir: ansi-c.dir linking.dir
 
 languages: util.dir langapi.dir \
            cpp.dir ansi-c.dir xmllang.dir assembler.dir \
-           jsil.dir
+           jsil.dir json.dir json-symtab-language.dir
 
-solvers.dir: util.dir langapi.dir
+solvers.dir: util.dir
 
 goto-instrument.dir: languages goto-programs.dir pointer-analysis.dir \
-                     goto-symex.dir linking.dir analyses.dir solvers.dir \
-                     json.dir
+                     goto-symex.dir linking.dir analyses.dir solvers.dir
+
+goto-checker.dir: solvers.dir goto-symex.dir goto-programs.dir
 
 cbmc.dir: languages solvers.dir goto-symex.dir analyses.dir \
           pointer-analysis.dir goto-programs.dir linking.dir \
-          goto-instrument.dir
+          goto-instrument.dir goto-checker.dir
 
 goto-analyzer.dir: languages analyses.dir goto-programs.dir linking.dir \
-                   json.dir goto-instrument.dir
+                   goto-instrument.dir
 
 goto-diff.dir: languages goto-programs.dir pointer-analysis.dir \
                linking.dir analyses.dir goto-instrument.dir \
-               solvers.dir json.dir goto-symex.dir
+               solvers.dir goto-symex.dir
 
-goto-cc.dir: languages pointer-analysis.dir goto-programs.dir linking.dir
+goto-cc.dir: languages goto-programs.dir linking.dir
 
 # building for a particular directory
 
@@ -91,7 +92,13 @@ TAR = tar
 
 minisat2-download:
 	@echo "Downloading Minisat 2.2.1"
-	@$(DOWNLOADER) http://ftp.debian.org/debian/pool/main/m/minisat2/minisat2_2.2.1.orig.tar.gz
+	@for i in $$(seq 1 3) ; do \
+	  $(DOWNLOADER) \
+	    http://ftp.debian.org/debian/pool/main/m/minisat2/minisat2_2.2.1.orig.tar.gz && \
+	    exit 0 ; \
+		$(RM) minisat2_2.2.1.orig.tar.gz ; \
+	  if [ $$i -lt 3 ] ; then echo "Re-trying in 10 seconds" 1>&2 ; sleep 10 ; fi ; \
+	done ; exit 1
 	@$(TAR) xfz minisat2_2.2.1.orig.tar.gz
 	@rm -Rf ../minisat-2.2.1
 	@mv minisat2-2.2.1 ../minisat-2.2.1
@@ -106,19 +113,6 @@ glucose-download:
 	@mv glucose-syrup ../
 	@(cd ../glucose-syrup; patch -p1 < ../scripts/glucose-syrup-patch)
 	@rm glucose-syrup.tgz
-
-ipasir-download:
-	# get the 2016 version of the ipasir package, which contains a few solvers
-	@echo "Download ipasir 2016 package"
-	@(lwp-download http://baldur.iti.kit.edu/sat-competition-2016/downloads/ipasir.zip ../ipasir.zip)
-	@(cd ..; unzip -u ipasir.zip)
-
-ipasir-build: ipasir-download
-	# build libpicosat, and create a libipasir.a in ipasir directory
-	# make sure that the ipasir.h file is located there as well (ships with 2016 package)
-	@echo "Build Picosat 961 from ipasir 2016 package"
-	$(MAKE) -C ../ipasir/sat/picosat961 libipasirpicosat961.a
-	@(cd ../ipasir; ln -sf sat/picosat961/libipasirpicosat961.a libipasir.a)
 
 cadical_release = rel-06w
 cadical-download:

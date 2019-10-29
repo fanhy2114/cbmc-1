@@ -1,6 +1,9 @@
 /*******************************************************************\
- Module: Goto Programs
- Author: Thomas Kiley, thomas@diffblue.com
+
+Module: Goto Programs
+
+Author: Thomas Kiley, thomas@diffblue.com
+
 \*******************************************************************/
 
 /// \file
@@ -10,7 +13,7 @@
 #define CPROVER_GOTO_PROGRAMS_REBUILD_GOTO_START_FUNCTION_H
 
 #include <util/message.h>
-class cmdlinet;
+class optionst;
 
 #include "lazy_goto_model.h"
 
@@ -29,7 +32,7 @@ class rebuild_goto_start_function_baset: public messaget
 {
 public:
   rebuild_goto_start_function_baset(
-    const cmdlinet &cmdline,
+    const optionst &options,
     maybe_lazy_goto_modelt &goto_model,
     message_handlert &message_handler);
 
@@ -40,7 +43,7 @@ private:
 
   void remove_existing_entry_point();
 
-  const cmdlinet &cmdline;
+  const optionst &options;
   maybe_lazy_goto_modelt &goto_model;
 };
 

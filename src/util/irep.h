@@ -10,20 +10,20 @@ Author: Daniel Kroening, kroening@kroening.com
 #ifndef CPROVER_UTIL_IREP_H
 #define CPROVER_UTIL_IREP_H
 
-#include <cassert>
 #include <string>
 #include <vector>
 
 #include "deprecate.h"
+#include "invariant.h"
 #include "irep_ids.h"
 
 #define SHARING
 // #define HASH_CODE
 #define USE_MOVE
-// #define SUB_IS_LIST
+// #define NAMED_SUB_IS_FORWARD_LIST
 
-#ifdef SUB_IS_LIST
-#include <list>
+#ifdef NAMED_SUB_IS_FORWARD_LIST
+#include <forward_list>
 #else
 #include <map>
 #endif
@@ -99,11 +99,8 @@ const irept &get_nil_irep();
 ///
 /// * \ref irept::dt::named_sub : A map from `irep_namet` (a string) to \ref
 ///   irept. This is used for named children, i.e.  subexpressions, parameters,
-///   etc.
-///
-/// * \ref irept::dt::comments : Another map from `irep_namet` to \ref irept
-///   which is used for annotations and other ‘non-semantic’ information. Note
-///   that this map is ignored by the default \ref operator==.
+///   etc. Children whose name begins with '#' are ignored by the
+///   default \ref operator==.
 ///
 /// * \ref irept::dt::sub : A vector of \ref irept which is used to store
 ///   ordered but unnamed children.
@@ -163,11 +160,11 @@ public:
   // use std::forward_list or std::vector< unique_ptr<T> > to save
   // memory and increase efficiency.
 
-  #ifdef SUB_IS_LIST
-  typedef std::list<std::pair<irep_namet, irept> > named_subt;
-  #else
+#ifdef NAMED_SUB_IS_FORWARD_LIST
+  typedef std::forward_list<std::pair<irep_namet, irept>> named_subt;
+#else
   typedef std::map<irep_namet, irept> named_subt;
-  #endif
+#endif
 
   bool is_nil() const { return id()==ID_nil; }
   bool is_not_nil() const { return id()!=ID_nil; }
@@ -192,7 +189,7 @@ public:
     if(data!=&empty_d)
     {
       // NOLINTNEXTLINE(build/deprecated)
-      assert(data->ref_count!=0);
+      PRECONDITION(data->ref_count != 0);
       data->ref_count++;
       #ifdef IREP_DEBUG
       std::cout << "COPY " << data << " " << data->ref_count << '\n';
@@ -318,8 +315,6 @@ public:
   const subt &get_sub() const { return read().sub; }
   named_subt &get_named_sub() { return write().named_sub; } // DANGEROUS
   const named_subt &get_named_sub() const { return read().named_sub; }
-  named_subt &get_comments() { return write().comments; } // DANGEROUS
-  const named_subt &get_comments() const { return read().comments; }
 
   std::size_t hash() const;
   std::size_t full_hash() const;
@@ -328,11 +323,13 @@ public:
 
   std::string pretty(unsigned indent=0, unsigned max_indent=0) const;
 
-protected:
+public:
   static bool is_comment(const irep_namet &name)
   { return !name.empty() && name[0]=='#'; }
 
-public:
+  /// count the number of named_sub elements that are not comments
+  static std::size_t number_of_non_comments(const named_subt &);
+
   class dt
   {
   private:
@@ -347,7 +344,6 @@ public:
     irep_idt data;
 
     named_subt named_sub;
-    named_subt comments;
     subt sub;
 
     #ifdef HASH_CODE
@@ -359,7 +355,6 @@ public:
       data.clear();
       sub.clear();
       named_sub.clear();
-      comments.clear();
       #ifdef HASH_CODE
       hash_code=0;
       #endif
@@ -370,7 +365,6 @@ public:
       d.data.swap(data);
       d.sub.swap(sub);
       d.named_sub.swap(named_sub);
-      d.comments.swap(comments);
       #ifdef HASH_CODE
       std::swap(d.hash_code, hash_code);
       #endif
@@ -460,6 +454,21 @@ struct irep_full_eq
   bool operator()(const irept &i1, const irept &i2) const
   {
     return i1.full_eq(i2);
+  }
+};
+
+struct irep_pretty_diagnosticst
+{
+  const irept &irep;
+  explicit irep_pretty_diagnosticst(const irept &irep);
+};
+
+template <>
+struct diagnostics_helpert<irep_pretty_diagnosticst>
+{
+  static std::string diagnostics_as_string(const irep_pretty_diagnosticst &irep)
+  {
+    return irep.irep.pretty();
   }
 };
 

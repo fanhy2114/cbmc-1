@@ -1,8 +1,8 @@
 /*******************************************************************\
 
- Module: Unit test utilities
+Module: Unit test utilities
 
- Author: Diffblue Ltd.
+Author: Diffblue Ltd.
 
 \*******************************************************************/
 
@@ -28,9 +28,8 @@ index_exprt require_expr::require_index(const exprt &expr, int expected_index)
   REQUIRE(expr.id()==ID_index);
   const index_exprt &index_expr=to_index_expr(expr);
   REQUIRE(index_expr.index().id()==ID_constant);
-  const constant_exprt &index_value=to_constant_expr(index_expr.index());
-  mp_integer index_integer_value;
-  to_integer(index_value, index_integer_value);
+  const mp_integer index_integer_value =
+    numeric_cast_v<mp_integer>(index_expr.index());
   REQUIRE(index_integer_value==expected_index);
 
   return index_expr;
@@ -95,7 +94,7 @@ typecast_exprt require_expr::require_typecast(const exprt &expr)
 
 /// Verify a given exprt is a side_effect_exprt with appropriate statement.
 /// \param expr: The expression.
-/// \param symbol_name: The intended identifier of statement
+/// \param side_effect_statement: The kind of side effect that is required
 /// \return The expr cast to a side_effect_exprt
 side_effect_exprt require_expr::require_side_effect_expr(
   const exprt &expr,

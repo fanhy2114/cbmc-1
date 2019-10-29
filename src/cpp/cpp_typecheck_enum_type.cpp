@@ -58,7 +58,7 @@ void cpp_typecheckt::typecheck_enum_body(symbolt &enum_symbol)
     symbol.value=value_expr;
     symbol.location=
       static_cast<const source_locationt &>(it->find(ID_C_source_location));
-    symbol.mode=ID_cpp;
+    symbol.mode = enum_symbol.mode;
     symbol.module=module;
     symbol.type=enum_tag_type;
     symbol.is_type=false;
@@ -155,11 +155,10 @@ void cpp_typecheckt::typecheck_enum_type(typet &type)
     else
     {
       typecheck_type(type.subtype());
-      if(type.subtype().id()==ID_signedbv ||
-         type.subtype().id()==ID_unsignedbv)
-      {
-      }
-      else
+      if(
+        type.subtype().id() != ID_signedbv &&
+        type.subtype().id() != ID_unsignedbv &&
+        type.subtype().id() != ID_c_bool)
       {
         error().source_location=type.source_location();
         error() << "underlying type must be integral" << eom;
@@ -197,7 +196,7 @@ void cpp_typecheckt::typecheck_enum_type(typet &type)
     scope_identifier.id_class=cpp_idt::id_classt::CLASS;
     scope_identifier.is_scope = true;
 
-    cpp_save_scopet save_scope(cpp_scopes);
+    cpp_save_scopet save_scope_before_enum_typecheck(cpp_scopes);
 
     if(new_symbol->type.get_bool(ID_C_class))
       cpp_scopes.go_to(scope_identifier);

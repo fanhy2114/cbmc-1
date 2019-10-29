@@ -43,7 +43,7 @@ protected:
   const bool throw_runtime_exceptions;
   message_handlert &message_handler;
 
-  codet throw_exception(
+  code_ifthenelset throw_exception(
     const exprt &cond,
     const source_locationt &original_loc,
     const irep_idt &exc_name);
@@ -61,7 +61,7 @@ protected:
     const exprt &expr,
     const source_locationt &original_loc);
 
-  codet check_class_cast(
+  code_ifthenelset check_class_cast(
     const exprt &class1,
     const exprt &class2,
     const source_locationt &original_loc);
@@ -87,12 +87,12 @@ const std::vector<std::string> exception_needed_classes = {
 ///  conditional GOTO such that exc_name is thrown when
 ///  cond is met.
 /// \param cond: condition to be met in order
-/// to throw an exception
+///   to throw an exception
 /// \param original_loc: source location in the original program
 /// \param exc_name: the name of the exception to be thrown
 /// \return Returns the code initialising the throwing the
-/// exception
-codet java_bytecode_instrumentt::throw_exception(
+///   exception
+code_ifthenelset java_bytecode_instrumentt::throw_exception(
   const exprt &cond,
   const source_locationt &original_loc,
   const irep_idt &exc_name)
@@ -108,8 +108,7 @@ codet java_bytecode_instrumentt::throw_exception(
       struct_union_typet::componentst{});
   }
 
-  pointer_typet exc_ptr_type=
-    pointer_type(symbol_typet(exc_class_name));
+  pointer_typet exc_ptr_type = pointer_type(struct_tag_typet(exc_class_name));
 
   // Allocate and throw an instance of the exception class:
 
@@ -128,26 +127,21 @@ codet java_bytecode_instrumentt::throw_exception(
   side_effect_expr_throwt throw_expr(irept(), typet(), original_loc);
   throw_expr.copy_to_operands(new_symbol.symbol_expr());
 
-  code_blockt throw_code;
-  throw_code.move_to_operands(assign_new);
-  throw_code.copy_to_operands(code_expressiont(throw_expr));
+  code_ifthenelset if_code(
+    cond, code_blockt({assign_new, code_expressiont(throw_expr)}));
 
-  code_ifthenelset if_code;
   if_code.add_source_location()=original_loc;
-  if_code.cond()=cond;
-  if_code.then_case()=throw_code;
 
   return if_code;
 }
-
 
 /// Checks whether there is a division by zero
 /// and throws ArithmeticException if necessary.
 /// Exceptions are thrown when the `throw_runtime_exceptions`
 /// flag is set.
 /// \return Based on the value of the flag `throw_runtime_exceptions`,
-/// it returns code that either throws an ArithmeticException
-/// or asserts a nonzero denominator.
+///   it returns code that either throws an ArithmeticException
+///   or asserts a nonzero denominator.
 codet java_bytecode_instrumentt::check_arithmetic_exception(
   const exprt &denominator,
   const source_locationt &original_loc)
@@ -177,8 +171,8 @@ codet java_bytecode_instrumentt::check_arithmetic_exception(
 /// \param idx: index into the array
 /// \param original_loc: source location in the original code
 /// \return Based on the value of the flag `throw_runtime_exceptions`,
-/// it returns code that either throws an ArrayIndexOutPfBoundsException
-/// or emits an assertion checking the array access
+///   it returns code that either throws an ArrayIndexOutPfBoundsException
+///   or emits an assertion checking the array access
 codet java_bytecode_instrumentt::check_array_access(
   const exprt &array_struct,
   const exprt &idx,
@@ -209,7 +203,7 @@ codet java_bytecode_instrumentt::check_array_access(
   bounds_checks.add(create_fatal_assertion(ge_zero, low_check_loc));
   bounds_checks.add(create_fatal_assertion(lt_length, high_check_loc));
 
-  return bounds_checks;
+  return std::move(bounds_checks);
 }
 
 /// Checks whether `class1` is an instance of `class2` and throws
@@ -220,9 +214,9 @@ codet java_bytecode_instrumentt::check_array_access(
 /// \param class2: the super class
 /// \param original_loc: source location in the original code
 /// \return Based on the value of the flag `throw_runtime_exceptions`,
-/// it returns code that either throws an ClassCastException or emits an
-/// assertion checking the subtype relation
-codet java_bytecode_instrumentt::check_class_cast(
+///   it returns code that either throws an ClassCastException or emits an
+///   assertion checking the subtype relation
+code_ifthenelset java_bytecode_instrumentt::check_class_cast(
   const exprt &class1,
   const exprt &class2,
   const source_locationt &original_loc)
@@ -255,22 +249,20 @@ codet java_bytecode_instrumentt::check_class_cast(
     check_code=std::move(assert_class);
   }
 
-  code_ifthenelset conditional_check;
-  notequal_exprt op_not_null(null_check_op, null_pointer_exprt(voidptr));
-  conditional_check.cond()=std::move(op_not_null);
-  conditional_check.then_case()=std::move(check_code);
-  return conditional_check;
+  return code_ifthenelset(
+    notequal_exprt(std::move(null_check_op), null_pointer_exprt(voidptr)),
+    std::move(check_code));
 }
 
-/// Checks whether `expr` is null and throws NullPointerException/
+/// Checks whether \p expr is null and throws NullPointerException/
 /// generates an assertion when necessary;
 /// Exceptions are thrown when the `throw_runtime_exceptions` flag is set.
 /// Otherwise, assertions are emitted.
 /// \param expr: the checked expression
-/// `original_loc: source location in the original code
+/// \param original_loc: source location in the original code
 /// \return Based on the value of the flag `throw_runtime_exceptions`,
-/// it returns code that either throws an NullPointerException or emits an
-/// assertion checking the subtype relation
+///   it returns code that either throws an NullPointerException or emits an
+///   assertion checking the subtype relation
 codet java_bytecode_instrumentt::check_null_dereference(
   const exprt &expr,
   const source_locationt &original_loc)
@@ -291,15 +283,15 @@ codet java_bytecode_instrumentt::check_null_dereference(
   return create_fatal_assertion(not_exprt(equal_expr), check_loc);
 }
 
-/// Checks whether `length`>=0 and throws NegativeArraySizeException/
+/// Checks whether \p length >= 0 and throws NegativeArraySizeException/
 /// generates an assertion when necessary;
 /// Exceptions are thrown when the `throw_runtime_exceptions` flag is set.
 /// Otherwise, assertions are emitted.
 /// \param length: the checked length
 /// \param original_loc: source location in the original code
 /// \return Based on the value of the flag `throw_runtime_exceptions`,
-/// it returns code that either throws an NegativeArraySizeException
-/// or emits an assertion checking the subtype relation
+///   it returns code that either throws an NegativeArraySizeException
+///   or emits an assertion checking the subtype relation
 codet java_bytecode_instrumentt::check_array_length(
   const exprt &length,
   const source_locationt &original_loc)
@@ -320,8 +312,8 @@ codet java_bytecode_instrumentt::check_array_length(
   return create_fatal_assertion(ge_zero, check_loc);
 }
 
-/// Checks whether `expr` requires instrumentation, and if so adds it
-/// to `block`.
+/// Checks whether \p expr requires instrumentation, and if so adds it
+/// to \p block.
 /// \param [out] block: block where instrumentation will be added
 /// \param expr: expression to instrument
 void java_bytecode_instrumentt::add_expr_instrumentation(
@@ -333,12 +325,12 @@ void java_bytecode_instrumentt::add_expr_instrumentation(
     if(expr_instrumentation->get_statement() == ID_block)
       block.append(to_code_block(*expr_instrumentation));
     else
-      block.move_to_operands(*expr_instrumentation);
+      block.add(std::move(*expr_instrumentation));
   }
 }
 
-/// Appends `code` to `instrumentation` and overwrites reference `code`
-/// with the augmented block if `instrumentation` is non-empty.
+/// Appends \p code to \p instrumentation and overwrites reference \p code
+/// with the augmented block if \p instrumentation is non-empty.
 /// \param [in, out] code: code being instrumented
 /// \param instrumentation: instrumentation code block to prepend
 void java_bytecode_instrumentt::prepend_instrumentation(
@@ -350,14 +342,14 @@ void java_bytecode_instrumentt::prepend_instrumentation(
     if(code.get_statement()==ID_block)
       instrumentation.append(to_code_block(code));
     else
-      instrumentation.copy_to_operands(code);
+      instrumentation.add(code);
     code=instrumentation;
   }
 }
 
-/// Augments `expr` with instrumentation in the form of either
+/// Augments \p code with instrumentation in the form of either
 /// assertions or runtime exceptions
-/// \param `expr` the expression to be instrumented
+/// \param code: the expression to be instrumented
 void java_bytecode_instrumentt::instrument_code(codet &code)
 {
   source_locationt old_source_location=code.source_location();
@@ -449,17 +441,16 @@ void java_bytecode_instrumentt::instrument_code(codet &code)
     const java_method_typet &function_type =
       to_java_method_type(code_function_call.function().type());
 
+    for(const auto &arg : code_function_call.arguments())
+      add_expr_instrumentation(block, arg);
+
     // Check for a null this-argument of a virtual call:
     if(function_type.has_this())
     {
-      block.copy_to_operands(
-        check_null_dereference(
-          code_function_call.arguments()[0],
-          code_function_call.source_location()));
+      block.add(check_null_dereference(
+        code_function_call.arguments()[0],
+        code_function_call.source_location()));
     }
-
-    for(const auto &arg : code_function_call.arguments())
-      add_expr_instrumentation(block, arg);
 
     prepend_instrumentation(code, block);
   }
@@ -469,11 +460,10 @@ void java_bytecode_instrumentt::instrument_code(codet &code)
     merge_source_location_rec(code, old_source_location);
 }
 
-/// Computes the instrumentation for `expr` in the form of
+/// Computes the instrumentation for \p expr in the form of
 /// either assertions or runtime exceptions.
-/// \param expr: the expression for which we compute
-/// instrumentation
-/// \return: The instrumentation for `expr` if required
+/// \param expr: the expression for which we compute instrumentation
+/// \return The instrumentation for \p expr if required
 optionalt<codet> java_bytecode_instrumentt::instrument_expr(const exprt &expr)
 {
   code_blockt result;
@@ -481,7 +471,7 @@ optionalt<codet> java_bytecode_instrumentt::instrument_expr(const exprt &expr)
   forall_operands(it, expr)
   {
     if(optionalt<codet> op_result = instrument_expr(*it))
-      result.move_to_operands(*op_result);
+      result.add(std::move(*op_result));
   }
 
   // Add any check due at this node:
@@ -503,7 +493,7 @@ optionalt<codet> java_bytecode_instrumentt::instrument_expr(const exprt &expr)
             dereference_expr,
             plus_expr.op1(),
             expr.source_location());
-        result.move_to_operands(bounds_check);
+        result.add(std::move(bounds_check));
       }
     }
   }
@@ -515,58 +505,49 @@ optionalt<codet> java_bytecode_instrumentt::instrument_expr(const exprt &expr)
     {
       // this corresponds to a throw and so we check that
       // we don't throw null
-      result.copy_to_operands(
-        check_null_dereference(
-          expr.op0(),
-          expr.source_location()));
+      result.add(check_null_dereference(expr.op0(), expr.source_location()));
     }
     else if(statement==ID_java_new_array)
     {
       // this corresponds to new array so we check that
       // length is >=0
-      result.copy_to_operands(
-        check_array_length(
-          expr.op0(),
-          expr.source_location()));
+      result.add(check_array_length(expr.op0(), expr.source_location()));
     }
   }
   else if((expr.id()==ID_div || expr.id()==ID_mod) &&
           expr.type().id()==ID_signedbv)
   {
     // check division by zero (for integer types only)
-    result.copy_to_operands(
-      check_arithmetic_exception(
-        expr.op1(),
-        expr.source_location()));
+    result.add(check_arithmetic_exception(expr.op1(), expr.source_location()));
   }
   else if(expr.id()==ID_dereference &&
           expr.get_bool(ID_java_member_access))
   {
     // Check pointer non-null before access:
-    const dereference_exprt dereference_expr=to_dereference_expr(expr);
+    const dereference_exprt &dereference_expr = to_dereference_expr(expr);
     codet null_dereference_check=
       check_null_dereference(
         dereference_expr.op0(),
         dereference_expr.source_location());
-    result.move_to_operands(null_dereference_check);
+    result.add(std::move(null_dereference_check));
   }
 
   if(result==code_blockt())
     return {};
   else
-    return result;
+    return std::move(result);
 }
 
-/// Instruments `expr`
-/// \param expr: the expression to be instrumented
+/// Instruments \p code
+/// \param code: the expression to be instrumented
 void java_bytecode_instrumentt::operator()(codet &code)
 {
   instrument_code(code);
 }
 
-/// Instruments the code attached to `symbol` with
+/// Instruments the code attached to \p symbol with
 /// runtime exceptions or corresponding assertions.
-/// Exceptions are thrown when the `throw_runtime_exceptions` flag is set.
+/// Exceptions are thrown when the \p throw_runtime_exceptions flag is set.
 /// Otherwise, assertions are emitted.
 /// \param symbol_table: global symbol table (may gain exception type stubs and
 ///   similar)
@@ -599,7 +580,7 @@ void java_bytecode_instrument_symbol(
 /// \param exc_symbol: the top-level exception symbol
 /// \param source_location: the source location to attach to the assertion
 void java_bytecode_instrument_uncaught_exceptions(
-  codet &init_code,
+  code_blockt &init_code,
   const symbolt &exc_symbol,
   const source_locationt &source_location)
 {
@@ -612,12 +593,12 @@ void java_bytecode_instrument_uncaught_exceptions(
   assert_location.set_comment("no uncaught exception");
   assert_no_exception.add_source_location() = assert_location;
 
-  init_code.move_to_operands(assert_no_exception);
+  init_code.add(std::move(assert_no_exception));
 }
 
 /// Instruments all the code in the symbol_table with
 /// runtime exceptions or corresponding assertions.
-/// Exceptions are thrown when the `throw_runtime_exceptions` flag is set.
+/// Exceptions are thrown when the \p throw_runtime_exceptions flag is set.
 /// Otherwise, assertions are emitted.
 /// \param symbol_table: global symbol table, all of whose code members
 ///   will be annotated (may gain exception type stubs and similar)

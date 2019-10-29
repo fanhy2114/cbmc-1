@@ -68,12 +68,9 @@ std::string expr2cppt::convert_struct(
   bool first=true;
   size_t last_size=0;
 
-  for(struct_typet::componentst::const_iterator
-      c_it=components.begin();
-      c_it!=components.end();
-      c_it++)
+  for(const auto &c : components)
   {
-    if(c_it->type().id()==ID_code)
+    if(c.type().id() == ID_code)
     {
     }
     else
@@ -96,7 +93,7 @@ std::string expr2cppt::convert_struct(
 
       dest+=sep;
       dest+='.';
-      dest+=c_it->get_string(ID_pretty_name);
+      dest += c.get_string(ID_pretty_name);
       dest+='=';
       dest+=tmp;
     }
@@ -113,7 +110,7 @@ std::string expr2cppt::convert_constant(
   const constant_exprt &src,
   unsigned &precedence)
 {
-  if(src.type().id()==ID_bool)
+  if(src.type().id() == ID_c_bool)
   {
     // C++ has built-in Boolean constants, in contrast to C
     if(src.is_true())
@@ -152,85 +149,12 @@ std::string expr2cppt::convert_rec(
   {
     const irep_idt c_type=src.get(ID_C_c_type);
 
-    if(c_type==ID_signed_char)
-      return q+"signed char"+d;
-    else if(c_type==ID_unsigned_char)
-      return q+"unsigned char"+d;
-    else if(c_type==ID_char)
-      return q+"char"+d;
-    else if(c_type==ID_signed_short_int)
-      return q+"short"+d;
-    else if(c_type==ID_unsigned_short_int)
-      return q+"unsigned short"+d;
-    else if(c_type==ID_signed_int)
-      return q+"int"+d;
-    else if(c_type==ID_unsigned_int)
-      return q+"unsigned"+d;
-    else if(c_type==ID_signed_long_int)
-      return q+"long"+d;
-    else if(c_type==ID_unsigned_long_int)
-      return q+"unsigned long"+d;
-    else if(c_type==ID_signed_long_long_int)
-      return q+"long long"+d;
-    else if(c_type==ID_unsigned_long_long_int)
-      return q+"unsigned long long"+d;
-    else if(c_type==ID_wchar_t)
-      return q+"wchar_t"+d;
-    else if(c_type==ID_float)
-      return q+"float"+d;
-    else if(c_type==ID_double)
-      return q+"double"+d;
-    else if(c_type==ID_long_double)
-      return q+"long double"+d;
-    else if(c_type==ID_bool)
+    if(c_type == ID_bool)
       return q+"bool"+d;
     else
       return expr2ct::convert_rec(src, qualifiers, declarator);
   }
-  else if(src.id()==ID_symbol)
-  {
-    const irep_idt &identifier=
-      to_symbol_type(src).get_identifier();
-
-    const symbolt &symbol=ns.lookup(identifier);
-
-    if(symbol.type.id()==ID_struct ||
-       symbol.type.id()==ID_incomplete_struct)
-    {
-      std::string dest=q;
-
-      if(symbol.type.get_bool(ID_C_class))
-        dest+="class";
-      else if(symbol.type.get_bool(ID_C_interface))
-        dest+="__interface"; // MS-specific
-      else
-        dest+="struct";
-
-      if(!symbol.pretty_name.empty())
-        dest+=" "+id2string(symbol.pretty_name);
-
-      dest+=d;
-
-      return dest;
-    }
-    else if(symbol.type.id()==ID_c_enum)
-    {
-      std::string dest=q;
-
-      dest+="enum";
-
-      if(!symbol.pretty_name.empty())
-        dest+=" "+id2string(symbol.pretty_name);
-
-      dest+=d;
-
-      return dest;
-    }
-    else
-      return expr2ct::convert_rec(src, qualifiers, declarator);
-  }
-  else if(src.id()==ID_struct ||
-          src.id()==ID_incomplete_struct)
+  else if(src.id() == ID_struct)
   {
     std::string dest=q;
 
@@ -292,12 +216,11 @@ std::string expr2cppt::convert_rec(
   {
     return "std::nullptr_t";
   }
-  else if(src.id()==ID_pointer &&
-          src.find("to-member").is_not_nil())
+  else if(src.id() == ID_pointer && src.find(ID_to_member).is_not_nil())
   {
     typet tmp=src;
     typet member;
-    member.swap(tmp.add("to-member"));
+    member.swap(tmp.add(ID_to_member));
 
     std::string dest="("+convert_rec(member, c_qualifierst(), "")+":: *)";
 
@@ -329,7 +252,8 @@ std::string expr2cppt::convert_rec(
   }
   else if(src.id()==ID_verilog_signedbv ||
           src.id()==ID_verilog_unsignedbv)
-    return "sc_lv["+id2string(src.get(ID_width))+"]"+d;
+    return "sc_lv[" + std::to_string(to_bitvector_type(src).get_width()) + "]" +
+           d;
   else if(src.id()==ID_unassigned)
     return "?";
   else if(src.id()==ID_code)
@@ -379,6 +303,10 @@ std::string expr2cppt::convert_rec(
   {
     // only really used in error messages
     return "{ ... }";
+  }
+  else if(src.id() == ID_c_bool)
+  {
+    return q + "bool" + d;
   }
   else
     return expr2ct::convert_rec(src, qualifiers, declarator);
@@ -460,7 +388,7 @@ std::string expr2cppt::convert_with_precedence(
     return "nullptr";
   else if(src.id()==ID_unassigned)
     return "?";
-  else if(src.id()=="pod_constructor")
+  else if(src.id() == ID_pod_constructor)
     return "pod_constructor";
   else
     return expr2ct::convert_with_precedence(src, precedence);

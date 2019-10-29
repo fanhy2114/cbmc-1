@@ -142,8 +142,8 @@ symbol_exprt partial_order_concurrencyt::clock(
   event_it event,
   axiomt axiom)
 {
+  PRECONDITION(!numbering.empty());
   irep_idt identifier;
-  assert(!numbering.empty());
 
   if(event->is_shared_write())
     identifier=rw_clock_id(event, axiom);
@@ -163,6 +163,7 @@ symbol_exprt partial_order_concurrencyt::clock(
 
 void partial_order_concurrencyt::build_clock_type()
 {
+<<<<<<< HEAD
 	// __LWT_ADD_BEGIN__
 //  assert(!numbering.empty());
 //  std::size_t width = address_bits(numbering.size());
@@ -170,6 +171,12 @@ void partial_order_concurrencyt::build_clock_type()
   clock_type = integer_typet();
   	// __LWT_ADD_END__
   
+=======
+  PRECONDITION(!numbering.empty());
+
+  std::size_t width = address_bits(numbering.size());
+  clock_type = unsignedbv_typet(width);
+>>>>>>> fca695a7b12cb7b1562e3b47cfc564ef691492c5
 }
 
 exprt partial_order_concurrencyt::before(
@@ -201,7 +208,7 @@ exprt partial_order_concurrencyt::before(
         binary_relation_exprt(clock(e1, ax), ID_lt, clock(e2, ax)));
   }
 
-  assert(!ops.empty());
+  POSTCONDITION(!ops.empty());
 
   return conjunction(ops);
 }

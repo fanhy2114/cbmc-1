@@ -17,8 +17,7 @@ Date: August 2013
 #include <cassert>
 
 #include <util/container_utils.h>
-#include <util/json.h>
-#include <util/json_expr.h>
+#include <util/json_irep.h>
 
 #include "goto_rw.h"
 
@@ -191,7 +190,9 @@ void dep_graph_domaint::data_dependencies(
 }
 
 void dep_graph_domaint::transform(
+  const irep_idt &function_from,
   goto_programt::const_targett from,
+  const irep_idt &function_to,
   goto_programt::const_targett to,
   ai_baset &ai,
   const namespacet &ns)
@@ -202,7 +203,7 @@ void dep_graph_domaint::transform(
   // propagate control dependencies across function calls
   if(from->is_function_call())
   {
-    if(from->function == to->function)
+    if(function_from == function_to)
     {
       control_dependencies(from, to, *dep_graph);
     }
@@ -282,24 +283,23 @@ jsont dep_graph_domaint::output_json(
 
   for(const auto &cd : control_deps)
   {
-    json_objectt &link=graph.push_back().make_object();
-    link["locationNumber"]=
-      json_numbert(std::to_string(cd->location_number));
-    link["sourceLocation"]=json(cd->source_location);
-    link["type"]=json_stringt("control");
+    json_objectt link(
+      {{"locationNumber", json_numbert(std::to_string(cd->location_number))},
+       {"sourceLocation", json(cd->source_location)},
+       {"type", json_stringt("control")}});
+    graph.push_back(std::move(link));
   }
 
   for(const auto &dd : data_deps)
   {
-    json_objectt &link=graph.push_back().make_object();
-    link["locationNumber"]=
-      json_numbert(std::to_string(dd->location_number));
-    link["sourceLocation"]=json(dd->source_location);
-      json_stringt(dd->source_location.as_string());
-    link["type"]=json_stringt("data");
+    json_objectt link(
+      {{"locationNumber", json_numbert(std::to_string(dd->location_number))},
+       {"sourceLocation", json(dd->source_location)},
+       {"type", json_stringt("data")}});
+    graph.push_back(std::move(link));
   }
 
-  return graph;
+  return std::move(graph);
 }
 
 void dependence_grapht::add_dep(

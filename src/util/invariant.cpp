@@ -20,7 +20,7 @@ Author: Martin Brain, martin.brain@diffblue.com
 // So we should include something explicitly from the C library
 // to check if the C library is glibc.
 #include <assert.h>
-#ifdef __GLIBC__
+#if defined(__GLIBC__) || defined(__APPLE__)
 
 // GCC needs LINKFLAGS="-rdynamic" to give function names in the backtrace
 #include <execinfo.h>
@@ -78,7 +78,7 @@ static bool output_demangled_name(
 void print_backtrace(
   std::ostream &out)
 {
-#ifdef __GLIBC__
+#if defined(__GLIBC__) || defined(__APPLE__)
     void * stack[50] = {};
 
     std::size_t entries=backtrace(stack, sizeof(stack) / sizeof(void *));
@@ -124,4 +124,14 @@ std::string invariant_failedt::what() const noexcept
       << "Backtrace:" << '\n'
       << backtrace << '\n';
   return out.str();
+}
+
+std::string invariant_with_diagnostics_failedt::what() const noexcept
+{
+  std::string s(invariant_failedt::what());
+
+  if(!s.empty() && s.back() != '\n')
+    s += '\n';
+
+  return s + "Diagnostics: " + diagnostics + '\n';
 }

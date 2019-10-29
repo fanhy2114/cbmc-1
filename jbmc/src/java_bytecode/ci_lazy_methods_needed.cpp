@@ -10,6 +10,7 @@ Author: Chris Smowton, chris.smowton@diffblue.com
 /// Context-insensitive lazy methods container
 
 #include "ci_lazy_methods.h"
+#include "java_static_initializers.h"
 
 #include <java_bytecode/select_pointer_type.h>
 #include <string>
@@ -18,17 +19,32 @@ Author: Chris Smowton, chris.smowton@diffblue.com
 
 /// Notes `method_symbol_name` is referenced from some reachable function, and
 /// should therefore be elaborated.
-/// \param: `method_symbol_name`: method name; must exist in symbol table.
+/// \param method_symbol_name: method name; must exist in symbol table.
 void ci_lazy_methods_neededt::add_needed_method(
   const irep_idt &method_symbol_name)
 {
   callable_methods.insert(method_symbol_name);
 }
 
+/// For a given class id, note that its static initializer is needed.
+/// This applies the same logic to the given class that
+/// `java_bytecode_convert_methodt::get_clinit_call` applies e.g. to classes
+/// whose constructor we call in a method body. This duplication is unavoidable
+/// because ci_lazy_methods essentially has to go through the same logic as
+/// __CPROVER_start in its initial setup, and because return values of opaque
+/// methods need to be considered in ci_lazy_methods too.
+/// \param class_id: The given class id
+void ci_lazy_methods_neededt::add_clinit_call(const irep_idt &class_id)
+{
+  const irep_idt &clinit_wrapper = clinit_wrapper_name(class_id);
+  if(symbol_table.symbols.count(clinit_wrapper))
+    add_needed_method(clinit_wrapper);
+}
+
 /// Notes class `class_symbol_name` will be instantiated, or a static field
 /// belonging to it will be accessed. Also notes that its static initializer is
 /// therefore reachable.
-/// \param: `class_symbol_name`: class name; must exist in symbol table.
+/// \param class_symbol_name: class name; must exist in symbol table.
 /// \return Returns true if `class_symbol_name` is new (not seen before).
 bool ci_lazy_methods_neededt::add_needed_class(
   const irep_idt &class_symbol_name)
@@ -41,6 +57,14 @@ bool ci_lazy_methods_neededt::add_needed_class(
     class_name_string + ".cproverNondetInitialize:()V");
   if(symbol_table.symbols.count(cprover_validate))
     add_needed_method(cprover_validate);
+
+  // Special case for enums. We may want to generalise this, the comment in
+  // \ref java_object_factoryt::gen_nondet_pointer_init (TG-4689).
+  namespacet ns(symbol_table);
+  const auto &class_type =
+    to_java_class_type(ns.lookup(class_symbol_name).type);
+  if(class_type.get_base("java::java.lang.Enum"))
+    add_clinit_call(class_symbol_name);
 
   return true;
 }
@@ -74,7 +98,7 @@ void ci_lazy_methods_neededt::initialize_instantiated_classes_from_pointer(
   const pointer_typet &pointer_type,
   const namespacet &ns)
 {
-  const symbol_typet &class_type = to_symbol_type(pointer_type.subtype());
+  const auto &class_type = to_struct_tag_type(pointer_type.subtype());
   const auto &param_classid = class_type.get_identifier();
 
   // Note here: different arrays may have different element types, so we should
@@ -93,9 +117,7 @@ void ci_lazy_methods_neededt::initialize_instantiated_classes_from_pointer(
     for(const auto &generic_arg : generic_args)
     {
       if(!is_java_generic_parameter(generic_arg))
-      {
-        initialize_instantiated_classes_from_pointer(generic_arg, ns);
-      }
+        add_all_needed_classes(generic_arg);
     }
   }
 }
@@ -112,10 +134,10 @@ void ci_lazy_methods_neededt::gather_field_types(
   {
     // If class_type is not a symbol this may be a reference array,
     // but we can't tell what type.
-    if(class_type.id() == ID_symbol)
+    if(class_type.id() == ID_struct_tag)
     {
       const typet &element_type =
-        java_array_element_type(to_symbol_type(class_type));
+        java_array_element_type(to_struct_tag_type(class_type));
       if(element_type.id() == ID_pointer)
       {
         // This is a reference array -- mark its element type available.
@@ -127,11 +149,11 @@ void ci_lazy_methods_neededt::gather_field_types(
   {
     for(const auto &field : underlying_type.components())
     {
-      if(field.type().id() == ID_struct || field.type().id() == ID_symbol)
+      if(field.type().id() == ID_struct || field.type().id() == ID_struct_tag)
         gather_field_types(field.type(), ns);
       else if(field.type().id() == ID_pointer)
       {
-        if(field.type().subtype().id() == ID_symbol)
+        if(field.type().subtype().id() == ID_struct_tag)
         {
           add_all_needed_classes(to_pointer_type(field.type()));
         }

@@ -26,11 +26,12 @@
 ///
 /// journalling_symbol_tablet journal(actual_table); // Wraps real_table
 /// alter_table(journal);
-
+///
 /// for(const auto &added : journal.added())
 /// {
 ///   printf("%s was added\n", added.name);
 /// }
+/// ```
 class journalling_symbol_tablet : public symbol_table_baset
 {
 public:
@@ -97,6 +98,11 @@ public:
     if(result)
       on_update(identifier);
     return result;
+  }
+
+  std::size_t next_unused_suffix(const std::string &prefix) const override
+  {
+    return base_symbol_table.next_unused_suffix(prefix);
   }
 
   virtual std::pair<symbolt &, bool> insert(symbolt symbol) override

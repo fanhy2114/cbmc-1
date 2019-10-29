@@ -33,25 +33,21 @@ std::string cpp_typecheckt::template_suffix(
   const cpp_template_args_tct::argumentst &arguments=
     template_args.arguments();
 
-  for(cpp_template_args_tct::argumentst::const_iterator
-      it=arguments.begin();
-      it!=arguments.end();
-      it++)
+  for(const auto &expr : arguments)
   {
     if(first)
       first=false;
     else
       result+=',';
 
-    const exprt expr=*it;
-
-    assert(expr.id()!="ambiguous");
+    DATA_INVARIANT(
+      expr.id() != ID_ambiguous, "template argument must not be ambiguous");
 
     if(expr.id()==ID_type)
     {
       const typet &type=expr.type();
-      if(type.id()==ID_symbol)
-        result+=type.get_string(ID_identifier);
+      if(type.id() == ID_struct_tag || type.id() == ID_union_tag)
+        result += id2string(to_tag_type(type).get_identifier());
       else
         result+=cpp_type2name(type);
     }
@@ -69,7 +65,7 @@ std::string cpp_typecheckt::template_suffix(
         i=0;
       else if(to_integer(e, i))
       {
-        error().source_location=it->find_source_location();
+        error().source_location = expr.find_source_location();
         error() << "template argument expression expected to be "
                 << "scalar constant, but got `"
                 << to_string(e) << "'" << eom;
@@ -87,17 +83,14 @@ std::string cpp_typecheckt::template_suffix(
 
 void cpp_typecheckt::show_instantiation_stack(std::ostream &out)
 {
-  for(instantiation_stackt::const_iterator
-      s_it=instantiation_stack.begin();
-      s_it!=instantiation_stack.end();
-      s_it++)
+  for(const auto &e : instantiation_stack)
   {
-    const symbolt &symbol=lookup(s_it->identifier);
+    const symbolt &symbol = lookup(e.identifier);
     out << "instantiating `" << symbol.pretty_name << "' with <";
 
-    forall_expr(a_it, s_it->full_template_args.arguments())
+    forall_expr(a_it, e.full_template_args.arguments())
     {
-      if(a_it!=s_it->full_template_args.arguments().begin())
+      if(a_it != e.full_template_args.arguments().begin())
         out << ", ";
 
       if(a_it->id()==ID_type)
@@ -106,7 +99,7 @@ void cpp_typecheckt::show_instantiation_stack(std::ostream &out)
         out << to_string(*a_it);
     }
 
-    out << "> at " << s_it->source_location << '\n';
+    out << "> at " << e.source_location << '\n';
   }
 }
 
@@ -149,21 +142,22 @@ const symbolt &cpp_typecheckt::class_template_symbol(
   if(s_it!=symbol_table.symbols.end())
     return s_it->second;
 
-  // Create as incomplete_struct, but mark as
+  // Create as incomplete struct, but mark as
   // "template_class_instance", to be elaborated later.
   symbolt new_symbol;
   new_symbol.name=identifier;
   new_symbol.pretty_name=template_symbol.pretty_name;
   new_symbol.location=template_symbol.location;
-  new_symbol.type=typet(ID_incomplete_struct);
+  new_symbol.type = struct_typet();
+  to_struct_type(new_symbol.type).make_incomplete();
   new_symbol.type.set(ID_tag, template_symbol.type.find(ID_tag));
   if(template_symbol.type.get_bool(ID_C_class))
     new_symbol.type.set(ID_C_class, true);
   new_symbol.type.set(ID_template_class_instance, true);
   new_symbol.type.add_source_location()=template_symbol.location;
   new_symbol.type.set(
-    "specialization_template_args", specialization_template_args);
-  new_symbol.type.set("full_template_args", full_template_args);
+    ID_specialization_template_args, specialization_template_args);
+  new_symbol.type.set(ID_full_template_args, full_template_args);
   new_symbol.type.set(ID_identifier, template_symbol.name);
   new_symbol.mode=template_symbol.mode;
   new_symbol.base_name=template_symbol.base_name;
@@ -190,24 +184,23 @@ const symbolt &cpp_typecheckt::class_template_symbol(
 void cpp_typecheckt::elaborate_class_template(
   const typet &type)
 {
-  if(type.id()!=ID_symbol)
+  if(type.id() != ID_struct_tag)
     return;
 
-  const symbolt &symbol = lookup(to_symbol_type(type));
+  const symbolt &symbol = lookup(to_struct_tag_type(type));
 
   // Make a copy, as instantiate will destroy the symbol type!
   const typet t_type=symbol.type;
 
-  if(t_type.id()==ID_incomplete_struct &&
-     t_type.get_bool(ID_template_class_instance))
+  if(t_type.id() == ID_struct && t_type.get_bool(ID_template_class_instance))
   {
     instantiate_template(
       type.source_location(),
       lookup(t_type.get(ID_identifier)),
       static_cast<const cpp_template_args_tct &>(
-        t_type.find("specialization_template_args")),
+        t_type.find(ID_specialization_template_args)),
       static_cast<const cpp_template_args_tct &>(
-        t_type.find("full_template_args")));
+        t_type.find(ID_full_template_args)));
   }
 }
 
@@ -335,8 +328,8 @@ const symbolt &cpp_typecheckt::instantiate_template(
   {
     cpp_scopet &scope=cpp_scopes.get_scope(subscope_name);
 
-    cpp_scopet::id_sett id_set;
-    scope.lookup(template_symbol.base_name, cpp_scopet::SCOPE_ONLY, id_set);
+    const auto id_set =
+      scope.lookup(template_symbol.base_name, cpp_scopet::SCOPE_ONLY);
 
     if(id_set.size()==1)
     {
@@ -377,7 +370,7 @@ const symbolt &cpp_typecheckt::instantiate_template(
   {
     // need non-const handle on template symbol
     symbolt &s=*symbol_table.get_writeable(template_symbol.name);
-    irept &instantiated_with=s.value.add("instantiated_with");
+    irept &instantiated_with = s.value.add(ID_instantiated_with);
     instantiated_with.get_sub().push_back(specialization_template_args);
   }
 
@@ -415,9 +408,8 @@ const symbolt &cpp_typecheckt::instantiate_template(
     convert_non_template_declaration(new_decl);
 
     // also instantiate all the template methods
-    const exprt &template_methods=
-      static_cast<const exprt &>(
-        template_symbol.value.find("template_methods"));
+    const exprt &template_methods = static_cast<const exprt &>(
+      template_symbol.value.find(ID_template_methods));
 
     for(auto &tm : template_methods.operands())
     {
@@ -515,7 +507,7 @@ const symbolt &cpp_typecheckt::instantiate_template(
       false,
       false);
 
-    return lookup(to_struct_type(symb.type).components().back().get(ID_name));
+    return lookup(to_struct_type(symb.type).components().back().get_name());
   }
 
   // not a class template, not a class template method,

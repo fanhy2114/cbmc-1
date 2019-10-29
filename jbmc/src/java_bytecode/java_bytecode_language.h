@@ -13,9 +13,9 @@ Author: Daniel Kroening, kroening@kroening.com
 #include "ci_lazy_methods.h"
 #include "ci_lazy_methods_needed.h"
 #include "java_class_loader.h"
+#include "java_object_factory_parameters.h"
 #include "java_static_initializers.h"
 #include "java_string_library_preprocess.h"
-#include "object_factory_parameters.h"
 #include "select_pointer_type.h"
 #include "synthetic_methods_map.h"
 
@@ -31,15 +31,11 @@ Author: Daniel Kroening, kroening@kroening.com
   "(disable-uncaught-exception-check)" \
   "(throw-assertion-error)" \
   "(java-assume-inputs-non-null)" \
-  "(java-throw-runtime-exceptions)" /* will go away */ \
   "(throw-runtime-exceptions)" \
-  "(java-max-input-array-length):" /* will go away */ \
   "(max-nondet-array-length):" \
-  "(java-max-input-tree-depth):" /* will go away */ \
   "(max-nondet-tree-depth):" \
   "(java-max-vla-length):" \
   "(java-cp-include-files):" \
-  "(lazy-methods)" /* will go away */ \
   "(no-lazy-methods)" \
   "(lazy-methods-extra-entry-point):" \
   "(java-load-class):" \
@@ -92,7 +88,7 @@ enum lazy_methods_modet
 class java_bytecode_languaget:public languaget
 {
 public:
-  virtual void get_language_options(const cmdlinet &) override;
+  void set_language_options(const optionst &) override;
 
   virtual bool preprocess(
     std::istream &instream,
@@ -123,13 +119,14 @@ public:
       lazy_methods_mode(lazy_methods_modet::LAZY_METHODS_MODE_EAGER),
       string_refinement_enabled(false),
       pointer_type_selector(std::move(pointer_type_selector))
-  {}
+  {
+  }
 
   java_bytecode_languaget():
     java_bytecode_languaget(
       std::unique_ptr<select_pointer_typet>(new select_pointer_typet()))
-  {}
-
+  {
+  }
 
   bool from_expr(
     const exprt &expr,
@@ -174,7 +171,7 @@ protected:
     symbol_table_baset &symbol_table,
     optionalt<ci_lazy_methods_neededt> needed_lazy_methods);
 
-  bool do_ci_lazy_method_conversion(symbol_tablet &, method_bytecodet &);
+  bool do_ci_lazy_method_conversion(symbol_tablet &);
   const select_pointer_typet &get_pointer_type_selector() const;
 
   irep_idt main_class;
@@ -182,7 +179,7 @@ protected:
   java_class_loadert java_class_loader;
   bool threading_support;
   bool assume_inputs_non_null;      // assume inputs variables to be non-null
-  object_factory_parameterst object_factory_parameters;
+  java_object_factory_parameterst object_factory_parameters;
   size_t max_user_array_length;     // max size for user code created arrays
   method_bytecodet method_bytecode;
   lazy_methods_modet lazy_methods_mode;
@@ -192,11 +189,14 @@ protected:
   bool throw_assertion_error;
   java_string_library_preprocesst string_preprocess;
   std::string java_cp_include_files;
+  bool nondet_static;
 
   // list of classes to force load even without reference from the entry point
   std::vector<irep_idt> java_load_classes;
 
 private:
+  virtual std::vector<load_extra_methodst>
+  build_extra_entry_points(const optionst &) const;
   const std::unique_ptr<const select_pointer_typet> pointer_type_selector;
 
   /// Maps synthetic method names on to the particular type of synthetic method
@@ -212,5 +212,7 @@ private:
 };
 
 std::unique_ptr<languaget> new_java_bytecode_language();
+
+void parse_java_language_options(const cmdlinet &cmd, optionst &options);
 
 #endif // CPROVER_JAVA_BYTECODE_JAVA_BYTECODE_LANGUAGE_H

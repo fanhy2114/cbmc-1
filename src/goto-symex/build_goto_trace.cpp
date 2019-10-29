@@ -15,9 +15,10 @@ Author: Daniel Kroening
 
 #include <cassert>
 
-#include <util/threeval.h>
-#include <util/simplify_expr.h>
 #include <util/arith_tools.h>
+#include <util/byte_operators.h>
+#include <util/simplify_expr.h>
+#include <util/threeval.h>
 
 #include <solvers/prop/prop_conv.h>
 #include <solvers/prop/prop.h>
@@ -49,7 +50,7 @@ exprt build_full_lhs_rec(
         build_full_lhs_rec(prop_conv, ns,
           to_index_expr(src_original).array(),
           to_index_expr(src_ssa).array());
-      return tmp;
+      return std::move(tmp);
     }
 
     return src_original;
@@ -79,21 +80,21 @@ exprt build_full_lhs_rec(
     else if(tmp.is_false())
       return tmp2.false_case();
     else
-      return tmp2;
+      return std::move(tmp2);
   }
   else if(id==ID_typecast)
   {
     typecast_exprt tmp=to_typecast_expr(src_original);
     tmp.op()=build_full_lhs_rec(prop_conv, ns,
       to_typecast_expr(src_original).op(), to_typecast_expr(src_ssa).op());
-    return tmp;
+    return std::move(tmp);
   }
   else if(id==ID_byte_extract_little_endian ||
           id==ID_byte_extract_big_endian)
   {
-    exprt tmp=src_original;
-    assert(tmp.operands().size()==2);
-    tmp.op0()=build_full_lhs_rec(prop_conv, ns, tmp.op0(), src_ssa.op0());
+    byte_extract_exprt tmp = to_byte_extract_expr(src_original);
+    tmp.op() = build_full_lhs_rec(
+      prop_conv, ns, tmp.op(), to_byte_extract_expr(src_ssa).op());
 
     // re-write into big case-split
   }
@@ -110,13 +111,16 @@ void set_internal_dynamic_object(
 {
   if(expr.id()==ID_symbol)
   {
-    const irep_idt &id=to_ssa_expr(expr).get_original_name();
-    const symbolt *symbol;
-    if(!ns.lookup(id, symbol))
+    if(expr.type().id() != ID_code)
     {
-      bool result = symbol->type.get_bool(ID_C_dynamic);
-      if(result)
-        goto_trace_step.internal=true;
+      const irep_idt &id = to_ssa_expr(expr).get_original_name();
+      const symbolt *symbol;
+      if(!ns.lookup(id, symbol))
+      {
+        bool result = symbol->type.get_bool(ID_C_dynamic);
+        if(result)
+          goto_trace_step.internal = true;
+      }
     }
   }
   else
@@ -152,7 +156,7 @@ void update_internal_field(
   }
 
   // set internal field to _start function-return step
-  if(SSA_step.source.pc->function==goto_functionst::entry_point())
+  if(SSA_step.source.function == goto_functionst::entry_point())
   {
     // "__CPROVER_*" function calls in __CPROVER_start are already marked as
     // internal. Don't mark any other function calls (i.e. "main"), function
@@ -224,12 +228,21 @@ void build_goto_trace(
         exprt clock_value=prop_conv.get(
           symbol_exprt(partial_order_concurrencyt::rw_clock_id(it)));
 
-        to_integer(clock_value, current_time);
+        const auto cv = numeric_cast<mp_integer>(clock_value);
+        if(cv.has_value())
+          current_time = *cv;
+        else
+          current_time = 0;
       }
       else if(it->is_atomic_end() && current_time<0)
         current_time*=-1;
+<<<<<<< HEAD
       
       assert(current_time>=0);
+=======
+
+      INVARIANT(current_time >= 0, "time keeping inconsistency");
+>>>>>>> fca695a7b12cb7b1562e3b47cfc564ef691492c5
       // move any steps gathered in an atomic section
 
       if(time_before<0)
@@ -294,22 +307,18 @@ void build_goto_trace(
 
       goto_trace_step.thread_nr = SSA_step.source.thread_nr;
       goto_trace_step.pc = SSA_step.source.pc;
+      goto_trace_step.function = SSA_step.source.function;
       goto_trace_step.comment = SSA_step.comment;
-      if(SSA_step.ssa_lhs.is_not_nil())
-      {
-        goto_trace_step.lhs_object =
-          ssa_exprt(SSA_step.ssa_lhs.get_original_expr());
-      }
-      else
-      {
-        goto_trace_step.lhs_object.make_nil();
-      }
       goto_trace_step.type = SSA_step.type;
       goto_trace_step.hidden = SSA_step.hidden;
       goto_trace_step.format_string = SSA_step.format_string;
       goto_trace_step.io_id = SSA_step.io_id;
       goto_trace_step.formatted = SSA_step.formatted;
-      goto_trace_step.identifier = SSA_step.identifier;
+      goto_trace_step.called_function = SSA_step.called_function;
+      goto_trace_step.function_arguments = SSA_step.converted_function_arguments;
+
+      for(auto &arg : goto_trace_step.function_arguments)
+        arg = prop_conv.get(arg);
 
       // update internal field for specific variables in the counterexample
       update_internal_field(SSA_step, goto_trace_step, ns);
@@ -328,9 +337,6 @@ void build_goto_trace(
         goto_trace_step.full_lhs = build_full_lhs_rec(
           prop_conv, ns, SSA_step.original_full_lhs, SSA_step.ssa_full_lhs);
       }
-
-      if(SSA_step.ssa_lhs.is_not_nil())
-        goto_trace_step.lhs_object_value = prop_conv.get(SSA_step.ssa_lhs);
 
       if(SSA_step.ssa_full_lhs.is_not_nil())
       {

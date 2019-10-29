@@ -1,9 +1,9 @@
 /*******************************************************************\
 
- Module: Unit tests for string_identifiers_resolution_from_equations in
-   solvers/refinement/string_refinement.cpp
+Module: Unit tests for string_identifiers_resolution_from_equations
+        in solvers/refinement/string_refinement.cpp
 
- Author: Diffblue Ltd.
+Author: Diffblue Ltd.
 
 \*******************************************************************/
 
@@ -39,9 +39,7 @@ SCENARIO("string_identifiers_resolution_from_equations",
     struct_typet struct_type;
     struct_type.components().emplace_back("str1", string_typet());
     struct_type.components().emplace_back("str2", string_typet());
-    struct_exprt struct_expr(struct_type);
-    struct_expr.operands().push_back(a);
-    struct_expr.operands().push_back(f);
+    struct_exprt struct_expr({a, f}, struct_type);
     symbol_exprt symbol_struct("sym_struct", struct_type);
 
     std::vector<equal_exprt> equations;
@@ -68,8 +66,7 @@ SCENARIO("string_identifiers_resolution_from_equations",
       typet return_type;
       symbol_exprt fun_sym(
         "f", java_method_typet(std::move(parameters), return_type));
-      function_application_exprt fun(fun_sym, bool_typet());
-      fun.operands().push_back(c);
+      const function_application_exprt fun(fun_sym, {c}, bool_typet());
       symbol_exprt bool_sym("bool_b", bool_typet());
       equations.emplace_back(bool_sym, fun);
       union_find_replacet symbol_resolve =

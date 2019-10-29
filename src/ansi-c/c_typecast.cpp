@@ -156,7 +156,6 @@ bool check_c_implicit_typecast(
           src_type_id==ID_signedbv ||
           src_type_id==ID_c_enum ||
           src_type_id==ID_c_enum_tag ||
-          src_type_id==ID_incomplete_c_enum ||
           src_type_id==ID_c_bool)
   {
     if(dest_type.id()==ID_unsignedbv ||
@@ -171,7 +170,6 @@ bool check_c_implicit_typecast(
        dest_type.id()==ID_pointer ||
        dest_type.id()==ID_c_enum ||
        dest_type.id()==ID_c_enum_tag ||
-       dest_type.id()==ID_incomplete_c_enum ||
        dest_type.id()==ID_complex)
       return false;
   }
@@ -253,7 +251,7 @@ bool check_c_implicit_typecast(
 typet c_typecastt::follow_with_qualifiers(const typet &src_type)
 {
   if(
-    src_type.id() != ID_symbol && src_type.id() != ID_struct_tag &&
+    src_type.id() != ID_struct_tag &&
     src_type.id() != ID_union_tag)
   {
     return src_type;
@@ -264,8 +262,7 @@ typet c_typecastt::follow_with_qualifiers(const typet &src_type)
   // collect qualifiers
   c_qualifierst qualifiers(src_type);
 
-  while(result_type.id() == ID_symbol || result_type.id() == ID_struct_tag ||
-        result_type.id() == ID_union_tag)
+  while(result_type.id() == ID_struct_tag || result_type.id() == ID_union_tag)
   {
     const typet &followed_type = ns.follow(result_type);
     result_type = followed_type;
@@ -280,10 +277,10 @@ typet c_typecastt::follow_with_qualifiers(const typet &src_type)
 c_typecastt::c_typet c_typecastt::get_c_type(
   const typet &type) const
 {
-  const std::size_t width = type.get_size_t(ID_width);
-
   if(type.id()==ID_signedbv)
   {
+    const std::size_t width = to_bitvector_type(type).get_width();
+
     if(width<=config.ansi_c.char_width)
       return CHAR;
     else if(width<=config.ansi_c.short_int_width)
@@ -299,6 +296,8 @@ c_typecastt::c_typet c_typecastt::get_c_type(
   }
   else if(type.id()==ID_unsignedbv)
   {
+    const std::size_t width = to_bitvector_type(type).get_width();
+
     if(width<=config.ansi_c.char_width)
       return UCHAR;
     else if(width<=config.ansi_c.short_int_width)
@@ -318,6 +317,8 @@ c_typecastt::c_typet c_typecastt::get_c_type(
     return BOOL;
   else if(type.id()==ID_floatbv)
   {
+    const std::size_t width = to_bitvector_type(type).get_width();
+
     if(width<=config.ansi_c.single_width)
       return SINGLE;
     else if(width<=config.ansi_c.double_width)
@@ -342,14 +343,10 @@ c_typecastt::c_typet c_typecastt::get_c_type(
   {
     return PTR;
   }
-  else if(type.id()==ID_c_enum ||
-          type.id()==ID_c_enum_tag ||
-          type.id()==ID_incomplete_c_enum)
+  else if(type.id() == ID_c_enum || type.id() == ID_c_enum_tag)
   {
     return INT;
   }
-  else if(type.id()==ID_symbol)
-    return get_c_type(ns.follow(type));
   else if(type.id()==ID_rational)
     return RATIONAL;
   else if(type.id()==ID_real)
@@ -357,7 +354,30 @@ c_typecastt::c_typet c_typecastt::get_c_type(
   else if(type.id()==ID_complex)
     return COMPLEX;
   else if(type.id()==ID_c_bit_field)
-    return get_c_type(to_c_bit_field_type(type).subtype());
+  {
+    const auto &bit_field_type = to_c_bit_field_type(type);
+
+    // We take the underlying type, and then apply the number
+    // of bits given
+    typet underlying_type;
+
+    if(bit_field_type.subtype().id() == ID_c_enum_tag)
+    {
+      const auto &followed =
+        ns.follow_tag(to_c_enum_tag_type(bit_field_type.subtype()));
+      if(followed.is_incomplete())
+        return INT;
+      else
+        underlying_type = followed.subtype();
+    }
+    else
+      underlying_type = bit_field_type.subtype();
+
+    const bitvector_typet new_type(
+      underlying_type.id(), bit_field_type.get_width());
+
+    return get_c_type(new_type);
+  }
 
   return OTHER;
 }
@@ -368,14 +388,12 @@ void c_typecastt::implicit_typecast_arithmetic(
 {
   typet new_type;
 
-  const typet &expr_type=ns.follow(expr.type());
-
   switch(c_type)
   {
   case PTR:
-    if(expr_type.id()==ID_array)
+    if(expr.type().id() == ID_array)
     {
-      new_type=pointer_type(expr_type.subtype());
+      new_type = pointer_type(expr.type().subtype());
       break;
     }
     return;
@@ -403,7 +421,7 @@ void c_typecastt::implicit_typecast_arithmetic(
   default: return;
   }
 
-  if(new_type!=expr_type)
+  if(new_type != expr.type())
     do_typecast(expr, new_type);
 }
 
@@ -518,8 +536,8 @@ void c_typecastt::implicit_typecast_followed(
     {
       // we are quite generous about pointers
 
-      const typet &src_sub=ns.follow(src_type.subtype());
-      const typet &dest_sub=ns.follow(dest_type.subtype());
+      const typet &src_sub = src_type.subtype();
+      const typet &dest_sub = dest_type.subtype();
 
       if(is_void_pointer(src_type) ||
          is_void_pointer(dest_type))
@@ -558,12 +576,6 @@ void c_typecastt::implicit_typecast_followed(
 
       // check qualifiers
 
-      /*
-      if(src_type.subtype().get_bool(ID_C_constant) &&
-         !dest_type.subtype().get_bool(ID_C_constant))
-        warnings.push_back("disregarding const");
-      */
-
       if(src_type.subtype().get_bool(ID_C_volatile) &&
          !dest_type.subtype().get_bool(ID_C_volatile))
         warnings.push_back("disregarding volatile");
@@ -589,8 +601,8 @@ void c_typecastt::implicit_typecast_arithmetic(
   exprt &expr1,
   exprt &expr2)
 {
-  const typet &type1=ns.follow(expr1.type());
-  const typet &type2=ns.follow(expr2.type());
+  const typet &type1 = expr1.type();
+  const typet &type2 = expr2.type();
 
   c_typet c_type1=minimum_promotion(type1),
           c_type2=minimum_promotion(type2);
@@ -600,8 +612,8 @@ void c_typecastt::implicit_typecast_arithmetic(
   if(max_type==LARGE_SIGNED_INT || max_type==LARGE_UNSIGNED_INT)
   {
     // get the biggest width of both
-    std::size_t width1=type1.get_size_t(ID_width);
-    std::size_t width2=type2.get_size_t(ID_width);
+    std::size_t width1 = to_bitvector_type(type1).get_width();
+    std::size_t width2 = to_bitvector_type(type2).get_width();
 
     // produce type
     typet result_type;
@@ -704,17 +716,12 @@ void c_typecastt::do_typecast(exprt &expr, const typet &dest_type)
   // special case: array -> pointer is actually
   // something like address_of
 
-  const typet &src_type=ns.follow(expr.type());
+  const typet &src_type = expr.type();
 
   if(src_type.id()==ID_array)
   {
-    index_exprt index;
-    index.array()=expr;
-    index.index()=from_integer(0, index_type());
-    index.type()=src_type.subtype();
-    expr=address_of_exprt(index);
-    if(ns.follow(expr.type())!=ns.follow(dest_type))
-      expr.make_typecast(dest_type);
+    index_exprt index(expr, from_integer(0, index_type()));
+    expr = typecast_exprt::conditional_cast(address_of_exprt(index), dest_type);
     return;
   }
 

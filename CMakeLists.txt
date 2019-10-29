@@ -52,14 +52,13 @@ set_target_properties(
     big-int
     cbmc
     cbmc-lib
-    clobber
-    clobber-lib
     cpp
     driver
     goto-analyzer
     goto-analyzer-lib
     goto-cc
     goto-cc-lib
+    goto-checker
     goto-diff
     goto-diff-lib
     goto-instrument
@@ -68,13 +67,11 @@ set_target_properties(
     goto-symex
     jsil
     json
+    json-symtab-language
     langapi
     linking
-    miniBDD
-    mmcc
     pointer-analysis
     solvers
-    test-bigint
     testing-utils
     unit
     util

@@ -1,8 +1,8 @@
 /*******************************************************************\
 
- Module: Unit tests for converting constructors and static initializers
+Module: Unit tests for converting constructors and static initializers
 
- Author: DiffBlue Limited.
+Author: Diffblue Limited.
 
 \*******************************************************************/
 
@@ -26,7 +26,7 @@ struct test_datat
 
 /// Verify that a given descriptor is marked as a constructor in the symbol
 /// table
-/// \param test_data The data to run the test on
+/// \param test_data: The data to run the test on
 void require_is_constructor(const test_datat &test_data)
 {
   const symbolt &constructor =
@@ -41,7 +41,7 @@ void require_is_constructor(const test_datat &test_data)
 
 /// Verify that a given descriptor is not marked as a constructor in the symbol
 /// table
-/// \param test_data The data to run the test on
+/// \param test_data: The data to run the test on
 void require_is_static_initializer(const test_datat &test_data)
 {
   REQUIRE(
@@ -194,7 +194,7 @@ SCENARIO(
 
     const symbolt &opaque_class_symbol =
       symbol_table.lookup_ref("java::OpaqueClass");
-    REQUIRE(opaque_class_symbol.type.get_bool(ID_incomplete_class));
+    REQUIRE(to_java_class_type(opaque_class_symbol.type).get_is_stub());
 
     WHEN("Looking at the parameterless constructor")
     {

@@ -3,6 +3,7 @@
 /// \file Tests for symbol_tablet
 
 #include <testing-utils/catch.hpp>
+#include <util/exception_utils.h>
 #include <util/journalling_symbol_table.h>
 
 TEST_CASE("Iterating through a symbol table", "[core][utils][symbol_tablet]")
@@ -18,10 +19,82 @@ TEST_CASE("Iterating through a symbol table", "[core][utils][symbol_tablet]")
   int counter = 0;
   for(auto &entry : symbol_table)
   {
+    (void)entry; // we are just testing iteration here
     ++counter;
   }
 
   REQUIRE(counter == 1);
+}
+
+SCENARIO(
+  "symbol_table_validity_checks",
+  "[core][utils][symbol_table_validity_checks]")
+{
+  GIVEN("A valid symbol table")
+  {
+    symbol_tablet symbol_table;
+
+    symbolt symbol;
+    irep_idt symbol_name = "Test_TestBase";
+    symbol.name = symbol_name;
+    symbol.base_name = "TestBase";
+    symbol.module = "TestModule";
+    symbol.mode = "C";
+
+    symbol_table.insert(symbol);
+
+    THEN("validate() should return")
+    {
+      symbol_table.validate(validation_modet::EXCEPTION);
+    }
+    WHEN("A symbol name is transformed without updating the symbol table")
+    {
+      symbolt &transformed_symbol = symbol_table.get_writeable_ref(symbol_name);
+      transformed_symbol.name = "TransformTest";
+
+      THEN("validate() should throw an exception")
+      {
+        REQUIRE_THROWS_AS(
+          symbol_table.validate(validation_modet::EXCEPTION),
+          incorrect_goto_program_exceptiont);
+      }
+      // Reset symbol to a valid name after the previous test
+      transformed_symbol.name = symbol_name;
+    }
+    WHEN(
+      "A symbol base_name is transformed without updating the base_name "
+      "mapping")
+    {
+      symbolt &transformed_symbol = symbol_table.get_writeable_ref(symbol_name);
+      // Transform the symbol
+      transformed_symbol.base_name = "TransformTestBase";
+
+      THEN("validate() should throw an exception")
+      {
+        REQUIRE_THROWS_AS(
+          symbol_table.validate(validation_modet::EXCEPTION),
+          incorrect_goto_program_exceptiont);
+      }
+      // Reset symbol to a valid base_name after the previous test
+      transformed_symbol.base_name = "TestBase";
+    }
+    WHEN(
+      "A symbol module identifier is transformed without updating the module "
+      "mapping")
+    {
+      symbolt &transformed_symbol = symbol_table.get_writeable_ref(symbol_name);
+      transformed_symbol.module = "TransformTestModule";
+
+      THEN("validate() should throw an exception")
+      {
+        REQUIRE_THROWS_AS(
+          symbol_table.validate(validation_modet::EXCEPTION),
+          incorrect_goto_program_exceptiont);
+      }
+      // Reset symbol to a valid module name
+      transformed_symbol.module = "TestModule";
+    }
+  }
 }
 
 SCENARIO("journalling_symbol_table_writer",
@@ -35,11 +108,11 @@ SCENARIO("journalling_symbol_table_writer",
     const symbol_tablet &read_symbol_table=symbol_table;
 
     irep_idt symbol_name="Test";
-    symbolt symbol;
-    symbol.name=symbol_name;
 
     WHEN("A symbol is inserted into the symbol table")
     {
+      symbolt symbol;
+      symbol.name = symbol_name;
       auto result=symbol_table.insert(symbol);
       THEN("The insert should succeed")
       {
@@ -68,17 +141,17 @@ SCENARIO("journalling_symbol_table_writer",
       }
       WHEN("Adding the same symbol again")
       {
-        symbolt symbol;
-        symbol.name=symbol_name;
-        auto result=symbol_table.insert(symbol);
+        const auto result_re_insert = symbol_table.insert(symbol);
         THEN("The insert should fail")
         {
-          REQUIRE(!result.second);
+          REQUIRE(!result_re_insert.second);
         }
       }
     }
     WHEN("Moving a symbol into the symbol table")
     {
+      symbolt symbol;
+      symbol.name = symbol_name;
       symbolt *symbol_in_table;
       auto result=symbol_table.move(symbol, symbol_in_table);
       THEN("The move should succeed")
@@ -104,13 +177,11 @@ SCENARIO("journalling_symbol_table_writer",
       }
       WHEN("Moving the same symbol again")
       {
-        symbolt symbol;
-        symbol.name=symbol_name;
         symbolt *symbol_in_table2;
-        auto result=symbol_table.move(symbol, symbol_in_table2);
+        const auto result_move = symbol_table.move(symbol, symbol_in_table2);
         THEN("The move should fail")
         {
-          REQUIRE(result);
+          REQUIRE(result_move);
         }
         THEN("The returned pointer should match the previous move result")
         {
@@ -120,6 +191,8 @@ SCENARIO("journalling_symbol_table_writer",
     }
     WHEN("Adding a symbol to the symbol table")
     {
+      symbolt symbol;
+      symbol.name = symbol_name;
       auto result=symbol_table.add(symbol);
       THEN("The add should succeed")
       {
@@ -144,17 +217,17 @@ SCENARIO("journalling_symbol_table_writer",
       }
       WHEN("Adding the same symbol again")
       {
-        symbolt symbol;
-        symbol.name=symbol_name;
-        auto result=symbol_table.add(symbol);
+        auto result_add_2 = symbol_table.add(symbol);
         THEN("The insert should fail")
         {
-          REQUIRE(result);
+          REQUIRE(result_add_2);
         }
       }
     }
     WHEN("Updating an existing symbol")
     {
+      symbolt symbol;
+      symbol.name = symbol_name;
       base_symbol_table.add(symbol);
       symbolt *writeable=symbol_table.get_writeable(symbol_name);
 
@@ -183,20 +256,22 @@ SCENARIO("journalling_symbol_table_writer",
     }
     WHEN("Removing a non-existent symbol")
     {
-      irep_idt symbol_name="DoesNotExist";
-      bool ret=symbol_table.remove(symbol_name);
+      irep_idt no_such_symbol_name = "DoesNotExist";
+      bool ret = symbol_table.remove(no_such_symbol_name);
       THEN("The remove operation should fail")
       {
         REQUIRE(ret);
       }
       THEN("The symbol we failed to remove should appear in neither journal")
       {
-        REQUIRE(symbol_table.get_updated().count(symbol_name)==0);
-        REQUIRE(symbol_table.get_removed().count(symbol_name)==0);
+        REQUIRE(symbol_table.get_updated().count(no_such_symbol_name) == 0);
+        REQUIRE(symbol_table.get_removed().count(no_such_symbol_name) == 0);
       }
     }
     WHEN("Removing an existing symbol added via the journalling writer")
     {
+      symbolt symbol;
+      symbol.name = symbol_name;
       symbol_table.add(symbol);
       bool ret=symbol_table.remove(symbol_name);
       THEN("The remove operation should succeed")
@@ -211,6 +286,8 @@ SCENARIO("journalling_symbol_table_writer",
     }
     WHEN("Removing an existing symbol added outside the journalling writer")
     {
+      symbolt symbol;
+      symbol.name = symbol_name;
       base_symbol_table.add(symbol);
       bool ret=symbol_table.remove(symbol_name);
       THEN("The remove operation should succeed")
@@ -226,6 +303,8 @@ SCENARIO("journalling_symbol_table_writer",
     }
     WHEN("Removing an existing symbol using an iterator (added via writer)")
     {
+      symbolt symbol;
+      symbol.name = symbol_name;
       symbol_table.add(symbol);
       auto erase_iterator=read_symbol_table.symbols.find(symbol_name);
       symbol_table.erase(erase_iterator);
@@ -237,6 +316,8 @@ SCENARIO("journalling_symbol_table_writer",
     }
     WHEN("Removing an existing symbol using an iterator (added via base)")
     {
+      symbolt symbol;
+      symbol.name = symbol_name;
       base_symbol_table.add(symbol);
       auto erase_iterator=read_symbol_table.symbols.find(symbol_name);
       symbol_table.erase(erase_iterator);
@@ -248,16 +329,18 @@ SCENARIO("journalling_symbol_table_writer",
     }
     WHEN("Re-adding a symbol previously removed")
     {
-      auto result=symbol_table.add(symbol);
+      symbolt symbol;
+      symbol.name = symbol_name;
+      const auto result_add_1 = symbol_table.add(symbol);
       symbol_table.remove(symbol.name);
-      auto result2=symbol_table.add(symbol);
+      const auto result_add_2 = symbol_table.add(symbol);
       THEN("The first add should succeed")
       {
-        REQUIRE(!result);
+        REQUIRE(!result_add_1);
       }
       THEN("The second add should succeed")
       {
-        REQUIRE(!result);
+        REQUIRE(!result_add_2);
       }
       THEN("The symbol should be journalled as updated but not removed")
       {

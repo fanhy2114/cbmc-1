@@ -18,18 +18,19 @@ Author: Diffblue Ltd
 
 #include "mz_zip_archive.h"
 
-/// Class representing a .jar archive
+/// Class representing a .jar archive. Uses miniz to decompress and index
+/// archive.
 class jar_filet final
 {
 public:
   /// Open java file for reading.
-  /// \param filename Name of the file
+  /// \param filename: Name of the file
   /// \throw Throws std::runtime_error if file cannot be opened
   explicit jar_filet(const std::string &filename);
 
   /// Open a JAR file of size \p size loaded in memory at address \p data.
-  /// \param data memory buffer with the contents of the jar file
-  /// \param size size  of the memory buffer
+  /// \param data: memory buffer with the contents of the jar file
+  /// \param size: size  of the memory buffer
   /// \throw Throws std::runtime_error if file cannot be opened
   jar_filet(const void *data, size_t size);
 
@@ -41,10 +42,11 @@ public:
 
   /// Get contents of a file in the jar archive.
   /// Returns nullopt if file doesn't exist.
-  /// \param filename Name of the file in the archive
+  /// \param filename: Name of the file in the archive
   optionalt<std::string> get_entry(const std::string &filename);
 
-  /// Get contents of the Manifest file in the jar archive
+  /// Get contents of the Manifest file in the jar archive as a key-value map
+  /// (both as strings)
   std::unordered_map<std::string, std::string> get_manifest();
 
   /// Get list of filenames in the archive
