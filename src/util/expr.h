@@ -215,7 +215,8 @@ public:
   void make_typecast(const typet &_type);
 
   void make_bool(bool value);
-
+  void make_not();
+  
   bool is_constant() const;
   bool is_true() const;
   bool is_false() const;

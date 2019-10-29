@@ -101,15 +101,10 @@ void smt2_convt::write_header()
 
 void smt2_convt::write_footer(std::ostream &os)
 {
-<<<<<<< HEAD
   out << "\n";
   // __FHY_ADD_BEGIN__
 //  add_ssa_constraint();
   // __FHY_ADD_END__
-=======
-  os << "\n";
-
->>>>>>> fca695a7b12cb7b1562e3b47cfc564ef691492c5
   // add the assumptions, if any
   if(!assumptions.empty())
   {

@@ -126,41 +126,6 @@ exprt pointer_logict::pointer_expr(
   }
   else if(object_size.has_value() && pointer.offset % *object_size == 0)
   {
-<<<<<<< HEAD
-    const struct_typet::componentst &components=
-      to_struct_type(src.type()).components();
-
-    if(offset<0)
-      return src;
-
-    mp_integer current_offset=0;
-
-    for(const auto &c : components)
-    {
-      assert(offset>=current_offset);
-
-      const typet &subtype=c.type();
-
-      mp_integer sub_size=pointer_offset_size(subtype, ns);
-//      assert(sub_size>0);
-      mp_integer new_offset=current_offset+sub_size;
-
-      if(new_offset>offset)
-      {
-        // found it
-        member_exprt tmp(src, c);
-
-        return object_rec(
-          offset-current_offset, pointer_type, tmp);
-      }
-
-      assert(new_offset<=offset);
-      current_offset=new_offset;
-      assert(current_offset<=offset);
-    }
-
-    return src;
-=======
     return typecast_exprt::conditional_cast(
       plus_exprt(
         base, from_integer(pointer.offset / *object_size, pointer_diff_type())),
@@ -173,7 +138,6 @@ exprt pointer_logict::pointer_expr(
         typecast_exprt(base, pointer_type(char_type())),
         from_integer(pointer.offset, pointer_diff_type())),
       type);
->>>>>>> fca695a7b12cb7b1562e3b47cfc564ef691492c5
   }
 }
 

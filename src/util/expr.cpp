@@ -112,6 +112,34 @@ void exprt::make_bool(bool value)
   set(ID_value, value?ID_true:ID_false);
 }
 
+void exprt::make_not()
+{
+  if(is_true())
+  {
+    *this=false_exprt();
+    return;
+  }
+  else if(is_false())
+  {
+    *this=true_exprt();
+    return;
+  }
+  
+  exprt new_expr;
+  
+  if(id()==ID_not && operands().size()==1)
+  {
+    new_expr.swap(operands().front());
+  }
+  else
+  {
+    new_expr=exprt(ID_not, type());
+    new_expr.move_to_operands(*this);
+  }
+  
+  swap(new_expr);
+}
+
 /// Return whether the expression represents a Boolean.
 /// \return True if is a Boolean, false otherwise.
 bool exprt::is_boolean() const

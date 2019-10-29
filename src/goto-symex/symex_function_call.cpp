@@ -188,23 +188,11 @@ void goto_symext::symex_function_call(
   const code_function_callt &code)
 {
   const exprt &function=code.function();
-<<<<<<< HEAD
-  if(function.id()==ID_symbol)
-    symex_function_call_symbol(get_goto_function, state, code);
-  else if(function.id()==ID_if)
-    throw "symex_function_call can't do if";
-  else if(function.id()==ID_dereference)
-    throw "symex_function_call can't do dereference";
-  else
-    throw "unexpected function for symex_function_call: "+function.id_string();
-=======
-
   // If at some point symex_function_call can support more
   // expression ids(), like ID_Dereference, please expand the
   // precondition appropriately.
   PRECONDITION(function.id() == ID_symbol);
   symex_function_call_symbol(get_goto_function, state, code);
->>>>>>> fca695a7b12cb7b1562e3b47cfc564ef691492c5
 }
 
 void goto_symext::symex_function_call_symbol(

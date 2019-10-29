@@ -236,13 +236,8 @@ void build_goto_trace(
       }
       else if(it->is_atomic_end() && current_time<0)
         current_time*=-1;
-<<<<<<< HEAD
-      
-      assert(current_time>=0);
-=======
 
       INVARIANT(current_time >= 0, "time keeping inconsistency");
->>>>>>> fca695a7b12cb7b1562e3b47cfc564ef691492c5
       // move any steps gathered in an atomic section
 
       if(time_before<0)

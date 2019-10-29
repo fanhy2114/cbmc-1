@@ -31,14 +31,10 @@ Author: Daniel Kroening, kroening@kroening.com
 #include <goto-programs/safety_checker.h>
 #include <goto-symex/memory_model.h>
 
-<<<<<<< HEAD
 #include "symex_bmc.h"
 // __FHY_ADD_BEGIN__
 #include <vector>
 // __FHY_ADD_END__
-=======
-
->>>>>>> fca695a7b12cb7b1562e3b47cfc564ef691492c5
 class cbmc_solverst;
 
 /// \brief Bounded model checking or path exploration for goto-programs
@@ -185,21 +181,12 @@ protected:
   ui_message_handlert &ui_message_handler;
 
   virtual decision_proceduret::resultt run_decision_procedure();
-
-<<<<<<< HEAD
-  virtual resultt decide(
-    const goto_functionst &,
-    prop_convt &);
-
-  void do_conversion();
-    
+  
   // __FHY_ADD_BEGIN__
   void fix_ssa();
   // __FHY_ADD_END__
-=======
   virtual resultt decide(const goto_functionst &);
-
->>>>>>> fca695a7b12cb7b1562e3b47cfc564ef691492c5
+  
   virtual void freeze_program_variables();
 
   trace_optionst trace_options()

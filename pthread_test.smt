@@ -117,7 +117,7 @@
 (define-fun |B36| () Bool |goto_symex::&92;guard#1|)
 
 ; convert
-(define-fun |B37| () Bool (not |goto_symex::&92;guard#1|))
+(define-fun |B37| () Bool |goto_symex::&92;guard#1|)
 
 ; convert
 (define-fun |B38| () Bool (not |goto_symex::&92;guard#1|))
@@ -140,13 +140,13 @@
 ; convert
 (define-fun |B44| () Bool (not |goto_symex::&92;guard#1|))
 
+; convert
+(define-fun |B45| () Bool (not |goto_symex::&92;guard#1|))
+
 ; find_symbols
 (declare-fun |goto_symex::&92;guard#2| () Bool)
 ; convert
-(define-fun |B45| () Bool (and (not |goto_symex::&92;guard#1|) |goto_symex::&92;guard#2|))
-
-; convert
-(define-fun |B46| () Bool (and (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#2|)))
+(define-fun |B46| () Bool (and (not |goto_symex::&92;guard#1|) |goto_symex::&92;guard#2|))
 
 ; convert
 (define-fun |B47| () Bool (and (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#2|)))
@@ -182,7 +182,7 @@
 (define-fun |B57| () Bool (and (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#2|)))
 
 ; convert
-(define-fun |B58| () Bool (or (and (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#2|)) |goto_symex::&92;guard#1|))
+(define-fun |B58| () Bool (and (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#2|)))
 
 ; convert
 (define-fun |B59| () Bool (or (and (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#2|)) |goto_symex::&92;guard#1|))
@@ -190,11 +190,11 @@
 ; convert
 (define-fun |B60| () Bool (or (and (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#2|)) |goto_symex::&92;guard#1|))
 
+; convert
+(define-fun |B61| () Bool (or (and (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#2|)) |goto_symex::&92;guard#1|))
+
 ; find_symbols
 (declare-fun |goto_symex::&92;guard#3| () Bool)
-; convert
-(define-fun |B61| () Bool (and (or (and (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#2|)) |goto_symex::&92;guard#1|) |goto_symex::&92;guard#3|))
-
 ; convert
 (define-fun |B62| () Bool (and (or (and (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#2|)) |goto_symex::&92;guard#1|) |goto_symex::&92;guard#3|))
 
@@ -228,40 +228,40 @@
 ; convert
 (define-fun |B72| () Bool (and (or (and (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#2|)) |goto_symex::&92;guard#1|) |goto_symex::&92;guard#3|))
 
+; convert
+(define-fun |B73| () Bool (and (or (and (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#2|)) |goto_symex::&92;guard#1|) |goto_symex::&92;guard#3|))
+
 ; find_symbols
 (declare-fun |goto_symex::&92;guard#4| () Bool)
-; convert
-(define-fun |B73| () Bool (and (or (and (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#2|)) |goto_symex::&92;guard#1|) |goto_symex::&92;guard#3| |goto_symex::&92;guard#4|))
-
 ; convert
 (define-fun |B74| () Bool (and (or (and (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#2|)) |goto_symex::&92;guard#1|) |goto_symex::&92;guard#3| |goto_symex::&92;guard#4|))
 
 ; convert
-(define-fun |B75| () Bool (and (or (and (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#2|)) |goto_symex::&92;guard#1|) |goto_symex::&92;guard#3| (not |goto_symex::&92;guard#4|)))
+(define-fun |B75| () Bool (and (or (and (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#2|)) |goto_symex::&92;guard#1|) |goto_symex::&92;guard#3| |goto_symex::&92;guard#4|))
+
+; convert
+(define-fun |B76| () Bool (and (or (and (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#2|)) |goto_symex::&92;guard#1|) |goto_symex::&92;guard#3| (not |goto_symex::&92;guard#4|)))
 
 ; find_symbols
 (declare-fun |goto_symex::&92;guard#5| () Bool)
 ; convert
-(define-fun |B76| () Bool (and (or (and (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#2|)) |goto_symex::&92;guard#1|) |goto_symex::&92;guard#3| (not |goto_symex::&92;guard#4|) |goto_symex::&92;guard#5|))
-
-; convert
 (define-fun |B77| () Bool (and (or (and (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#2|)) |goto_symex::&92;guard#1|) |goto_symex::&92;guard#3| (not |goto_symex::&92;guard#4|) |goto_symex::&92;guard#5|))
 
 ; convert
-(define-fun |B78| () Bool (and (or (and (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#2|)) |goto_symex::&92;guard#1|) |goto_symex::&92;guard#3| (not |goto_symex::&92;guard#4|) (not |goto_symex::&92;guard#5|)))
+(define-fun |B78| () Bool (and (or (and (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#2|)) |goto_symex::&92;guard#1|) |goto_symex::&92;guard#3| (not |goto_symex::&92;guard#4|) |goto_symex::&92;guard#5|))
 
 ; convert
 (define-fun |B79| () Bool (and (or (and (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#2|)) |goto_symex::&92;guard#1|) |goto_symex::&92;guard#3| (not |goto_symex::&92;guard#4|) (not |goto_symex::&92;guard#5|)))
+
+; convert
+(define-fun |B80| () Bool (and (or (and (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#2|)) |goto_symex::&92;guard#1|) |goto_symex::&92;guard#3| (not |goto_symex::&92;guard#4|) (not |goto_symex::&92;guard#5|)))
 
 ; find_symbols
 (declare-fun |__CPROVER_threads_exited#2| () (Array (_ BitVec 32) Bool))
 ; find_symbols
 (declare-fun |pthread_join::thread!0@1#1| () (_ BitVec 32))
 ; convert
-(define-fun |B80| () Bool (and (or (and (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#2|)) |goto_symex::&92;guard#1|) |goto_symex::&92;guard#3| (not |goto_symex::&92;guard#4|) (not |goto_symex::&92;guard#5|) (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)))
-
-; convert
-(define-fun |B81| () Bool (and (or (and (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#2|)) |goto_symex::&92;guard#1|) |goto_symex::&92;guard#3| (or (and (not |goto_symex::&92;guard#4|) (or (and (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|) (not |goto_symex::&92;guard#5|)) |goto_symex::&92;guard#5|)) |goto_symex::&92;guard#4|)))
+(define-fun |B81| () Bool (and (or (and (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#2|)) |goto_symex::&92;guard#1|) |goto_symex::&92;guard#3| (not |goto_symex::&92;guard#4|) (not |goto_symex::&92;guard#5|) (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)))
 
 ; convert
 (define-fun |B82| () Bool (and (or (and (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#2|)) |goto_symex::&92;guard#1|) |goto_symex::&92;guard#3| (or (and (not |goto_symex::&92;guard#4|) (or (and (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|) (not |goto_symex::&92;guard#5|)) |goto_symex::&92;guard#5|)) |goto_symex::&92;guard#4|)))
@@ -317,19 +317,19 @@
 ; convert
 (define-fun |B99| () Bool (and (or (and (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#2|)) |goto_symex::&92;guard#1|) |goto_symex::&92;guard#3| (or (and (not |goto_symex::&92;guard#4|) (or (and (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|) (not |goto_symex::&92;guard#5|)) |goto_symex::&92;guard#5|)) |goto_symex::&92;guard#4|)))
 
+; convert
+(define-fun |B100| () Bool (and (or (and (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#2|)) |goto_symex::&92;guard#1|) |goto_symex::&92;guard#3| (or (and (not |goto_symex::&92;guard#4|) (or (and (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|) (not |goto_symex::&92;guard#5|)) |goto_symex::&92;guard#5|)) |goto_symex::&92;guard#4|)))
+
 ; find_symbols
 (declare-fun |goto_symex::&92;guard#6| () Bool)
 ; convert
-(define-fun |B100| () Bool (and (or (and (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#2|)) |goto_symex::&92;guard#1|) |goto_symex::&92;guard#3| (or (and (not |goto_symex::&92;guard#4|) (or (and (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|) (not |goto_symex::&92;guard#5|)) |goto_symex::&92;guard#5|)) |goto_symex::&92;guard#4|) |goto_symex::&92;guard#6|))
-
-; convert
-(define-fun |B101| () Bool (and (or (and (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#2|)) |goto_symex::&92;guard#1|) |goto_symex::&92;guard#3| (or (and (not |goto_symex::&92;guard#4|) (or (and (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|) (not |goto_symex::&92;guard#5|)) |goto_symex::&92;guard#5|)) |goto_symex::&92;guard#4|) (not |goto_symex::&92;guard#6|)))
+(define-fun |B101| () Bool (and (or (and (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#2|)) |goto_symex::&92;guard#1|) |goto_symex::&92;guard#3| (or (and (not |goto_symex::&92;guard#4|) (or (and (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|) (not |goto_symex::&92;guard#5|)) |goto_symex::&92;guard#5|)) |goto_symex::&92;guard#4|) |goto_symex::&92;guard#6|))
 
 ; convert
 (define-fun |B102| () Bool (and (or (and (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#2|)) |goto_symex::&92;guard#1|) |goto_symex::&92;guard#3| (or (and (not |goto_symex::&92;guard#4|) (or (and (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|) (not |goto_symex::&92;guard#5|)) |goto_symex::&92;guard#5|)) |goto_symex::&92;guard#4|) (not |goto_symex::&92;guard#6|)))
 
 ; convert
-(define-fun |B103| () Bool (and (or (and (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#2|)) |goto_symex::&92;guard#1|) (or (and (not |goto_symex::&92;guard#6|) (or (and (not |goto_symex::&92;guard#4|) (or (and (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|) (not |goto_symex::&92;guard#5|)) |goto_symex::&92;guard#5|)) |goto_symex::&92;guard#4|) |goto_symex::&92;guard#3|) (not |goto_symex::&92;guard#3|))))
+(define-fun |B103| () Bool (and (or (and (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#2|)) |goto_symex::&92;guard#1|) |goto_symex::&92;guard#3| (or (and (not |goto_symex::&92;guard#4|) (or (and (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|) (not |goto_symex::&92;guard#5|)) |goto_symex::&92;guard#5|)) |goto_symex::&92;guard#4|) (not |goto_symex::&92;guard#6|)))
 
 ; convert
 (define-fun |B104| () Bool (and (or (and (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#2|)) |goto_symex::&92;guard#1|) (or (and (not |goto_symex::&92;guard#6|) (or (and (not |goto_symex::&92;guard#4|) (or (and (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|) (not |goto_symex::&92;guard#5|)) |goto_symex::&92;guard#5|)) |goto_symex::&92;guard#4|) |goto_symex::&92;guard#3|) (not |goto_symex::&92;guard#3|))))
@@ -344,7 +344,7 @@
 (define-fun |B107| () Bool (and (or (and (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#2|)) |goto_symex::&92;guard#1|) (or (and (not |goto_symex::&92;guard#6|) (or (and (not |goto_symex::&92;guard#4|) (or (and (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|) (not |goto_symex::&92;guard#5|)) |goto_symex::&92;guard#5|)) |goto_symex::&92;guard#4|) |goto_symex::&92;guard#3|) (not |goto_symex::&92;guard#3|))))
 
 ; convert
-(define-fun |B108| () Bool |goto_symex::&92;guard#1|)
+(define-fun |B108| () Bool (and (or (and (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#2|)) |goto_symex::&92;guard#1|) (or (and (not |goto_symex::&92;guard#6|) (or (and (not |goto_symex::&92;guard#4|) (or (and (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|) (not |goto_symex::&92;guard#5|)) |goto_symex::&92;guard#5|)) |goto_symex::&92;guard#4|) |goto_symex::&92;guard#3|) (not |goto_symex::&92;guard#3|))))
 
 ; convert
 (define-fun |B109| () Bool |goto_symex::&92;guard#1|)
@@ -373,6 +373,9 @@
 ; convert
 (define-fun |B117| () Bool |goto_symex::&92;guard#1|)
 
+; convert
+(define-fun |B118| () Bool |goto_symex::&92;guard#1|)
+
 (declare-datatypes () ((struct.1 (mk-struct.1 (struct.1.__prev (_ BitVec 32)) (struct.1.__next (_ BitVec 32)) ))))
 (define-fun update-struct.1.__prev ((s struct.1) (v (_ BitVec 32))) struct.1 (mk-struct.1 v (struct.1.__next s) ))
 (define-fun update-struct.1.__next ((s struct.1) (v (_ BitVec 32))) struct.1 (mk-struct.1 (struct.1.__prev s) v ))
@@ -390,19 +393,16 @@
 ; find_symbols
 (declare-fun |mutex#10| () (_ BitVec 320))
 ; convert
-(define-fun |B118| () Bool (and |goto_symex::&92;guard#1| (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))))
-
-; convert
 (define-fun |B119| () Bool (and |goto_symex::&92;guard#1| (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))))
 
 ; convert
-(define-fun |B120| () Bool (or (and (= ((_ extract 7 0) |mutex#10|) (_ bv0 8)) |goto_symex::&92;guard#1|) |goto_symex::&92;guard#1|))
+(define-fun |B120| () Bool (and |goto_symex::&92;guard#1| (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))))
 
 ; convert
-(define-fun |B121| () Bool (and (= ((_ extract 7 0) |mutex#10|) (_ bv0 8)) |goto_symex::&92;guard#1|))
+(define-fun |B121| () Bool (or (and (= ((_ extract 7 0) |mutex#10|) (_ bv0 8)) |goto_symex::&92;guard#1|) |goto_symex::&92;guard#1|))
 
 ; convert
-(define-fun |B122| () Bool (and |goto_symex::&92;guard#1| (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))))
+(define-fun |B122| () Bool (and (= ((_ extract 7 0) |mutex#10|) (_ bv0 8)) |goto_symex::&92;guard#1|))
 
 ; convert
 (define-fun |B123| () Bool (and |goto_symex::&92;guard#1| (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))))
@@ -437,13 +437,13 @@
 ; convert
 (define-fun |B133| () Bool (and |goto_symex::&92;guard#1| (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))))
 
+; convert
+(define-fun |B134| () Bool (and |goto_symex::&92;guard#1| (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))))
+
 ; find_symbols
 (declare-fun |goto_symex::&92;guard#7| () Bool)
 ; convert
-(define-fun |B134| () Bool (and |goto_symex::&92;guard#1| (= ((_ extract 7 0) |mutex#10|) (_ bv0 8)) |goto_symex::&92;guard#7|))
-
-; convert
-(define-fun |B135| () Bool (and |goto_symex::&92;guard#1| (= ((_ extract 7 0) |mutex#10|) (_ bv0 8)) (not |goto_symex::&92;guard#7|)))
+(define-fun |B135| () Bool (and |goto_symex::&92;guard#1| (= ((_ extract 7 0) |mutex#10|) (_ bv0 8)) |goto_symex::&92;guard#7|))
 
 ; convert
 (define-fun |B136| () Bool (and |goto_symex::&92;guard#1| (= ((_ extract 7 0) |mutex#10|) (_ bv0 8)) (not |goto_symex::&92;guard#7|)))
@@ -470,13 +470,13 @@
 (define-fun |B143| () Bool (and |goto_symex::&92;guard#1| (= ((_ extract 7 0) |mutex#10|) (_ bv0 8)) (not |goto_symex::&92;guard#7|)))
 
 ; convert
-(define-fun |B144| () Bool (and (= ((_ extract 7 0) |mutex#10|) (_ bv0 8)) (not |goto_symex::&92;guard#7|) |goto_symex::&92;guard#1|))
+(define-fun |B144| () Bool (and |goto_symex::&92;guard#1| (= ((_ extract 7 0) |mutex#10|) (_ bv0 8)) (not |goto_symex::&92;guard#7|)))
 
 ; convert
 (define-fun |B145| () Bool (and (= ((_ extract 7 0) |mutex#10|) (_ bv0 8)) (not |goto_symex::&92;guard#7|) |goto_symex::&92;guard#1|))
 
 ; convert
-(define-fun |B146| () Bool (and |goto_symex::&92;guard#1| (= ((_ extract 7 0) |mutex#10|) (_ bv0 8)) (not |goto_symex::&92;guard#7|)))
+(define-fun |B146| () Bool (and (= ((_ extract 7 0) |mutex#10|) (_ bv0 8)) (not |goto_symex::&92;guard#7|) |goto_symex::&92;guard#1|))
 
 ; convert
 (define-fun |B147| () Bool (and |goto_symex::&92;guard#1| (= ((_ extract 7 0) |mutex#10|) (_ bv0 8)) (not |goto_symex::&92;guard#7|)))
@@ -501,6 +501,9 @@
 
 ; convert
 (define-fun |B154| () Bool (and |goto_symex::&92;guard#1| (= ((_ extract 7 0) |mutex#10|) (_ bv0 8)) (not |goto_symex::&92;guard#7|)))
+
+; convert
+(define-fun |B155| () Bool (and |goto_symex::&92;guard#1| (= ((_ extract 7 0) |mutex#10|) (_ bv0 8)) (not |goto_symex::&92;guard#7|)))
 
 ; set_to true (equal)
 (define-fun |__CPROVER_dead_object#1| () (_ BitVec 32) (_ bv0 32))
@@ -652,16 +655,16 @@
 (define-fun |pthread_create::arg!1@0#1| () (_ BitVec 32) (_ bv0 32))
 
 ; set_to true (equal)
+(define-fun |pthread_create::1::this_thread_id!1@0#1| () (_ BitVec 32) (_ bv1 32))
+
+; set_to true (equal)
+(define-fun |pthread_join#return_value!1#1| () (_ BitVec 32) (_ bv0 32))
+
+; set_to true (equal)
 (define-fun |__CPROVER_thread_id!1#1| () (_ BitVec 32) (_ bv0 32))
 
 ; set_to true (equal)
 (define-fun |__CPROVER_rounding_mode!1#1| () (_ BitVec 32) (_ bv0 32))
-
-; set_to true (equal)
-(define-fun |module_init#return_value!1#1| () (_ BitVec 32) (_ bv0 32))
-
-; set_to true (equal)
-(define-fun |main#return_value!1#1| () (_ BitVec 32) (_ bv0 32))
 
 ; set_to true (equal)
 (define-fun |pthread_create#return_value!1#1| () (_ BitVec 32) (_ bv0 32))
@@ -670,7 +673,10 @@
 (define-fun |thread1#return_value!1#1| () (_ BitVec 32) (_ bv0 32))
 
 ; set_to true (equal)
-(define-fun |pthread_join#return_value!1#1| () (_ BitVec 32) (_ bv0 32))
+(define-fun |module_init#return_value!1#1| () (_ BitVec 32) (_ bv0 32))
+
+; set_to true (equal)
+(define-fun |main#return_value!1#1| () (_ BitVec 32) (_ bv0 32))
 
 ; set_to true (equal)
 (define-fun |pthread_mutex_destroy#return_value!1#1| () (_ BitVec 32) (_ bv0 32))
@@ -692,16 +698,6 @@
 
 ; set_to true (equal)
 (define-fun |module_init#return_value!0#1| () (_ BitVec 32) (_ bv0 32))
-
-; find_symbols
-(declare-fun |module_init#return_value!0#0| () (_ BitVec 32))
-; set_to true (equal)
-(define-fun |module_init#return_value!0#2| () (_ BitVec 32) |module_init#return_value!0#0|)
-
-; find_symbols
-(declare-fun |pthread_create#return_value!0#0| () (_ BitVec 32))
-; set_to true (equal)
-(define-fun |pthread_create#return_value!0#2| () (_ BitVec 32) |pthread_create#return_value!0#0|)
 
 ; set_to true (equal)
 (define-fun |pdev#3| () (_ BitVec 32) (_ bv3 32))
@@ -726,13 +722,7 @@
 (define-fun |pthread_mutex_destroy#return_value!0#1| () (_ BitVec 32) (_ bv0 32))
 
 ; set_to true (equal)
-(define-fun |module_init#return_value!0#3| () (_ BitVec 32) (_ bv4294967295 32))
-
-; set_to true (equal)
-(define-fun |pthread_mutex_destroy#return_value!0#2| () (_ BitVec 32) (_ bv0 32))
-
-; set_to true (equal)
-(define-fun |module_init#return_value!0#4| () (_ BitVec 32) (ite |goto_symex::&92;guard#1| (_ bv0 32) (_ bv4294967295 32)))
+(define-fun |module_init#return_value!0#2| () (_ BitVec 32) (_ bv4294967295 32))
 
 ; find_symbols
 (declare-fun |module_init::$tmp::return_value___VERIFIER_nondet_int!0@1#3| () (_ BitVec 32))
@@ -740,10 +730,15 @@
 (define-fun |module_init::$tmp::return_value___VERIFIER_nondet_int!0@1#4| () (_ BitVec 32) (ite |goto_symex::&92;guard#1| |module_init::$tmp::return_value___VERIFIER_nondet_int!0@1#2| |module_init::$tmp::return_value___VERIFIER_nondet_int!0@1#3|))
 
 ; set_to true (equal)
-(define-fun |pthread_create#return_value!0#3| () (_ BitVec 32) (ite |goto_symex::&92;guard#1| (_ bv0 32) |pthread_create#return_value!0#2|))
+(define-fun |module_init#return_value!0#3| () (_ BitVec 32) (ite |goto_symex::&92;guard#1| (_ bv0 32) (_ bv4294967295 32)))
+
+; find_symbols
+(declare-fun |pthread_mutex_destroy#return_value!0#0| () (_ BitVec 32))
+; set_to true (equal)
+(define-fun |pthread_mutex_destroy#return_value!0#2| () (_ BitVec 32) (ite |goto_symex::&92;guard#1| |pthread_mutex_destroy#return_value!0#0| (_ bv0 32)))
 
 ; set_to true (equal)
-(define-fun |main::$tmp::return_value_module_init!0@1#2| () (_ BitVec 32) |module_init#return_value!0#4|)
+(define-fun |main::$tmp::return_value_module_init!0@1#2| () (_ BitVec 32) |module_init#return_value!0#3|)
 
 ; set_to true
 (assert (= |goto_symex::&92;guard#3| (= |main::$tmp::return_value_module_init!0@1#2| (_ bv0 32))))
@@ -766,28 +761,23 @@
 ; set_to true (equal)
 (define-fun |pthread_join#return_value!0#1| () (_ BitVec 32) (_ bv3 32))
 
-; find_symbols
-(declare-fun |pthread_join#return_value!0#0| () (_ BitVec 32))
-; set_to true (equal)
-(define-fun |pthread_join#return_value!0#2| () (_ BitVec 32) |pthread_join#return_value!0#0|)
-
 ; set_to true
 (assert (= |goto_symex::&92;guard#5| (= |pthread_join::thread!0@1#1| (_ bv0 32))))
 
 ; set_to true (equal)
-(define-fun |pthread_join#return_value!0#3| () (_ BitVec 32) (_ bv35 32))
+(define-fun |pthread_join#return_value!0#2| () (_ BitVec 32) (_ bv35 32))
 
 ; set_to true (equal)
-(define-fun |pthread_join#return_value!0#4| () (_ BitVec 32) |pthread_join#return_value!0#2|)
+(define-fun |pthread_join#return_value!0#3| () (_ BitVec 32) (_ bv3 32))
 
 ; set_to true (equal)
-(define-fun |pthread_join#return_value!0#5| () (_ BitVec 32) (_ bv0 32))
+(define-fun |pthread_join#return_value!0#4| () (_ BitVec 32) (_ bv0 32))
 
 ; set_to true (equal)
-(define-fun |pthread_join#return_value!0#6| () (_ BitVec 32) (ite |goto_symex::&92;guard#5| (_ bv35 32) (_ bv0 32)))
+(define-fun |pthread_join#return_value!0#5| () (_ BitVec 32) (ite |goto_symex::&92;guard#5| (_ bv35 32) (_ bv0 32)))
 
 ; set_to true (equal)
-(define-fun |pthread_join#return_value!0#7| () (_ BitVec 32) (ite |goto_symex::&92;guard#4| (_ bv3 32) |pthread_join#return_value!0#6|))
+(define-fun |pthread_join#return_value!0#6| () (_ BitVec 32) (ite |goto_symex::&92;guard#4| (_ bv3 32) |pthread_join#return_value!0#5|))
 
 ; set_to true (equal)
 (define-fun |pthread_mutex_destroy::mutex!0@2#1| () (_ BitVec 32) (concat (_ bv2 8) (_ bv0 24)))
@@ -812,10 +802,12 @@
 (assert (= |goto_symex::&92;guard#6| (= |ldv_assert::expression!0@3#1| (_ bv0 32))))
 
 ; set_to true (equal)
-(define-fun |pthread_join#return_value!0#8| () (_ BitVec 32) |pthread_join#return_value!0#7|)
+(define-fun |pthread_mutex_destroy#return_value!0#4| () (_ BitVec 32) (ite |goto_symex::&92;guard#3| (_ bv0 32) |pthread_mutex_destroy#return_value!0#2|))
 
+; find_symbols
+(declare-fun |pthread_join#return_value!0#0| () (_ BitVec 32))
 ; set_to true (equal)
-(define-fun |pthread_mutex_destroy#return_value!0#4| () (_ BitVec 32) (_ bv0 32))
+(define-fun |pthread_join#return_value!0#7| () (_ BitVec 32) (ite |goto_symex::&92;guard#3| |pthread_join#return_value!0#6| |pthread_join#return_value!0#0|))
 
 ; set_to true (equal)
 (define-fun |main#return_value!0#1| () (_ BitVec 32) (_ bv0 32))
@@ -823,10 +815,8 @@
 ; set_to true (equal)
 (define-fun |return'!0#1| () (_ BitVec 32) (_ bv0 32))
 
-; find_symbols
-(declare-fun |pthread_create::1::this_thread_id!1@0#0| () (_ BitVec 32))
 ; set_to true (equal)
-(define-fun |__CPROVER_thread_id!1#2| () (_ BitVec 32) |pthread_create::1::this_thread_id!1@0#0|)
+(define-fun |__CPROVER_thread_id!1#2| () (_ BitVec 32) (_ bv1 32))
 
 ; set_to true (equal)
 (define-fun |thread1::arg!1@1#1| () (_ BitVec 32) (_ bv0 32))
@@ -879,73 +869,159 @@
 ; find_symbols
 (declare-fun |__CPROVER_threads_exited#3| () (Array (_ BitVec 32) Bool))
 ; set_to true (equal)
-(define-fun |__CPROVER_threads_exited#4| () (Array (_ BitVec 32) Bool) (store |__CPROVER_threads_exited#3| |pthread_create::1::this_thread_id!1@0#0| true))
+(define-fun |__CPROVER_threads_exited#4| () (Array (_ BitVec 32) Bool) (store |__CPROVER_threads_exited#3| (_ bv1 32) true))
 
 ; find_symbols
 (declare-fun |main::$tmp::return_value_module_init!0@1#1| () (_ BitVec 32))
 ; convert
-(define-fun |B155| () Bool (= |main::$tmp::return_value_module_init!0@1#1| |main::$tmp::return_value_module_init!0@1#1|))
+(define-fun |B156| () Bool (= |main::$tmp::return_value_module_init!0@1#1| |main::$tmp::return_value_module_init!0@1#1|))
 
 ; find_symbols
 (declare-fun |module_init::$tmp::return_value___VERIFIER_nondet_int!0@1#1| () (_ BitVec 32))
 ; convert
-(define-fun |B156| () Bool (= |module_init::$tmp::return_value___VERIFIER_nondet_int!0@1#1| |module_init::$tmp::return_value___VERIFIER_nondet_int!0@1#1|))
+(define-fun |B157| () Bool (= |module_init::$tmp::return_value___VERIFIER_nondet_int!0@1#1| |module_init::$tmp::return_value___VERIFIER_nondet_int!0@1#1|))
 
 ; find_symbols
 (declare-fun |pthread_create::1::this_thread_id!0@1#1| () (_ BitVec 32))
 ; convert
-(define-fun |B157| () Bool (= |pthread_create::1::this_thread_id!0@1#1| |pthread_create::1::this_thread_id!0@1#1|))
+(define-fun |B158| () Bool (= |pthread_create::1::this_thread_id!0@1#1| |pthread_create::1::this_thread_id!0@1#1|))
 
 ; find_symbols
 (declare-fun |module_exit::1::status!0@1#1| () (_ BitVec 32))
 ; convert
-(define-fun |B158| () Bool (= |module_exit::1::status!0@1#1| |module_exit::1::status!0@1#1|))
+(define-fun |B159| () Bool (= |module_exit::1::status!0@1#1| |module_exit::1::status!0@1#1|))
 
 ; convert
-(define-fun |B159| () Bool (=> true (not (and (not |goto_symex::&92;guard#1|) |goto_symex::&92;guard#2|))))
+(define-fun |B160| () Bool (=> true (not (and (not |goto_symex::&92;guard#1|) |goto_symex::&92;guard#2|))))
 
 ; find_symbols
 (declare-fun |mutex#3| () (_ BitVec 320))
 ; convert
-(define-fun |B160| () Bool (=> true (=> (and (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#2|)) (= ((_ sign_extend 24) ((_ extract 7 0) |mutex#3|)) (_ bv0 32)))))
+(define-fun |B161| () Bool (=> true (=> (and (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#2|)) (= ((_ sign_extend 24) ((_ extract 7 0) |mutex#3|)) (_ bv0 32)))))
 
 ; find_symbols
 (declare-fun |mutex#6| () (_ BitVec 320))
 ; convert
-(define-fun |B161| () Bool (=> true (=> (and (or (and (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#2|)) |goto_symex::&92;guard#1|) |goto_symex::&92;guard#3| (or (and (not |goto_symex::&92;guard#4|) (or (and (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|) (not |goto_symex::&92;guard#5|)) |goto_symex::&92;guard#5|)) |goto_symex::&92;guard#4|)) (= ((_ sign_extend 24) ((_ extract 7 0) |mutex#6|)) (_ bv0 32)))))
+(define-fun |B162| () Bool (=> true (=> (and (or (and (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#2|)) |goto_symex::&92;guard#1|) |goto_symex::&92;guard#3| (or (and (not |goto_symex::&92;guard#4|) (or (and (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|) (not |goto_symex::&92;guard#5|)) |goto_symex::&92;guard#5|)) |goto_symex::&92;guard#4|)) (= ((_ sign_extend 24) ((_ extract 7 0) |mutex#6|)) (_ bv0 32)))))
 
 ; convert
-(define-fun |B162| () Bool (=> true (not (and (or (and (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#2|)) |goto_symex::&92;guard#1|) |goto_symex::&92;guard#3| (or (and (not |goto_symex::&92;guard#4|) (or (and (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|) (not |goto_symex::&92;guard#5|)) |goto_symex::&92;guard#5|)) |goto_symex::&92;guard#4|) |goto_symex::&92;guard#6|))))
+(define-fun |B163| () Bool (=> true (not (and (or (and (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#2|)) |goto_symex::&92;guard#1|) |goto_symex::&92;guard#3| (or (and (not |goto_symex::&92;guard#4|) (or (and (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|) (not |goto_symex::&92;guard#5|)) |goto_symex::&92;guard#5|)) |goto_symex::&92;guard#4|) |goto_symex::&92;guard#6|))))
 
 ; convert
-(define-fun |B163| () Bool (=> true (not (and |goto_symex::&92;guard#1| (= ((_ extract 7 0) |mutex#10|) (_ bv0 8)) |goto_symex::&92;guard#7|))))
+(define-fun |B164| () Bool (=> true (not (and |goto_symex::&92;guard#1| (= ((_ extract 7 0) |mutex#10|) (_ bv0 8)) |goto_symex::&92;guard#7|))))
 
 ; convert
-(define-fun |B164| () Bool (=> true (=> (and |goto_symex::&92;guard#1| (= ((_ extract 7 0) |mutex#10|) (_ bv0 8)) (not |goto_symex::&92;guard#7|)) (= ((_ sign_extend 24) ((_ extract 7 0) |mutex#14|)) (_ bv1 32)))))
+(define-fun |B165| () Bool (=> true (=> (and |goto_symex::&92;guard#1| (= ((_ extract 7 0) |mutex#10|) (_ bv0 8)) (not |goto_symex::&92;guard#7|)) (= ((_ sign_extend 24) ((_ extract 7 0) |mutex#14|)) (_ bv1 32)))))
 
 ; set_to true
-(assert (or (not |B159|) (not |B160|) (not |B161|) (not |B162|) (not |B163|) (not |B164|)))
+(assert (or (not |B160|) (not |B161|) (not |B162|) (not |B163|) (not |B164|) (not |B165|)))
 
 ; convert
-(define-fun |B165| () Bool (= |module_init::$tmp::return_value___VERIFIER_nondet_int!0@1#2| (_ bv0 32)))
+(define-fun |B166| () Bool (= |module_init::$tmp::return_value___VERIFIER_nondet_int!0@1#2| (_ bv0 32)))
 
 ; convert
-(define-fun |B166| () Bool (not (= |ldv_assert::expression!0@2#1| (_ bv0 32))))
+(define-fun |B167| () Bool (not (= |ldv_assert::expression!0@2#1| (_ bv0 32))))
 
 ; convert
-(define-fun |B167| () Bool (not (= |main::$tmp::return_value_module_init!0@1#2| (_ bv0 32))))
+(define-fun |B168| () Bool (not (= |main::$tmp::return_value_module_init!0@1#2| (_ bv0 32))))
 
 ; convert
-(define-fun |B168| () Bool (bvuge |__CPROVER_next_thread_id#3| |pthread_join::thread!0@1#1|))
+(define-fun |B169| () Bool (bvuge |__CPROVER_next_thread_id#3| |pthread_join::thread!0@1#1|))
 
 ; convert
-(define-fun |B169| () Bool (not (= |pthread_join::thread!0@1#1| (_ bv0 32))))
+(define-fun |B170| () Bool (not (= |pthread_join::thread!0@1#1| (_ bv0 32))))
 
 ; convert
-(define-fun |B170| () Bool (not (= |ldv_assert::expression!0@3#1| (_ bv0 32))))
+(define-fun |B171| () Bool (not (= |ldv_assert::expression!0@3#1| (_ bv0 32))))
 
 ; convert
-(define-fun |B171| () Bool (not (= |ldv_assert::expression!1@1#1| (_ bv0 32))))
+(define-fun |B172| () Bool (not (= |ldv_assert::expression!1@1#1| (_ bv0 32))))
+
+; find_symbols
+(declare-fun |symex::args::0| () (_ BitVec 32))
+; set_to true
+(assert (= (concat (_ bv2 8) (_ bv0 24)) |symex::args::0|))
+
+; find_symbols
+(declare-fun |symex::args::1| () (_ BitVec 32))
+; set_to true
+(assert (= (_ bv0 32) |symex::args::1|))
+
+; find_symbols
+(declare-fun |symex::args::2| () (_ BitVec 32))
+; set_to true
+(assert (= (ite (= (_ bv1 32) (_ bv1 32)) (_ bv1 32) (_ bv0 32)) |symex::args::2|))
+
+; find_symbols
+(declare-fun |symex::args::3| () (_ BitVec 32))
+; set_to true
+(assert (= (concat (_ bv3 8) (_ bv0 24)) |symex::args::3|))
+
+; find_symbols
+(declare-fun |symex::args::4| () (_ BitVec 32))
+; set_to true
+(assert (= (_ bv0 32) |symex::args::4|))
+
+; find_symbols
+(declare-fun |symex::args::5| () (_ BitVec 32))
+; set_to true
+(assert (= (concat (_ bv4 8) (_ bv0 24)) |symex::args::5|))
+
+; find_symbols
+(declare-fun |symex::args::6| () (_ BitVec 32))
+; set_to true
+(assert (= (_ bv0 32) |symex::args::6|))
+
+; find_symbols
+(declare-fun |pdev#4| () (_ BitVec 32))
+; find_symbols
+(declare-fun |symex::args::7| () (_ BitVec 32))
+; set_to true
+(assert (= (ite (= |pdev#4| (_ bv3 32)) (_ bv1 32) (_ bv0 32)) |symex::args::7|))
+
+; find_symbols
+(declare-fun |symex::args::8| () (_ BitVec 32))
+; set_to true
+(assert (= (concat (_ bv2 8) (_ bv0 24)) |symex::args::8|))
+
+; find_symbols
+(declare-fun |symex::args::9| () (_ BitVec 32))
+; set_to true (equal)
+(define-fun |t1#3| () (_ BitVec 32) |symex::args::9|)
+
+; find_symbols
+(declare-fun |symex::args::10| () (_ BitVec 32))
+; set_to true
+(assert (= (concat (_ bv5 8) (_ bv0 24)) |symex::args::10|))
+
+; find_symbols
+(declare-fun |symex::args::11| () (_ BitVec 32))
+; set_to true
+(assert (= (concat (_ bv2 8) (_ bv0 24)) |symex::args::11|))
+
+; find_symbols
+(declare-fun |pdev#7| () (_ BitVec 32))
+; find_symbols
+(declare-fun |symex::args::12| () (_ BitVec 32))
+; set_to true
+(assert (= (ite (= |pdev#7| (_ bv5 32)) (_ bv1 32) (_ bv0 32)) |symex::args::12|))
+
+; find_symbols
+(declare-fun |symex::args::13| () (_ BitVec 32))
+; set_to true
+(assert (= (concat (_ bv2 8) (_ bv0 24)) |symex::args::13|))
+
+; find_symbols
+(declare-fun |pdev#10| () (_ BitVec 32))
+; find_symbols
+(declare-fun |symex::args::14| () (_ BitVec 32))
+; set_to true
+(assert (= (ite (= |pdev#10| (_ bv6 32)) (_ bv1 32) (_ bv0 32)) |symex::args::14|))
+
+; find_symbols
+(declare-fun |symex::args::15| () (_ BitVec 32))
+; set_to true
+(assert (= (concat (_ bv2 8) (_ bv0 24)) |symex::args::15|))
 
 ; find_symbols
 (declare-fun |memory_model::choice_rf0| () Bool)
@@ -995,8 +1071,6 @@
 ; set_to true
 (assert (or (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (not |goto_symex::&92;guard#3|) |memory_model::choice_rf3| |memory_model::choice_rf4|))
 
-; find_symbols
-(declare-fun |t1#3| () (_ BitVec 32))
 ; find_symbols
 (declare-fun |memory_model::choice_rf5| () Bool)
 ; set_to true
@@ -1249,8 +1323,6 @@
 (assert (or (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not |goto_symex::&92;guard#1|) |memory_model::choice_rf31| |memory_model::choice_rf32| |memory_model::choice_rf33| |memory_model::choice_rf34| |memory_model::choice_rf35| |goto_symex::&92;guard#7|))
 
 ; find_symbols
-(declare-fun |pdev#4| () (_ BitVec 32))
-; find_symbols
 (declare-fun |memory_model::choice_rf36| () Bool)
 ; set_to true
 (assert (or (= |pdev#4| |pdev#1|) (not |memory_model::choice_rf36|)))
@@ -1308,8 +1380,6 @@
 ; set_to true
 (assert (or |memory_model::choice_rf40| |memory_model::choice_rf41| |memory_model::choice_rf42| |memory_model::choice_rf43| |goto_symex::&92;guard#1|))
 
-; find_symbols
-(declare-fun |pdev#7| () (_ BitVec 32))
 ; find_symbols
 (declare-fun |memory_model::choice_rf44| () Bool)
 ; set_to true
@@ -1376,8 +1446,6 @@
 ; set_to true
 (assert (or (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not |goto_symex::&92;guard#3|) |memory_model::choice_rf49| |memory_model::choice_rf50| |memory_model::choice_rf51| |memory_model::choice_rf52| |memory_model::choice_rf53|))
 
-; find_symbols
-(declare-fun |pdev#10| () (_ BitVec 32))
 ; find_symbols
 (declare-fun |memory_model::choice_rf54| () Bool)
 ; set_to true
@@ -1762,13 +1830,13 @@
 (assert (not (>= |__CPROVER_threads_exited#3$rclk$8| |__CPROVER_threads_exited#4$wclk$8|)))
 
 ; set_to true
+(assert (or (>= |__CPROVER_threads_exited#1$wclk$8| |__CPROVER_threads_exited#4$wclk$8|) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |__CPROVER_threads_exited#3$rclk$8| |__CPROVER_threads_exited#4$wclk$8|)) (not |memory_model::choice_rf2|) (not |goto_symex::&92;guard#1|) |goto_symex::&92;guard#7|))
+
+; set_to true
 (assert (or (>= |__CPROVER_threads_exited#1$wclk$8| |__CPROVER_threads_exited#4$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |__CPROVER_threads_exited#2$rclk$8| |__CPROVER_threads_exited#4$wclk$8|)) (not |memory_model::choice_rf0|) (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#3|) |goto_symex::&92;guard#4| |goto_symex::&92;guard#5| |goto_symex::&92;guard#7|))
 
 ; set_to true
 (assert (or (>= |__CPROVER_threads_exited#4$wclk$8| |__CPROVER_threads_exited#1$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (not (>= |__CPROVER_threads_exited#2$rclk$8| |__CPROVER_threads_exited#1$wclk$8|)) (not |memory_model::choice_rf1|) (not |goto_symex::&92;guard#3|) |goto_symex::&92;guard#4| |goto_symex::&92;guard#5|))
-
-; set_to true
-(assert (or (>= |__CPROVER_threads_exited#1$wclk$8| |__CPROVER_threads_exited#4$wclk$8|) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |__CPROVER_threads_exited#3$rclk$8| |__CPROVER_threads_exited#4$wclk$8|)) (not |memory_model::choice_rf2|) (not |goto_symex::&92;guard#1|) |goto_symex::&92;guard#7|))
 
 ; set_to true
 (assert (or (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (not (>= |__CPROVER_next_thread_id#3$rclk$8| |__CPROVER_next_thread_id#2$wclk$8|)) (not |memory_model::choice_rf3|) (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#3|)))
@@ -1780,106 +1848,94 @@
 (assert (or (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (not (>= |t1#4$rclk$8| |t1#2$wclk$8|)) (not |memory_model::choice_rf7|) (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#3|)))
 
 ; set_to true
-(assert (or (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |mutex#13$rclk$8| |mutex#2$wclk$8|)) (not |memory_model::choice_rf31|) (not |goto_symex::&92;guard#1|) |goto_symex::&92;guard#7|))
-
-; set_to true
-(assert (or (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |mutex#7$rclk$8| |mutex#2$wclk$8|)) (not |memory_model::choice_rf22|) (not |goto_symex::&92;guard#3|)))
-
-; set_to true
-(assert (or (and (or (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not |goto_symex::&92;guard#1|)) (not |goto_symex::&92;guard#1|)) (not (>= |mutex#9$rclk$8| |mutex#2$wclk$8|)) (not |memory_model::choice_rf27|)))
-
-; set_to true
-(assert (or (not (>= |mutex#3$rclk$8| |mutex#2$wclk$8|)) (not |memory_model::choice_rf9|) |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|))
+(assert (or (not (>= |mutex#4$rclk$8| |mutex#2$wclk$8|)) (not |memory_model::choice_rf13|) |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|))
 
 ; set_to true
 (assert (or (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |mutex#6$rclk$8| |mutex#2$wclk$8|)) (not |memory_model::choice_rf17|) (not |goto_symex::&92;guard#3|)))
 
 ; set_to true
-(assert (or (not (>= |mutex#4$rclk$8| |mutex#2$wclk$8|)) (not |memory_model::choice_rf13|) |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|))
+(assert (or (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |mutex#7$rclk$8| |mutex#2$wclk$8|)) (not |memory_model::choice_rf22|) (not |goto_symex::&92;guard#3|)))
 
 ; set_to true
-(assert true)
+(assert (or (not (>= |mutex#3$rclk$8| |mutex#2$wclk$8|)) (not |memory_model::choice_rf9|) |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|))
 
 ; set_to true
-(assert (or (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |mutex#7$rclk$8| |mutex#5$wclk$8|)) (not |memory_model::choice_rf22|) (not |goto_symex::&92;guard#3|) |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|))
+(assert (or (and (or (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not |goto_symex::&92;guard#1|)) (not |goto_symex::&92;guard#1|)) (not (>= |mutex#9$rclk$8| |mutex#2$wclk$8|)) (not |memory_model::choice_rf27|)))
 
 ; set_to true
-(assert (or (and (or (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not |goto_symex::&92;guard#1|)) (not |goto_symex::&92;guard#1|)) (not (>= |mutex#9$rclk$8| |mutex#5$wclk$8|)) (not |memory_model::choice_rf27|) |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|))
-
-; set_to true
-(assert (or (not (>= |mutex#3$rclk$8| |mutex#5$wclk$8|)) (not |memory_model::choice_rf9|) |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|))
-
-; set_to true
-(assert (or (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |mutex#6$rclk$8| |mutex#5$wclk$8|)) (not |memory_model::choice_rf17|) (not |goto_symex::&92;guard#3|) |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|))
+(assert (or (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |mutex#13$rclk$8| |mutex#2$wclk$8|)) (not |memory_model::choice_rf31|) (not |goto_symex::&92;guard#1|) |goto_symex::&92;guard#7|))
 
 ; set_to true
 (assert (or (not (>= |mutex#4$rclk$8| |mutex#5$wclk$8|)) (not |memory_model::choice_rf13|) |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|))
 
 ; set_to true
-(assert (or (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |mutex#13$rclk$8| |mutex#8$wclk$8|)) (not |memory_model::choice_rf31|) (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#3|) |goto_symex::&92;guard#7|))
+(assert (or (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |mutex#6$rclk$8| |mutex#5$wclk$8|)) (not |memory_model::choice_rf17|) (not |goto_symex::&92;guard#3|) |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|))
 
 ; set_to true
-(assert (or (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |mutex#7$rclk$8| |mutex#8$wclk$8|)) (not |memory_model::choice_rf22|) (not |goto_symex::&92;guard#3|)))
+(assert (or (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |mutex#7$rclk$8| |mutex#5$wclk$8|)) (not |memory_model::choice_rf22|) (not |goto_symex::&92;guard#3|) |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|))
 
 ; set_to true
-(assert (or (and (or (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not |goto_symex::&92;guard#1|)) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |mutex#9$rclk$8| |mutex#8$wclk$8|)) (not |memory_model::choice_rf27|) (not |goto_symex::&92;guard#3|)))
+(assert (or (not (>= |mutex#3$rclk$8| |mutex#5$wclk$8|)) (not |memory_model::choice_rf9|) |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|))
 
 ; set_to true
-(assert (or (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |mutex#3$rclk$8| |mutex#8$wclk$8|)) (not |memory_model::choice_rf9|) (not |goto_symex::&92;guard#3|) |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|))
+(assert (or (and (or (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not |goto_symex::&92;guard#1|)) (not |goto_symex::&92;guard#1|)) (not (>= |mutex#9$rclk$8| |mutex#5$wclk$8|)) (not |memory_model::choice_rf27|) |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|))
 
 ; set_to true
-(assert (or (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |mutex#6$rclk$8| |mutex#8$wclk$8|)) (not |memory_model::choice_rf17|) (not |goto_symex::&92;guard#3|)))
+(assert true)
 
 ; set_to true
 (assert (or (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |mutex#4$rclk$8| |mutex#8$wclk$8|)) (not |memory_model::choice_rf13|) (not |goto_symex::&92;guard#3|) |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|))
 
 ; set_to true
-(assert (or (>= |mutex#12$wclk$8| |mutex#1$wclk$8|) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |mutex#13$rclk$8| |mutex#1$wclk$8|)) (not |memory_model::choice_rf35|) (not |goto_symex::&92;guard#1|) |goto_symex::&92;guard#7|))
+(assert (or (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |mutex#6$rclk$8| |mutex#8$wclk$8|)) (not |memory_model::choice_rf17|) (not |goto_symex::&92;guard#3|)))
 
 ; set_to true
-(assert (or (>= |mutex#1$wclk$8| |mutex#12$wclk$8|) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |mutex#13$rclk$8| |mutex#12$wclk$8|)) (not |memory_model::choice_rf31|) (not |goto_symex::&92;guard#1|) |goto_symex::&92;guard#7|))
+(assert (or (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |mutex#7$rclk$8| |mutex#8$wclk$8|)) (not |memory_model::choice_rf22|) (not |goto_symex::&92;guard#3|)))
 
 ; set_to true
-(assert (or (>= |mutex#12$wclk$8| |mutex#1$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |mutex#7$rclk$8| |mutex#1$wclk$8|)) (not |memory_model::choice_rf25|) (not |goto_symex::&92;guard#3|)))
+(assert (or (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |mutex#3$rclk$8| |mutex#8$wclk$8|)) (not |memory_model::choice_rf9|) (not |goto_symex::&92;guard#3|) |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|))
 
 ; set_to true
-(assert (or (>= |mutex#1$wclk$8| |mutex#12$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |mutex#7$rclk$8| |mutex#12$wclk$8|)) (not |memory_model::choice_rf22|) (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#3|)))
+(assert (or (and (or (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not |goto_symex::&92;guard#1|)) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |mutex#9$rclk$8| |mutex#8$wclk$8|)) (not |memory_model::choice_rf27|) (not |goto_symex::&92;guard#3|)))
 
 ; set_to true
-(assert (or (= |mutex#9$rclk$8| |mutex#12$wclk$8|) (>= |mutex#1$wclk$8| |mutex#12$wclk$8|) (and (or (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not |goto_symex::&92;guard#1|)) (not |goto_symex::&92;guard#1|)) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not |memory_model::choice_rf27|) (not |goto_symex::&92;guard#1|)))
-
-; set_to true
-(assert (or (>= |mutex#12$wclk$8| |mutex#1$wclk$8|) (not (>= |mutex#3$rclk$8| |mutex#1$wclk$8|)) (not |memory_model::choice_rf11|) |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|))
+(assert (or (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |mutex#13$rclk$8| |mutex#8$wclk$8|)) (not |memory_model::choice_rf31|) (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#3|) |goto_symex::&92;guard#7|))
 
 ; set_to true
 (assert true)
-
-; set_to true
-(assert (or (>= |mutex#12$wclk$8| |mutex#1$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |mutex#6$rclk$8| |mutex#1$wclk$8|)) (not |memory_model::choice_rf20|) (not |goto_symex::&92;guard#3|)))
-
-; set_to true
-(assert (or (>= |mutex#1$wclk$8| |mutex#12$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |mutex#6$rclk$8| |mutex#12$wclk$8|)) (not |memory_model::choice_rf17|) (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#3|)))
 
 ; set_to true
 (assert (or (>= |mutex#12$wclk$8| |mutex#1$wclk$8|) (not (>= |mutex#4$rclk$8| |mutex#1$wclk$8|)) (not |memory_model::choice_rf15|) |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|))
 
 ; set_to true
+(assert (or (>= |mutex#1$wclk$8| |mutex#12$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |mutex#6$rclk$8| |mutex#12$wclk$8|)) (not |memory_model::choice_rf17|) (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#3|)))
+
+; set_to true
+(assert (or (>= |mutex#12$wclk$8| |mutex#1$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |mutex#6$rclk$8| |mutex#1$wclk$8|)) (not |memory_model::choice_rf20|) (not |goto_symex::&92;guard#3|)))
+
+; set_to true
+(assert (or (>= |mutex#1$wclk$8| |mutex#12$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |mutex#7$rclk$8| |mutex#12$wclk$8|)) (not |memory_model::choice_rf22|) (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#3|)))
+
+; set_to true
+(assert (or (>= |mutex#12$wclk$8| |mutex#1$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |mutex#7$rclk$8| |mutex#1$wclk$8|)) (not |memory_model::choice_rf25|) (not |goto_symex::&92;guard#3|)))
+
+; set_to true
 (assert true)
 
 ; set_to true
-(assert (or (= |mutex#13$rclk$8| |mutex#15$wclk$8|) (>= |mutex#1$wclk$8| |mutex#15$wclk$8|) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not |memory_model::choice_rf31|) (not |goto_symex::&92;guard#1|) |goto_symex::&92;guard#7|))
+(assert (or (>= |mutex#12$wclk$8| |mutex#1$wclk$8|) (not (>= |mutex#3$rclk$8| |mutex#1$wclk$8|)) (not |memory_model::choice_rf11|) |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|))
 
 ; set_to true
-(assert (or (>= |mutex#15$wclk$8| |mutex#1$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |mutex#7$rclk$8| |mutex#1$wclk$8|)) (not |memory_model::choice_rf26|) (not |goto_symex::&92;guard#3|)))
+(assert (or (= |mutex#9$rclk$8| |mutex#12$wclk$8|) (>= |mutex#1$wclk$8| |mutex#12$wclk$8|) (and (or (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not |goto_symex::&92;guard#1|)) (not |goto_symex::&92;guard#1|)) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not |memory_model::choice_rf27|) (not |goto_symex::&92;guard#1|)))
 
 ; set_to true
-(assert (or (>= |mutex#1$wclk$8| |mutex#15$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |mutex#7$rclk$8| |mutex#15$wclk$8|)) (not |memory_model::choice_rf22|) (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#3|) |goto_symex::&92;guard#7|))
+(assert (or (>= |mutex#1$wclk$8| |mutex#12$wclk$8|) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |mutex#13$rclk$8| |mutex#12$wclk$8|)) (not |memory_model::choice_rf31|) (not |goto_symex::&92;guard#1|) |goto_symex::&92;guard#7|))
 
 ; set_to true
-(assert (or (>= |mutex#1$wclk$8| |mutex#15$wclk$8|) (and (or (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not |goto_symex::&92;guard#1|)) (not |goto_symex::&92;guard#1|)) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |mutex#9$rclk$8| |mutex#15$wclk$8|)) (not |memory_model::choice_rf27|) (not |goto_symex::&92;guard#1|) |goto_symex::&92;guard#7|))
+(assert (or (>= |mutex#12$wclk$8| |mutex#1$wclk$8|) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |mutex#13$rclk$8| |mutex#1$wclk$8|)) (not |memory_model::choice_rf35|) (not |goto_symex::&92;guard#1|) |goto_symex::&92;guard#7|))
 
 ; set_to true
-(assert (or (>= |mutex#15$wclk$8| |mutex#1$wclk$8|) (not (>= |mutex#3$rclk$8| |mutex#1$wclk$8|)) (not |memory_model::choice_rf12|) |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|))
+(assert (or (>= |mutex#15$wclk$8| |mutex#1$wclk$8|) (not (>= |mutex#4$rclk$8| |mutex#1$wclk$8|)) (not |memory_model::choice_rf16|) |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|))
 
 ; set_to true
 (assert true)
@@ -1891,94 +1947,94 @@
 (assert (or (>= |mutex#1$wclk$8| |mutex#15$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |mutex#6$rclk$8| |mutex#15$wclk$8|)) (not |memory_model::choice_rf17|) (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#3|) |goto_symex::&92;guard#7|))
 
 ; set_to true
-(assert (or (>= |mutex#15$wclk$8| |mutex#1$wclk$8|) (not (>= |mutex#4$rclk$8| |mutex#1$wclk$8|)) (not |memory_model::choice_rf16|) |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|))
+(assert (or (>= |mutex#15$wclk$8| |mutex#1$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |mutex#7$rclk$8| |mutex#1$wclk$8|)) (not |memory_model::choice_rf26|) (not |goto_symex::&92;guard#3|)))
+
+; set_to true
+(assert (or (>= |mutex#1$wclk$8| |mutex#15$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |mutex#7$rclk$8| |mutex#15$wclk$8|)) (not |memory_model::choice_rf22|) (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#3|) |goto_symex::&92;guard#7|))
+
+; set_to true
+(assert (or (>= |mutex#15$wclk$8| |mutex#1$wclk$8|) (not (>= |mutex#3$rclk$8| |mutex#1$wclk$8|)) (not |memory_model::choice_rf12|) |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|))
 
 ; set_to true
 (assert true)
 
 ; set_to true
-(assert true)
+(assert (or (>= |mutex#1$wclk$8| |mutex#15$wclk$8|) (and (or (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not |goto_symex::&92;guard#1|)) (not |goto_symex::&92;guard#1|)) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |mutex#9$rclk$8| |mutex#15$wclk$8|)) (not |memory_model::choice_rf27|) (not |goto_symex::&92;guard#1|) |goto_symex::&92;guard#7|))
 
 ; set_to true
-(assert (or (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |mutex#7$rclk$8| |mutex#5$wclk$8|)) (not |memory_model::choice_rf23|) (not |goto_symex::&92;guard#3|) |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|))
-
-; set_to true
-(assert (or (and (or (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not |goto_symex::&92;guard#1|)) (not |goto_symex::&92;guard#1|)) (not (>= |mutex#9$rclk$8| |mutex#5$wclk$8|)) (not |memory_model::choice_rf28|) |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|))
-
-; set_to true
-(assert (or (not (>= |mutex#3$rclk$8| |mutex#5$wclk$8|)) (not |memory_model::choice_rf10|) |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|))
-
-; set_to true
-(assert (or (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |mutex#6$rclk$8| |mutex#5$wclk$8|)) (not |memory_model::choice_rf18|) (not |goto_symex::&92;guard#3|) |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|))
+(assert (or (= |mutex#13$rclk$8| |mutex#15$wclk$8|) (>= |mutex#1$wclk$8| |mutex#15$wclk$8|) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not |memory_model::choice_rf31|) (not |goto_symex::&92;guard#1|) |goto_symex::&92;guard#7|))
 
 ; set_to true
 (assert (or (not (>= |mutex#4$rclk$8| |mutex#5$wclk$8|)) (not |memory_model::choice_rf14|) |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|))
 
 ; set_to true
-(assert (or (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |mutex#13$rclk$8| |mutex#8$wclk$8|)) (not |memory_model::choice_rf32|) (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#3|) |goto_symex::&92;guard#7|))
+(assert (or (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |mutex#6$rclk$8| |mutex#5$wclk$8|)) (not |memory_model::choice_rf18|) (not |goto_symex::&92;guard#3|) |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|))
 
 ; set_to true
-(assert (or (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |mutex#7$rclk$8| |mutex#8$wclk$8|)) (not |memory_model::choice_rf23|) (not |goto_symex::&92;guard#3|)))
+(assert (or (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |mutex#7$rclk$8| |mutex#5$wclk$8|)) (not |memory_model::choice_rf23|) (not |goto_symex::&92;guard#3|) |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|))
 
 ; set_to true
-(assert (or (and (or (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not |goto_symex::&92;guard#1|)) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |mutex#9$rclk$8| |mutex#8$wclk$8|)) (not |memory_model::choice_rf28|) (not |goto_symex::&92;guard#3|)))
+(assert (or (not (>= |mutex#3$rclk$8| |mutex#5$wclk$8|)) (not |memory_model::choice_rf10|) |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|))
 
 ; set_to true
-(assert (or (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |mutex#3$rclk$8| |mutex#8$wclk$8|)) (not |memory_model::choice_rf10|) (not |goto_symex::&92;guard#3|) |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|))
+(assert (or (and (or (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not |goto_symex::&92;guard#1|)) (not |goto_symex::&92;guard#1|)) (not (>= |mutex#9$rclk$8| |mutex#5$wclk$8|)) (not |memory_model::choice_rf28|) |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|))
 
 ; set_to true
-(assert (or (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |mutex#6$rclk$8| |mutex#8$wclk$8|)) (not |memory_model::choice_rf18|) (not |goto_symex::&92;guard#3|)))
+(assert true)
 
 ; set_to true
 (assert (or (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |mutex#4$rclk$8| |mutex#8$wclk$8|)) (not |memory_model::choice_rf14|) (not |goto_symex::&92;guard#3|) |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|))
 
 ; set_to true
-(assert (or (>= |mutex#12$wclk$8| |mutex#2$wclk$8|) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |mutex#13$rclk$8| |mutex#2$wclk$8|)) (not |memory_model::choice_rf35|) (not |goto_symex::&92;guard#1|) |goto_symex::&92;guard#7|))
+(assert (or (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |mutex#6$rclk$8| |mutex#8$wclk$8|)) (not |memory_model::choice_rf18|) (not |goto_symex::&92;guard#3|)))
 
 ; set_to true
-(assert (or (>= |mutex#2$wclk$8| |mutex#12$wclk$8|) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |mutex#13$rclk$8| |mutex#12$wclk$8|)) (not |memory_model::choice_rf32|) (not |goto_symex::&92;guard#1|) |goto_symex::&92;guard#7|))
+(assert (or (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |mutex#7$rclk$8| |mutex#8$wclk$8|)) (not |memory_model::choice_rf23|) (not |goto_symex::&92;guard#3|)))
 
 ; set_to true
-(assert (or (>= |mutex#12$wclk$8| |mutex#2$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |mutex#7$rclk$8| |mutex#2$wclk$8|)) (not |memory_model::choice_rf25|) (not |goto_symex::&92;guard#3|)))
+(assert (or (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |mutex#3$rclk$8| |mutex#8$wclk$8|)) (not |memory_model::choice_rf10|) (not |goto_symex::&92;guard#3|) |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|))
 
 ; set_to true
-(assert (or (>= |mutex#2$wclk$8| |mutex#12$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |mutex#7$rclk$8| |mutex#12$wclk$8|)) (not |memory_model::choice_rf23|) (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#3|)))
+(assert (or (and (or (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not |goto_symex::&92;guard#1|)) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |mutex#9$rclk$8| |mutex#8$wclk$8|)) (not |memory_model::choice_rf28|) (not |goto_symex::&92;guard#3|)))
 
 ; set_to true
-(assert (or (= |mutex#9$rclk$8| |mutex#12$wclk$8|) (>= |mutex#2$wclk$8| |mutex#12$wclk$8|) (and (or (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not |goto_symex::&92;guard#1|)) (not |goto_symex::&92;guard#1|)) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not |memory_model::choice_rf28|) (not |goto_symex::&92;guard#1|)))
-
-; set_to true
-(assert (or (>= |mutex#12$wclk$8| |mutex#2$wclk$8|) (not (>= |mutex#3$rclk$8| |mutex#2$wclk$8|)) (not |memory_model::choice_rf11|) |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|))
+(assert (or (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |mutex#13$rclk$8| |mutex#8$wclk$8|)) (not |memory_model::choice_rf32|) (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#3|) |goto_symex::&92;guard#7|))
 
 ; set_to true
 (assert true)
-
-; set_to true
-(assert (or (>= |mutex#12$wclk$8| |mutex#2$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |mutex#6$rclk$8| |mutex#2$wclk$8|)) (not |memory_model::choice_rf20|) (not |goto_symex::&92;guard#3|)))
-
-; set_to true
-(assert (or (>= |mutex#2$wclk$8| |mutex#12$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |mutex#6$rclk$8| |mutex#12$wclk$8|)) (not |memory_model::choice_rf18|) (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#3|)))
 
 ; set_to true
 (assert (or (>= |mutex#12$wclk$8| |mutex#2$wclk$8|) (not (>= |mutex#4$rclk$8| |mutex#2$wclk$8|)) (not |memory_model::choice_rf15|) |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|))
 
 ; set_to true
+(assert (or (>= |mutex#2$wclk$8| |mutex#12$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |mutex#6$rclk$8| |mutex#12$wclk$8|)) (not |memory_model::choice_rf18|) (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#3|)))
+
+; set_to true
+(assert (or (>= |mutex#12$wclk$8| |mutex#2$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |mutex#6$rclk$8| |mutex#2$wclk$8|)) (not |memory_model::choice_rf20|) (not |goto_symex::&92;guard#3|)))
+
+; set_to true
+(assert (or (>= |mutex#2$wclk$8| |mutex#12$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |mutex#7$rclk$8| |mutex#12$wclk$8|)) (not |memory_model::choice_rf23|) (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#3|)))
+
+; set_to true
+(assert (or (>= |mutex#12$wclk$8| |mutex#2$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |mutex#7$rclk$8| |mutex#2$wclk$8|)) (not |memory_model::choice_rf25|) (not |goto_symex::&92;guard#3|)))
+
+; set_to true
 (assert true)
 
 ; set_to true
-(assert (or (= |mutex#13$rclk$8| |mutex#15$wclk$8|) (>= |mutex#2$wclk$8| |mutex#15$wclk$8|) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not |memory_model::choice_rf32|) (not |goto_symex::&92;guard#1|) |goto_symex::&92;guard#7|))
+(assert (or (>= |mutex#12$wclk$8| |mutex#2$wclk$8|) (not (>= |mutex#3$rclk$8| |mutex#2$wclk$8|)) (not |memory_model::choice_rf11|) |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|))
 
 ; set_to true
-(assert (or (>= |mutex#15$wclk$8| |mutex#2$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |mutex#7$rclk$8| |mutex#2$wclk$8|)) (not |memory_model::choice_rf26|) (not |goto_symex::&92;guard#3|)))
+(assert (or (= |mutex#9$rclk$8| |mutex#12$wclk$8|) (>= |mutex#2$wclk$8| |mutex#12$wclk$8|) (and (or (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not |goto_symex::&92;guard#1|)) (not |goto_symex::&92;guard#1|)) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not |memory_model::choice_rf28|) (not |goto_symex::&92;guard#1|)))
 
 ; set_to true
-(assert (or (>= |mutex#2$wclk$8| |mutex#15$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |mutex#7$rclk$8| |mutex#15$wclk$8|)) (not |memory_model::choice_rf23|) (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#3|) |goto_symex::&92;guard#7|))
+(assert (or (>= |mutex#2$wclk$8| |mutex#12$wclk$8|) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |mutex#13$rclk$8| |mutex#12$wclk$8|)) (not |memory_model::choice_rf32|) (not |goto_symex::&92;guard#1|) |goto_symex::&92;guard#7|))
 
 ; set_to true
-(assert (or (>= |mutex#2$wclk$8| |mutex#15$wclk$8|) (and (or (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not |goto_symex::&92;guard#1|)) (not |goto_symex::&92;guard#1|)) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |mutex#9$rclk$8| |mutex#15$wclk$8|)) (not |memory_model::choice_rf28|) (not |goto_symex::&92;guard#1|) |goto_symex::&92;guard#7|))
+(assert (or (>= |mutex#12$wclk$8| |mutex#2$wclk$8|) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |mutex#13$rclk$8| |mutex#2$wclk$8|)) (not |memory_model::choice_rf35|) (not |goto_symex::&92;guard#1|) |goto_symex::&92;guard#7|))
 
 ; set_to true
-(assert (or (>= |mutex#15$wclk$8| |mutex#2$wclk$8|) (not (>= |mutex#3$rclk$8| |mutex#2$wclk$8|)) (not |memory_model::choice_rf12|) |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|))
+(assert (or (>= |mutex#15$wclk$8| |mutex#2$wclk$8|) (not (>= |mutex#4$rclk$8| |mutex#2$wclk$8|)) (not |memory_model::choice_rf16|) |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|))
 
 ; set_to true
 (assert true)
@@ -1990,13 +2046,25 @@
 (assert (or (>= |mutex#2$wclk$8| |mutex#15$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |mutex#6$rclk$8| |mutex#15$wclk$8|)) (not |memory_model::choice_rf18|) (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#3|) |goto_symex::&92;guard#7|))
 
 ; set_to true
-(assert (or (>= |mutex#15$wclk$8| |mutex#2$wclk$8|) (not (>= |mutex#4$rclk$8| |mutex#2$wclk$8|)) (not |memory_model::choice_rf16|) |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|))
+(assert (or (>= |mutex#15$wclk$8| |mutex#2$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |mutex#7$rclk$8| |mutex#2$wclk$8|)) (not |memory_model::choice_rf26|) (not |goto_symex::&92;guard#3|)))
+
+; set_to true
+(assert (or (>= |mutex#2$wclk$8| |mutex#15$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |mutex#7$rclk$8| |mutex#15$wclk$8|)) (not |memory_model::choice_rf23|) (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#3|) |goto_symex::&92;guard#7|))
+
+; set_to true
+(assert (or (>= |mutex#15$wclk$8| |mutex#2$wclk$8|) (not (>= |mutex#3$rclk$8| |mutex#2$wclk$8|)) (not |memory_model::choice_rf12|) |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|))
 
 ; set_to true
 (assert true)
 
 ; set_to true
-(assert (or (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |mutex#13$rclk$8| |mutex#8$wclk$8|)) (not |memory_model::choice_rf33|) (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#3|) |goto_symex::&92;guard#7|))
+(assert (or (>= |mutex#2$wclk$8| |mutex#15$wclk$8|) (and (or (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not |goto_symex::&92;guard#1|)) (not |goto_symex::&92;guard#1|)) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |mutex#9$rclk$8| |mutex#15$wclk$8|)) (not |memory_model::choice_rf28|) (not |goto_symex::&92;guard#1|) |goto_symex::&92;guard#7|))
+
+; set_to true
+(assert (or (= |mutex#13$rclk$8| |mutex#15$wclk$8|) (>= |mutex#2$wclk$8| |mutex#15$wclk$8|) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not |memory_model::choice_rf32|) (not |goto_symex::&92;guard#1|) |goto_symex::&92;guard#7|))
+
+; set_to true
+(assert (or (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |mutex#6$rclk$8| |mutex#8$wclk$8|)) (not |memory_model::choice_rf19|) (not |goto_symex::&92;guard#3|)))
 
 ; set_to true
 (assert (or (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |mutex#7$rclk$8| |mutex#8$wclk$8|)) (not |memory_model::choice_rf24|) (not |goto_symex::&92;guard#3|)))
@@ -2005,58 +2073,73 @@
 (assert (or (and (or (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not |goto_symex::&92;guard#1|)) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |mutex#9$rclk$8| |mutex#8$wclk$8|)) (not |memory_model::choice_rf29|) (not |goto_symex::&92;guard#3|)))
 
 ; set_to true
-(assert (or (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |mutex#6$rclk$8| |mutex#8$wclk$8|)) (not |memory_model::choice_rf19|) (not |goto_symex::&92;guard#3|)))
-
-; set_to true
-(assert true)
-
-; set_to true
-(assert (or (>= |mutex#5$wclk$8| |mutex#12$wclk$8|) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |mutex#13$rclk$8| |mutex#12$wclk$8|)) (not |memory_model::choice_rf33|) (not |goto_symex::&92;guard#1|) |goto_symex::&92;guard#7|))
-
-; set_to true
-(assert (or (>= |mutex#12$wclk$8| |mutex#5$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |mutex#7$rclk$8| |mutex#5$wclk$8|)) (not |memory_model::choice_rf25|) (not |goto_symex::&92;guard#3|) |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|))
-
-; set_to true
-(assert (or (>= |mutex#5$wclk$8| |mutex#12$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |mutex#7$rclk$8| |mutex#12$wclk$8|)) (not |memory_model::choice_rf24|) (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#3|)))
-
-; set_to true
-(assert (or (= |mutex#9$rclk$8| |mutex#12$wclk$8|) (>= |mutex#5$wclk$8| |mutex#12$wclk$8|) (and (or (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not |goto_symex::&92;guard#1|)) (not |goto_symex::&92;guard#1|)) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not |memory_model::choice_rf29|) (not |goto_symex::&92;guard#1|)))
-
-; set_to true
-(assert (or (>= |mutex#12$wclk$8| |mutex#5$wclk$8|) (not (>= |mutex#3$rclk$8| |mutex#5$wclk$8|)) (not |memory_model::choice_rf11|) |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|))
-
-; set_to true
-(assert (or (>= |mutex#12$wclk$8| |mutex#5$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |mutex#6$rclk$8| |mutex#5$wclk$8|)) (not |memory_model::choice_rf20|) (not |goto_symex::&92;guard#3|) |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|))
-
-; set_to true
-(assert (or (>= |mutex#5$wclk$8| |mutex#12$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |mutex#6$rclk$8| |mutex#12$wclk$8|)) (not |memory_model::choice_rf19|) (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#3|)))
+(assert (or (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |mutex#13$rclk$8| |mutex#8$wclk$8|)) (not |memory_model::choice_rf33|) (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#3|) |goto_symex::&92;guard#7|))
 
 ; set_to true
 (assert (or (>= |mutex#12$wclk$8| |mutex#5$wclk$8|) (not (>= |mutex#4$rclk$8| |mutex#5$wclk$8|)) (not |memory_model::choice_rf15|) |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|))
 
 ; set_to true
-(assert (or (= |mutex#13$rclk$8| |mutex#15$wclk$8|) (>= |mutex#5$wclk$8| |mutex#15$wclk$8|) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not |memory_model::choice_rf33|) (not |goto_symex::&92;guard#1|) |goto_symex::&92;guard#7|))
+(assert (or (>= |mutex#5$wclk$8| |mutex#12$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |mutex#6$rclk$8| |mutex#12$wclk$8|)) (not |memory_model::choice_rf19|) (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#3|)))
 
 ; set_to true
-(assert (or (>= |mutex#15$wclk$8| |mutex#5$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |mutex#7$rclk$8| |mutex#5$wclk$8|)) (not |memory_model::choice_rf26|) (not |goto_symex::&92;guard#3|) |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|))
+(assert (or (>= |mutex#12$wclk$8| |mutex#5$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |mutex#6$rclk$8| |mutex#5$wclk$8|)) (not |memory_model::choice_rf20|) (not |goto_symex::&92;guard#3|) |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|))
 
 ; set_to true
-(assert (or (>= |mutex#5$wclk$8| |mutex#15$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |mutex#7$rclk$8| |mutex#15$wclk$8|)) (not |memory_model::choice_rf24|) (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#3|) |goto_symex::&92;guard#7|))
+(assert (or (>= |mutex#5$wclk$8| |mutex#12$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |mutex#7$rclk$8| |mutex#12$wclk$8|)) (not |memory_model::choice_rf24|) (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#3|)))
 
 ; set_to true
-(assert (or (>= |mutex#5$wclk$8| |mutex#15$wclk$8|) (and (or (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not |goto_symex::&92;guard#1|)) (not |goto_symex::&92;guard#1|)) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |mutex#9$rclk$8| |mutex#15$wclk$8|)) (not |memory_model::choice_rf29|) (not |goto_symex::&92;guard#1|) |goto_symex::&92;guard#7|))
+(assert (or (>= |mutex#12$wclk$8| |mutex#5$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |mutex#7$rclk$8| |mutex#5$wclk$8|)) (not |memory_model::choice_rf25|) (not |goto_symex::&92;guard#3|) |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|))
 
 ; set_to true
-(assert (or (>= |mutex#15$wclk$8| |mutex#5$wclk$8|) (not (>= |mutex#3$rclk$8| |mutex#5$wclk$8|)) (not |memory_model::choice_rf12|) |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|))
+(assert (or (>= |mutex#12$wclk$8| |mutex#5$wclk$8|) (not (>= |mutex#3$rclk$8| |mutex#5$wclk$8|)) (not |memory_model::choice_rf11|) |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|))
 
 ; set_to true
-(assert (or (>= |mutex#15$wclk$8| |mutex#5$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |mutex#6$rclk$8| |mutex#5$wclk$8|)) (not |memory_model::choice_rf21|) (not |goto_symex::&92;guard#3|) |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|))
+(assert (or (= |mutex#9$rclk$8| |mutex#12$wclk$8|) (>= |mutex#5$wclk$8| |mutex#12$wclk$8|) (and (or (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not |goto_symex::&92;guard#1|)) (not |goto_symex::&92;guard#1|)) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not |memory_model::choice_rf29|) (not |goto_symex::&92;guard#1|)))
+
+; set_to true
+(assert (or (>= |mutex#5$wclk$8| |mutex#12$wclk$8|) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |mutex#13$rclk$8| |mutex#12$wclk$8|)) (not |memory_model::choice_rf33|) (not |goto_symex::&92;guard#1|) |goto_symex::&92;guard#7|))
+
+; set_to true
+(assert true)
+
+; set_to true
+(assert (or (>= |mutex#15$wclk$8| |mutex#5$wclk$8|) (not (>= |mutex#4$rclk$8| |mutex#5$wclk$8|)) (not |memory_model::choice_rf16|) |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|))
 
 ; set_to true
 (assert (or (>= |mutex#5$wclk$8| |mutex#15$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |mutex#6$rclk$8| |mutex#15$wclk$8|)) (not |memory_model::choice_rf19|) (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#3|) |goto_symex::&92;guard#7|))
 
 ; set_to true
-(assert (or (>= |mutex#15$wclk$8| |mutex#5$wclk$8|) (not (>= |mutex#4$rclk$8| |mutex#5$wclk$8|)) (not |memory_model::choice_rf16|) |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|))
+(assert (or (>= |mutex#15$wclk$8| |mutex#5$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |mutex#6$rclk$8| |mutex#5$wclk$8|)) (not |memory_model::choice_rf21|) (not |goto_symex::&92;guard#3|) |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|))
+
+; set_to true
+(assert (or (>= |mutex#5$wclk$8| |mutex#15$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |mutex#7$rclk$8| |mutex#15$wclk$8|)) (not |memory_model::choice_rf24|) (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#3|) |goto_symex::&92;guard#7|))
+
+; set_to true
+(assert (or (>= |mutex#15$wclk$8| |mutex#5$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |mutex#7$rclk$8| |mutex#5$wclk$8|)) (not |memory_model::choice_rf26|) (not |goto_symex::&92;guard#3|) |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|))
+
+; set_to true
+(assert (or (>= |mutex#15$wclk$8| |mutex#5$wclk$8|) (not (>= |mutex#3$rclk$8| |mutex#5$wclk$8|)) (not |memory_model::choice_rf12|) |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|))
+
+; set_to true
+(assert (or (>= |mutex#5$wclk$8| |mutex#15$wclk$8|) (and (or (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not |goto_symex::&92;guard#1|)) (not |goto_symex::&92;guard#1|)) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |mutex#9$rclk$8| |mutex#15$wclk$8|)) (not |memory_model::choice_rf29|) (not |goto_symex::&92;guard#1|) |goto_symex::&92;guard#7|))
+
+; set_to true
+(assert (or (= |mutex#13$rclk$8| |mutex#15$wclk$8|) (>= |mutex#5$wclk$8| |mutex#15$wclk$8|) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not |memory_model::choice_rf33|) (not |goto_symex::&92;guard#1|) |goto_symex::&92;guard#7|))
+
+; set_to true
+(assert (or (>= |mutex#12$wclk$8| |mutex#8$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |mutex#4$rclk$8| |mutex#8$wclk$8|)) (not |memory_model::choice_rf15|) (not |goto_symex::&92;guard#3|) |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|))
+
+; set_to true
+(assert (or (>= |mutex#12$wclk$8| |mutex#8$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |mutex#6$rclk$8| |mutex#8$wclk$8|)) (not |memory_model::choice_rf20|) (not |goto_symex::&92;guard#3|)))
+
+; set_to true
+(assert (or (>= |mutex#12$wclk$8| |mutex#8$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |mutex#7$rclk$8| |mutex#8$wclk$8|)) (not |memory_model::choice_rf25|) (not |goto_symex::&92;guard#3|)))
+
+; set_to true
+(assert (or (>= |mutex#12$wclk$8| |mutex#8$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |mutex#3$rclk$8| |mutex#8$wclk$8|)) (not |memory_model::choice_rf11|) (not |goto_symex::&92;guard#3|) |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|))
+
+; set_to true
+(assert (or (= |mutex#9$rclk$8| |mutex#12$wclk$8|) (>= |mutex#8$wclk$8| |mutex#12$wclk$8|) (and (or (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not |goto_symex::&92;guard#1|)) (not |goto_symex::&92;guard#1|)) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not |memory_model::choice_rf30|) (not |goto_symex::&92;guard#1|)))
 
 ; set_to true
 (assert (or (>= |mutex#8$wclk$8| |mutex#12$wclk$8|) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |mutex#13$rclk$8| |mutex#12$wclk$8|)) (not |memory_model::choice_rf34|) (not |goto_symex::&92;guard#1|) |goto_symex::&92;guard#7|))
@@ -2065,43 +2148,22 @@
 (assert (or (>= |mutex#12$wclk$8| |mutex#8$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |mutex#13$rclk$8| |mutex#8$wclk$8|)) (not |memory_model::choice_rf35|) (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#3|) |goto_symex::&92;guard#7|))
 
 ; set_to true
-(assert (or (>= |mutex#12$wclk$8| |mutex#8$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |mutex#7$rclk$8| |mutex#8$wclk$8|)) (not |memory_model::choice_rf25|) (not |goto_symex::&92;guard#3|)))
-
-; set_to true
-(assert (or (= |mutex#9$rclk$8| |mutex#12$wclk$8|) (>= |mutex#8$wclk$8| |mutex#12$wclk$8|) (and (or (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not |goto_symex::&92;guard#1|)) (not |goto_symex::&92;guard#1|)) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not |memory_model::choice_rf30|) (not |goto_symex::&92;guard#1|)))
-
-; set_to true
-(assert (or (>= |mutex#12$wclk$8| |mutex#8$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |mutex#3$rclk$8| |mutex#8$wclk$8|)) (not |memory_model::choice_rf11|) (not |goto_symex::&92;guard#3|) |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|))
-
-; set_to true
-(assert (or (>= |mutex#12$wclk$8| |mutex#8$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |mutex#6$rclk$8| |mutex#8$wclk$8|)) (not |memory_model::choice_rf20|) (not |goto_symex::&92;guard#3|)))
-
-; set_to true
-(assert (or (>= |mutex#12$wclk$8| |mutex#8$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |mutex#4$rclk$8| |mutex#8$wclk$8|)) (not |memory_model::choice_rf15|) (not |goto_symex::&92;guard#3|) |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|))
-
-; set_to true
-(assert (or (= |mutex#13$rclk$8| |mutex#15$wclk$8|) (>= |mutex#8$wclk$8| |mutex#15$wclk$8|) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not |memory_model::choice_rf34|) (not |goto_symex::&92;guard#1|) |goto_symex::&92;guard#7|))
-
-; set_to true
-(assert (or (>= |mutex#15$wclk$8| |mutex#8$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |mutex#7$rclk$8| |mutex#8$wclk$8|)) (not |memory_model::choice_rf26|) (not |goto_symex::&92;guard#3|)))
-
-; set_to true
-(assert (or (>= |mutex#8$wclk$8| |mutex#15$wclk$8|) (and (or (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not |goto_symex::&92;guard#1|)) (not |goto_symex::&92;guard#1|)) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |mutex#9$rclk$8| |mutex#15$wclk$8|)) (not |memory_model::choice_rf30|) (not |goto_symex::&92;guard#1|) |goto_symex::&92;guard#7|))
-
-; set_to true
-(assert (or (>= |mutex#15$wclk$8| |mutex#8$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |mutex#3$rclk$8| |mutex#8$wclk$8|)) (not |memory_model::choice_rf12|) (not |goto_symex::&92;guard#3|) |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|))
+(assert (or (>= |mutex#15$wclk$8| |mutex#8$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |mutex#4$rclk$8| |mutex#8$wclk$8|)) (not |memory_model::choice_rf16|) (not |goto_symex::&92;guard#3|) |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|))
 
 ; set_to true
 (assert (or (>= |mutex#15$wclk$8| |mutex#8$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |mutex#6$rclk$8| |mutex#8$wclk$8|)) (not |memory_model::choice_rf21|) (not |goto_symex::&92;guard#3|)))
 
 ; set_to true
-(assert (or (>= |mutex#15$wclk$8| |mutex#8$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |mutex#4$rclk$8| |mutex#8$wclk$8|)) (not |memory_model::choice_rf16|) (not |goto_symex::&92;guard#3|) |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|))
+(assert (or (>= |mutex#15$wclk$8| |mutex#8$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |mutex#7$rclk$8| |mutex#8$wclk$8|)) (not |memory_model::choice_rf26|) (not |goto_symex::&92;guard#3|)))
 
 ; set_to true
-(assert (or (= |mutex#13$rclk$8| |mutex#15$wclk$8|) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not |memory_model::choice_rf35|) (not |goto_symex::&92;guard#1|) |goto_symex::&92;guard#7|))
+(assert (or (>= |mutex#15$wclk$8| |mutex#8$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |mutex#3$rclk$8| |mutex#8$wclk$8|)) (not |memory_model::choice_rf12|) (not |goto_symex::&92;guard#3|) |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|))
 
 ; set_to true
-(assert (or (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |mutex#7$rclk$8| |mutex#15$wclk$8|)) (not |memory_model::choice_rf25|) (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#3|) |goto_symex::&92;guard#7|))
+(assert (or (>= |mutex#8$wclk$8| |mutex#15$wclk$8|) (and (or (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not |goto_symex::&92;guard#1|)) (not |goto_symex::&92;guard#1|)) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |mutex#9$rclk$8| |mutex#15$wclk$8|)) (not |memory_model::choice_rf30|) (not |goto_symex::&92;guard#1|) |goto_symex::&92;guard#7|))
+
+; set_to true
+(assert (or (= |mutex#13$rclk$8| |mutex#15$wclk$8|) (>= |mutex#8$wclk$8| |mutex#15$wclk$8|) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not |memory_model::choice_rf34|) (not |goto_symex::&92;guard#1|) |goto_symex::&92;guard#7|))
 
 ; set_to true
 (assert true)
@@ -2110,16 +2172,19 @@
 (assert (or (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |mutex#6$rclk$8| |mutex#15$wclk$8|)) (not |memory_model::choice_rf20|) (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#3|) |goto_symex::&92;guard#7|))
 
 ; set_to true
+(assert (or (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |mutex#7$rclk$8| |mutex#15$wclk$8|)) (not |memory_model::choice_rf25|) (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#3|) |goto_symex::&92;guard#7|))
+
+; set_to true
 (assert true)
+
+; set_to true
+(assert (or (= |mutex#13$rclk$8| |mutex#15$wclk$8|) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not |memory_model::choice_rf35|) (not |goto_symex::&92;guard#1|) |goto_symex::&92;guard#7|))
 
 ; set_to true
 (assert (or (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |pdev#11$rclk$8| |pdev#2$wclk$8|)) (not |memory_model::choice_rf59|) (not |goto_symex::&92;guard#1|)))
 
 ; set_to true
 (assert (or (not (>= |pdev#4$rclk$8| |pdev#2$wclk$8|)) (not |memory_model::choice_rf36|) |goto_symex::&92;guard#1|))
-
-; set_to true
-(assert (or (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |pdev#8$rclk$8| |pdev#2$wclk$8|)) (not |memory_model::choice_rf49|) (not |goto_symex::&92;guard#3|)))
 
 ; set_to true
 (assert (or (not (>= |pdev#5$rclk$8| |pdev#2$wclk$8|)) (not |memory_model::choice_rf40|) |goto_symex::&92;guard#1|))
@@ -2131,13 +2196,13 @@
 (assert (or (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |pdev#10$rclk$8| |pdev#2$wclk$8|)) (not |memory_model::choice_rf54|) (not |goto_symex::&92;guard#1|)))
 
 ; set_to true
+(assert (or (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |pdev#8$rclk$8| |pdev#2$wclk$8|)) (not |memory_model::choice_rf49|) (not |goto_symex::&92;guard#3|)))
+
+; set_to true
 (assert true)
 
 ; set_to true
 (assert (or (not (>= |pdev#4$rclk$8| |pdev#3$wclk$8|)) (not |memory_model::choice_rf36|) |goto_symex::&92;guard#1|))
-
-; set_to true
-(assert (or (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |pdev#8$rclk$8| |pdev#3$wclk$8|)) (not |memory_model::choice_rf49|) (not |goto_symex::&92;guard#3|) |goto_symex::&92;guard#1|))
 
 ; set_to true
 (assert (or (not (>= |pdev#5$rclk$8| |pdev#3$wclk$8|)) (not |memory_model::choice_rf40|) |goto_symex::&92;guard#1|))
@@ -2149,13 +2214,13 @@
 (assert true)
 
 ; set_to true
+(assert (or (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |pdev#8$rclk$8| |pdev#3$wclk$8|)) (not |memory_model::choice_rf49|) (not |goto_symex::&92;guard#3|) |goto_symex::&92;guard#1|))
+
+; set_to true
 (assert (or (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |pdev#11$rclk$8| |pdev#6$wclk$8|)) (not |memory_model::choice_rf59|) (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#3|)))
 
 ; set_to true
 (assert (or (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |pdev#4$rclk$8| |pdev#6$wclk$8|)) (not |memory_model::choice_rf36|) (not |goto_symex::&92;guard#3|) |goto_symex::&92;guard#1|))
-
-; set_to true
-(assert (or (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |pdev#8$rclk$8| |pdev#6$wclk$8|)) (not |memory_model::choice_rf49|) (not |goto_symex::&92;guard#3|)))
 
 ; set_to true
 (assert (or (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |pdev#5$rclk$8| |pdev#6$wclk$8|)) (not |memory_model::choice_rf40|) (not |goto_symex::&92;guard#3|) |goto_symex::&92;guard#1|))
@@ -2165,6 +2230,9 @@
 
 ; set_to true
 (assert (or (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |pdev#10$rclk$8| |pdev#6$wclk$8|)) (not |memory_model::choice_rf54|) (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#3|)))
+
+; set_to true
+(assert (or (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |pdev#8$rclk$8| |pdev#6$wclk$8|)) (not |memory_model::choice_rf49|) (not |goto_symex::&92;guard#3|)))
 
 ; set_to true
 (assert (or (>= |pdev#9$wclk$8| |pdev#1$wclk$8|) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |pdev#11$rclk$8| |pdev#1$wclk$8|)) (not |memory_model::choice_rf63|) (not |goto_symex::&92;guard#1|)))
@@ -2177,12 +2245,6 @@
 
 ; set_to true
 (assert true)
-
-; set_to true
-(assert (or (>= |pdev#9$wclk$8| |pdev#1$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |pdev#8$rclk$8| |pdev#1$wclk$8|)) (not |memory_model::choice_rf53|) (not |goto_symex::&92;guard#3|)))
-
-; set_to true
-(assert (or (>= |pdev#1$wclk$8| |pdev#9$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |pdev#8$rclk$8| |pdev#9$wclk$8|)) (not |memory_model::choice_rf49|) (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#3|)))
 
 ; set_to true
 (assert (or (>= |pdev#9$wclk$8| |pdev#1$wclk$8|) (not (>= |pdev#5$rclk$8| |pdev#1$wclk$8|)) (not |memory_model::choice_rf43|) |goto_symex::&92;guard#1|))
@@ -2203,13 +2265,16 @@
 (assert (or (>= |pdev#1$wclk$8| |pdev#9$wclk$8|) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |pdev#10$rclk$8| |pdev#9$wclk$8|)) (not |memory_model::choice_rf54|) (not |goto_symex::&92;guard#1|)))
 
 ; set_to true
+(assert (or (>= |pdev#9$wclk$8| |pdev#1$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |pdev#8$rclk$8| |pdev#1$wclk$8|)) (not |memory_model::choice_rf53|) (not |goto_symex::&92;guard#3|)))
+
+; set_to true
+(assert (or (>= |pdev#1$wclk$8| |pdev#9$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |pdev#8$rclk$8| |pdev#9$wclk$8|)) (not |memory_model::choice_rf49|) (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#3|)))
+
+; set_to true
 (assert true)
 
 ; set_to true
 (assert (or (not (>= |pdev#4$rclk$8| |pdev#3$wclk$8|)) (not |memory_model::choice_rf37|) |goto_symex::&92;guard#1|))
-
-; set_to true
-(assert (or (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |pdev#8$rclk$8| |pdev#3$wclk$8|)) (not |memory_model::choice_rf50|) (not |goto_symex::&92;guard#3|) |goto_symex::&92;guard#1|))
 
 ; set_to true
 (assert (or (not (>= |pdev#5$rclk$8| |pdev#3$wclk$8|)) (not |memory_model::choice_rf41|) |goto_symex::&92;guard#1|))
@@ -2221,13 +2286,13 @@
 (assert true)
 
 ; set_to true
+(assert (or (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |pdev#8$rclk$8| |pdev#3$wclk$8|)) (not |memory_model::choice_rf50|) (not |goto_symex::&92;guard#3|) |goto_symex::&92;guard#1|))
+
+; set_to true
 (assert (or (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |pdev#11$rclk$8| |pdev#6$wclk$8|)) (not |memory_model::choice_rf60|) (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#3|)))
 
 ; set_to true
 (assert (or (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |pdev#4$rclk$8| |pdev#6$wclk$8|)) (not |memory_model::choice_rf37|) (not |goto_symex::&92;guard#3|) |goto_symex::&92;guard#1|))
-
-; set_to true
-(assert (or (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |pdev#8$rclk$8| |pdev#6$wclk$8|)) (not |memory_model::choice_rf50|) (not |goto_symex::&92;guard#3|)))
 
 ; set_to true
 (assert (or (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |pdev#5$rclk$8| |pdev#6$wclk$8|)) (not |memory_model::choice_rf41|) (not |goto_symex::&92;guard#3|) |goto_symex::&92;guard#1|))
@@ -2239,10 +2304,16 @@
 (assert (or (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |pdev#10$rclk$8| |pdev#6$wclk$8|)) (not |memory_model::choice_rf55|) (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#3|)))
 
 ; set_to true
-(assert (or (>= |pdev#9$wclk$8| |pdev#2$wclk$8|) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |pdev#11$rclk$8| |pdev#2$wclk$8|)) (not |memory_model::choice_rf63|) (not |goto_symex::&92;guard#1|)))
+(assert (or (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |pdev#8$rclk$8| |pdev#6$wclk$8|)) (not |memory_model::choice_rf50|) (not |goto_symex::&92;guard#3|)))
 
 ; set_to true
 (assert (or (>= |pdev#2$wclk$8| |pdev#9$wclk$8|) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |pdev#11$rclk$8| |pdev#9$wclk$8|)) (not |memory_model::choice_rf60|) (not |goto_symex::&92;guard#1|)))
+
+; set_to true
+(assert (or (>= |pdev#9$wclk$8| |pdev#2$wclk$8|) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |pdev#11$rclk$8| |pdev#2$wclk$8|)) (not |memory_model::choice_rf63|) (not |goto_symex::&92;guard#1|)))
+
+; set_to true
+(assert true)
 
 ; set_to true
 (assert (or (>= |pdev#9$wclk$8| |pdev#2$wclk$8|) (not (>= |pdev#4$rclk$8| |pdev#2$wclk$8|)) (not |memory_model::choice_rf39|) |goto_symex::&92;guard#1|))
@@ -2251,37 +2322,31 @@
 (assert true)
 
 ; set_to true
-(assert (or (>= |pdev#9$wclk$8| |pdev#2$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |pdev#8$rclk$8| |pdev#2$wclk$8|)) (not |memory_model::choice_rf53|) (not |goto_symex::&92;guard#3|)))
-
-; set_to true
-(assert (or (>= |pdev#2$wclk$8| |pdev#9$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |pdev#8$rclk$8| |pdev#9$wclk$8|)) (not |memory_model::choice_rf50|) (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#3|)))
-
-; set_to true
 (assert (or (>= |pdev#9$wclk$8| |pdev#2$wclk$8|) (not (>= |pdev#5$rclk$8| |pdev#2$wclk$8|)) (not |memory_model::choice_rf43|) |goto_symex::&92;guard#1|))
-
-; set_to true
-(assert true)
-
-; set_to true
-(assert (or (>= |pdev#9$wclk$8| |pdev#2$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |pdev#7$rclk$8| |pdev#2$wclk$8|)) (not |memory_model::choice_rf48|) (not |goto_symex::&92;guard#3|)))
 
 ; set_to true
 (assert (or (>= |pdev#2$wclk$8| |pdev#9$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |pdev#7$rclk$8| |pdev#9$wclk$8|)) (not |memory_model::choice_rf45|) (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#3|)))
 
 ; set_to true
-(assert (or (>= |pdev#9$wclk$8| |pdev#2$wclk$8|) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |pdev#10$rclk$8| |pdev#2$wclk$8|)) (not |memory_model::choice_rf58|) (not |goto_symex::&92;guard#1|)))
+(assert (or (>= |pdev#9$wclk$8| |pdev#2$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |pdev#7$rclk$8| |pdev#2$wclk$8|)) (not |memory_model::choice_rf48|) (not |goto_symex::&92;guard#3|)))
 
 ; set_to true
 (assert (or (>= |pdev#2$wclk$8| |pdev#9$wclk$8|) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |pdev#10$rclk$8| |pdev#9$wclk$8|)) (not |memory_model::choice_rf55|) (not |goto_symex::&92;guard#1|)))
+
+; set_to true
+(assert (or (>= |pdev#9$wclk$8| |pdev#2$wclk$8|) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |pdev#10$rclk$8| |pdev#2$wclk$8|)) (not |memory_model::choice_rf58|) (not |goto_symex::&92;guard#1|)))
+
+; set_to true
+(assert (or (>= |pdev#2$wclk$8| |pdev#9$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |pdev#8$rclk$8| |pdev#9$wclk$8|)) (not |memory_model::choice_rf50|) (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#3|)))
+
+; set_to true
+(assert (or (>= |pdev#9$wclk$8| |pdev#2$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |pdev#8$rclk$8| |pdev#2$wclk$8|)) (not |memory_model::choice_rf53|) (not |goto_symex::&92;guard#3|)))
 
 ; set_to true
 (assert (or (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |pdev#11$rclk$8| |pdev#6$wclk$8|)) (not |memory_model::choice_rf61|) (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#3|)))
 
 ; set_to true
 (assert (or (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |pdev#4$rclk$8| |pdev#6$wclk$8|)) (not |memory_model::choice_rf38|) (not |goto_symex::&92;guard#3|) |goto_symex::&92;guard#1|))
-
-; set_to true
-(assert (or (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |pdev#8$rclk$8| |pdev#6$wclk$8|)) (not |memory_model::choice_rf51|) (not |goto_symex::&92;guard#3|)))
 
 ; set_to true
 (assert (or (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |pdev#5$rclk$8| |pdev#6$wclk$8|)) (not |memory_model::choice_rf42|) (not |goto_symex::&92;guard#3|) |goto_symex::&92;guard#1|))
@@ -2293,10 +2358,16 @@
 (assert (or (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |pdev#10$rclk$8| |pdev#6$wclk$8|)) (not |memory_model::choice_rf56|) (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#3|)))
 
 ; set_to true
-(assert true)
+(assert (or (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |pdev#8$rclk$8| |pdev#6$wclk$8|)) (not |memory_model::choice_rf51|) (not |goto_symex::&92;guard#3|)))
 
 ; set_to true
 (assert (or (>= |pdev#3$wclk$8| |pdev#9$wclk$8|) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |pdev#11$rclk$8| |pdev#9$wclk$8|)) (not |memory_model::choice_rf61|) (not |goto_symex::&92;guard#1|)))
+
+; set_to true
+(assert true)
+
+; set_to true
+(assert true)
 
 ; set_to true
 (assert (or (>= |pdev#9$wclk$8| |pdev#3$wclk$8|) (not (>= |pdev#4$rclk$8| |pdev#3$wclk$8|)) (not |memory_model::choice_rf39|) |goto_symex::&92;guard#1|))
@@ -2305,28 +2376,25 @@
 (assert true)
 
 ; set_to true
-(assert (or (>= |pdev#9$wclk$8| |pdev#3$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |pdev#8$rclk$8| |pdev#3$wclk$8|)) (not |memory_model::choice_rf53|) (not |goto_symex::&92;guard#3|) |goto_symex::&92;guard#1|))
-
-; set_to true
-(assert (or (>= |pdev#3$wclk$8| |pdev#9$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |pdev#8$rclk$8| |pdev#9$wclk$8|)) (not |memory_model::choice_rf51|) (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#3|)))
-
-; set_to true
 (assert (or (>= |pdev#9$wclk$8| |pdev#3$wclk$8|) (not (>= |pdev#5$rclk$8| |pdev#3$wclk$8|)) (not |memory_model::choice_rf43|) |goto_symex::&92;guard#1|))
-
-; set_to true
-(assert true)
-
-; set_to true
-(assert (or (>= |pdev#9$wclk$8| |pdev#3$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |pdev#7$rclk$8| |pdev#3$wclk$8|)) (not |memory_model::choice_rf48|) (not |goto_symex::&92;guard#3|) |goto_symex::&92;guard#1|))
 
 ; set_to true
 (assert (or (>= |pdev#3$wclk$8| |pdev#9$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |pdev#7$rclk$8| |pdev#9$wclk$8|)) (not |memory_model::choice_rf46|) (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#3|)))
 
 ; set_to true
-(assert true)
+(assert (or (>= |pdev#9$wclk$8| |pdev#3$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |pdev#7$rclk$8| |pdev#3$wclk$8|)) (not |memory_model::choice_rf48|) (not |goto_symex::&92;guard#3|) |goto_symex::&92;guard#1|))
 
 ; set_to true
 (assert (or (>= |pdev#3$wclk$8| |pdev#9$wclk$8|) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |pdev#10$rclk$8| |pdev#9$wclk$8|)) (not |memory_model::choice_rf56|) (not |goto_symex::&92;guard#1|)))
+
+; set_to true
+(assert true)
+
+; set_to true
+(assert (or (>= |pdev#3$wclk$8| |pdev#9$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |pdev#8$rclk$8| |pdev#9$wclk$8|)) (not |memory_model::choice_rf51|) (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#3|)))
+
+; set_to true
+(assert (or (>= |pdev#9$wclk$8| |pdev#3$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |pdev#8$rclk$8| |pdev#3$wclk$8|)) (not |memory_model::choice_rf53|) (not |goto_symex::&92;guard#3|) |goto_symex::&92;guard#1|))
 
 ; set_to true
 (assert (or (>= |pdev#9$wclk$8| |pdev#6$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |pdev#11$rclk$8| |pdev#6$wclk$8|)) (not |memory_model::choice_rf63|) (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#3|)))
@@ -2336,12 +2404,6 @@
 
 ; set_to true
 (assert (or (>= |pdev#9$wclk$8| |pdev#6$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |pdev#4$rclk$8| |pdev#6$wclk$8|)) (not |memory_model::choice_rf39|) (not |goto_symex::&92;guard#3|) |goto_symex::&92;guard#1|))
-
-; set_to true
-(assert (or (>= |pdev#9$wclk$8| |pdev#6$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |pdev#8$rclk$8| |pdev#6$wclk$8|)) (not |memory_model::choice_rf53|) (not |goto_symex::&92;guard#3|)))
-
-; set_to true
-(assert (or (>= |pdev#6$wclk$8| |pdev#9$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |pdev#8$rclk$8| |pdev#9$wclk$8|)) (not |memory_model::choice_rf52|) (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#3|)))
 
 ; set_to true
 (assert (or (>= |pdev#9$wclk$8| |pdev#6$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |pdev#5$rclk$8| |pdev#6$wclk$8|)) (not |memory_model::choice_rf43|) (not |goto_symex::&92;guard#3|) |goto_symex::&92;guard#1|))
@@ -2357,6 +2419,12 @@
 
 ; set_to true
 (assert (or (>= |pdev#6$wclk$8| |pdev#9$wclk$8|) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |pdev#10$rclk$8| |pdev#9$wclk$8|)) (not |memory_model::choice_rf57|) (not |goto_symex::&92;guard#1|)))
+
+; set_to true
+(assert (or (>= |pdev#9$wclk$8| |pdev#6$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (>= |pdev#8$rclk$8| |pdev#6$wclk$8|)) (not |memory_model::choice_rf53|) (not |goto_symex::&92;guard#3|)))
+
+; set_to true
+(assert (or (>= |pdev#6$wclk$8| |pdev#9$wclk$8|) (and (or |goto_symex::&92;guard#1| |goto_symex::&92;guard#2|) (not |goto_symex::&92;guard#1|)) (and (or |goto_symex::&92;guard#4| (and (or (not (select |__CPROVER_threads_exited#2| |pthread_join::thread!0@1#1|)) |goto_symex::&92;guard#5|) (not |goto_symex::&92;guard#5|))) (not |goto_symex::&92;guard#4|)) (not (= ((_ extract 7 0) |mutex#10|) (_ bv0 8))) (not (>= |pdev#8$rclk$8| |pdev#9$wclk$8|)) (not |memory_model::choice_rf52|) (not |goto_symex::&92;guard#1|) (not |goto_symex::&92;guard#3|)))
 
 ; set_to true
 (assert (or |memory_model::choice_rf1| (not (and true (= ((_ extract 7 0) |mutex#10|) (_ bv0 8)) (not |goto_symex::&92;guard#7|) |goto_symex::&92;guard#1|))))
@@ -2445,6 +2513,7 @@
 (get-value (|B17|))
 (get-value (|B170|))
 (get-value (|B171|))
+(get-value (|B172|))
 (get-value (|B18|))
 (get-value (|B19|))
 (get-value (|B2|))
@@ -2665,11 +2734,9 @@
 (get-value (|module_exit::1::status!0@1#1|))
 (get-value (|module_exit::1::status!0@1#1$wclk$8|))
 (get-value (|module_exit::1::status!0@1$wclk$8|))
-(get-value (|module_init#return_value!0#0|))
 (get-value (|module_init#return_value!0#1|))
 (get-value (|module_init#return_value!0#2|))
 (get-value (|module_init#return_value!0#3|))
-(get-value (|module_init#return_value!0#4|))
 (get-value (|module_init#return_value!1#1|))
 (get-value (|module_init::$tmp::return_value___VERIFIER_nondet_int!0@1#1|))
 (get-value (|module_init::$tmp::return_value___VERIFIER_nondet_int!0@1#2|))
@@ -2726,14 +2793,11 @@
 (get-value (|pdev#8$rclk$8|))
 (get-value (|pdev#9|))
 (get-value (|pdev#9$wclk$8|))
-(get-value (|pthread_create#return_value!0#0|))
 (get-value (|pthread_create#return_value!0#1|))
-(get-value (|pthread_create#return_value!0#2|))
-(get-value (|pthread_create#return_value!0#3|))
 (get-value (|pthread_create#return_value!1#1|))
 (get-value (|pthread_create::1::this_thread_id!0@1#1|))
 (get-value (|pthread_create::1::this_thread_id!0@1#2|))
-(get-value (|pthread_create::1::this_thread_id!1@0#0|))
+(get-value (|pthread_create::1::this_thread_id!1@0#1|))
 (get-value (|pthread_create::arg!0@1#1|))
 (get-value (|pthread_create::arg!1@0#1|))
 (get-value (|pthread_create::attr!0@1#1|))
@@ -2750,10 +2814,10 @@
 (get-value (|pthread_join#return_value!0#5|))
 (get-value (|pthread_join#return_value!0#6|))
 (get-value (|pthread_join#return_value!0#7|))
-(get-value (|pthread_join#return_value!0#8|))
 (get-value (|pthread_join#return_value!1#1|))
 (get-value (|pthread_join::thread!0@1#1|))
 (get-value (|pthread_join::value_ptr!0@1#1|))
+(get-value (|pthread_mutex_destroy#return_value!0#0|))
 (get-value (|pthread_mutex_destroy#return_value!0#1|))
 (get-value (|pthread_mutex_destroy#return_value!0#2|))
 (get-value (|pthread_mutex_destroy#return_value!0#3|))
@@ -2772,6 +2836,22 @@
 (get-value (|pthread_mutex_unlock#return_value!1#2|))
 (get-value (|pthread_mutex_unlock::mutex!1@1#1|))
 (get-value (|return'!0#1|))
+(get-value (|symex::args::0|))
+(get-value (|symex::args::1|))
+(get-value (|symex::args::10|))
+(get-value (|symex::args::11|))
+(get-value (|symex::args::12|))
+(get-value (|symex::args::13|))
+(get-value (|symex::args::14|))
+(get-value (|symex::args::15|))
+(get-value (|symex::args::2|))
+(get-value (|symex::args::3|))
+(get-value (|symex::args::4|))
+(get-value (|symex::args::5|))
+(get-value (|symex::args::6|))
+(get-value (|symex::args::7|))
+(get-value (|symex::args::8|))
+(get-value (|symex::args::9|))
 (get-value (|t1|))
 (get-value (|t1#1|))
 (get-value (|t1#1$wclk$8|))

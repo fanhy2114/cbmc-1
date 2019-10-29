@@ -22,7 +22,6 @@ Author: Daniel Kroening, kroening@kroening.com
 #include <util/symbol_table.h>
 
 #include <analyses/dirty.h>
-<<<<<<< HEAD
 // __FHY_ADD_BEGIN__
 #include <iostream>
 #include "goto-programs/show_symbol_table.h"
@@ -30,9 +29,6 @@ Author: Daniel Kroening, kroening@kroening.com
 #include "util/format_type.h"
 #include "util/format_expr.h"
 // __FHY_ADD_END__
-void goto_symext::symex_transition(
-  statet &state,
-=======
 
 symex_configt::symex_configt(const optionst &options)
   : max_depth(options.get_unsigned_int_option("depth")),
@@ -52,7 +48,6 @@ symex_configt::symex_configt(const optionst &options)
 
 void symex_transition(
   goto_symext::statet &state,
->>>>>>> fca695a7b12cb7b1562e3b47cfc564ef691492c5
   goto_programt::const_targett to,
   bool is_backwards_goto)
 {
@@ -172,12 +167,8 @@ void goto_symext::initialize_entry_point(
     !pc->function.empty(), "all symexed instructions should have a function");
 
   const goto_functiont &entry_point_function = get_goto_function(pc->function);
-<<<<<<< HEAD
-=======
-
   state.top().hidden_function = entry_point_function.is_hidden();
 
->>>>>>> fca695a7b12cb7b1562e3b47cfc564ef691492c5
   auto emplace_safe_pointers_result =
     state.safe_pointers.emplace(pc->function, local_safe_pointerst{ns});
   if(emplace_safe_pointers_result.second)
@@ -327,13 +318,8 @@ void goto_symext::symex_from_entry_point_of(
   }
 
   statet state;
-<<<<<<< HEAD
-	
-=======
 
   state.run_validation_checks = symex_config.run_validation_checks;
-
->>>>>>> fca695a7b12cb7b1562e3b47cfc564ef691492c5
   initialize_entry_point(
     state,
     get_goto_function,
