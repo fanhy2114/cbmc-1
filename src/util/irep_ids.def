@@ -113,6 +113,9 @@ IREP_ID_ONE(while)
 IREP_ID_ONE(dowhile)
 IREP_ID_ONE(int)
 IREP_ID_ONE(integer)
+// __FHY_ADD_BEGIN__
+IREP_ID_ONE(oc)
+// __FHY_ADD_BEGIN__
 IREP_ID_ONE(natural)
 IREP_ID_ONE(real)
 IREP_ID_ONE(rational)

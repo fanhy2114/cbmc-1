@@ -141,7 +141,7 @@ safety_checkert::resultt bmct::execute(
 //      std::string string_value = from_expr(ns, function, step.cond_expr);
 //      std::cout<<string_value<<std::endl;
 //    }
-    fix_ssa();
+//    fix_ssa();
     // __FHY_ADD_END__
     statistics() << "size of program expression: "
                  << equation.SSA_steps.size()

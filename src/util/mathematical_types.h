@@ -26,6 +26,16 @@ public:
   }
 };
 
+// __FHY_ADD_BEGIN__
+class oc_typet:public typet
+{
+public:
+	oc_typet() : typet(ID_oc)
+	{
+	}
+};
+// __FHY_ADD_END__
+
 /// Natural numbers including zero (mathematical integers, not bitvectors)
 class natural_typet : public typet
 {

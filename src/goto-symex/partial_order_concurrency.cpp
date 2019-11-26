@@ -167,7 +167,8 @@ void partial_order_concurrencyt::build_clock_type()
 //  assert(!numbering.empty());
 //  std::size_t width = address_bits(numbering.size());
 //  clock_type = unsignedbv_typet(width);
-  clock_type = integer_typet();
+//  clock_type = integer_typet();
+	clock_type = oc_typet();
   	// __LWT_ADD_END__
 }
 

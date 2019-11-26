@@ -1208,6 +1208,11 @@ void smt2_convt::convert_expr(const exprt &expr)
           expr.id()==ID_ge ||
           expr.id()==ID_gt)
   {
+  	// __FHY_ADD_BEGIN__
+  	if(expr.id() != ID_lt && expr.type().id() == ID_oc){
+  		fprintf(stderr, "Oc type error.\n");
+  	}
+  	// __FHY_ADD_END__
     convert_relation(expr);
   }
   else if(expr.id()==ID_plus)
@@ -2901,7 +2906,6 @@ void smt2_convt::convert_relation(const exprt &expr)
   PRECONDITION(expr.operands().size() == 2);
 
   const typet &op_type=expr.op0().type();
-
   if(op_type.id()==ID_unsignedbv ||
      op_type.id()==ID_pointer ||
      op_type.id()==ID_bv)
@@ -2922,6 +2926,28 @@ void smt2_convt::convert_relation(const exprt &expr)
     convert_expr(expr.op1());
     out << ")";
   }
+  // __FHY_ADD_BEGIN__
+  else if(op_type.id() == ID_oc){
+//  	printf("op_type: %s  expr_type: %s \n", op_type.id().c_str(), expr.id().c_str());
+  	assert(expr.id() == ID_lt || expr.id() == ID_ge);
+  	if (expr.id() == ID_lt){
+  		out << "oclt";
+		out << " ";
+		convert_expr(expr.op0());
+		out << " ";
+		convert_expr(expr.op1());
+		out << ")";
+  	}
+  	else if(expr.id() == ID_ge){
+  		out << "(not oclt";
+  		out << " ";
+  		convert_expr(expr.op0());
+  		out << " ";
+  		convert_expr(expr.op1());
+  		out <<"))";
+  	}
+  }
+  // __FHY_ADD_END__
   else if(op_type.id()==ID_signedbv ||
           op_type.id()==ID_fixedbv)
   {
@@ -4536,6 +4562,10 @@ void smt2_convt::convert_type(const typet &type)
   {
     convert_type(c_bit_field_replacement_type(to_c_bit_field_type(type), ns));
   }
+  // __FHY_ADD_BEGIN__
+  else if(type.id() == ID_oc)
+	  out << "Oc";
+  // __FHY_ADD_EBD__
   else
   {
     UNEXPECTEDCASE("unsupported type: "+type.id_string());
@@ -4843,19 +4873,19 @@ exprt smt2_convt::substitute_let(
 }
 
 // __FHY_ADD_BEGIN__
-void smt2_convt::add_ssa_constraint() {
-  if(fix_constraint.empty())
-    return;
-  std::regex re(R"(!choice_rf(\d+))");
-  std::smatch sm;
-  for(const auto& i : fix_constraint){
-    if(std::regex_search(i, sm, re)){
-    	out<<"; set to true fixed\n";
-      	out<<"(assert |memory_model::choice_rf"<<sm[sm.size()-1]<<"|)\n";
-    }
-    else{
-      std::cerr<<"add SSA constraint error.\n";
-    }
-  }
-}
+//void smt2_convt::add_ssa_constraint() {
+//  if(fix_constraint.empty())
+//    return;
+//  std::regex re(R"(!choice_rf(\d+))");
+//  std::smatch sm;
+//  for(const auto& i : fix_constraint){
+//    if(std::regex_search(i, sm, re)){
+//    	out<<"; set to true fixed\n";
+//      	out<<"(assert |memory_model::choice_rf"<<sm[sm.size()-1]<<"|)\n";
+//    }
+//    else{
+//      std::cerr<<"add SSA constraint error.\n";
+//    }
+//  }
+//}
 // __FHY_ADD_END__
