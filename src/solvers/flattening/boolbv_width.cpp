@@ -194,6 +194,10 @@ const boolbv_widtht::entryt &boolbv_widtht::get_entry(const typet &type) const
   }
   else if(type_id==ID_string)
     entry.total_width=32;
+  // __FHY_ADD_BEGIN__
+  else if(type_id == ID_oc)
+  	entry.total_width=32;
+  // __FHY_ADD_END__
   else if(type_id != ID_empty)
     UNIMPLEMENTED;
 

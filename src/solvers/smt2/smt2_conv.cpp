@@ -753,7 +753,8 @@ void smt2_convt::convert_literal(const literalt l)
   else
   {
     if(l.sign())
-      out << "(not ";
+    	out << "(not ";
+    
 
     out << "|B" << l.var_no() << "|";
 
@@ -1140,10 +1141,16 @@ void smt2_convt::convert_expr(const exprt &expr)
     DATA_INVARIANT(
       not_expr.type().id() == ID_bool,
       "not expression should have Boolean type");
-
-    out << "(not ";
-    convert_expr(not_expr.op());
-    out << ")";
+    
+    // __FHY_ADD_BEGIN__
+    if(not_expr.op().id() == ID_ge && not_expr.op().op0().type().id() == ID_oc){
+    	convert_expr(not_expr.op());
+    } else{
+		out << "(not ";
+		convert_expr(not_expr.op());
+		out << ")";
+    }
+    // __FHY_ADD_END__
   }
   else if(expr.id() == ID_equal)
   {
@@ -1189,7 +1196,8 @@ void smt2_convt::convert_expr(const exprt &expr)
     if(use_FPA_theory)
     {
       if(expr.id()==ID_ieee_float_notequal)
-        out << "(not ";
+      	out << "(not ";
+      
 
       out << "(fp.eq ";
       convert_expr(expr.op0());
@@ -1209,8 +1217,10 @@ void smt2_convt::convert_expr(const exprt &expr)
           expr.id()==ID_gt)
   {
   	// __FHY_ADD_BEGIN__
-  	if(expr.id() != ID_lt && expr.type().id() == ID_oc){
-  		fprintf(stderr, "Oc type error.\n");
+  	if(expr.op0().type().id() == ID_oc){
+  		if(expr.id() != ID_lt && expr.id() != ID_ge){
+			fprintf(stderr, "Oc type error.\n");
+  		}
   	}
   	// __FHY_ADD_END__
     convert_relation(expr);
@@ -2928,10 +2938,9 @@ void smt2_convt::convert_relation(const exprt &expr)
   }
   // __FHY_ADD_BEGIN__
   else if(op_type.id() == ID_oc){
-//  	printf("op_type: %s  expr_type: %s \n", op_type.id().c_str(), expr.id().c_str());
   	assert(expr.id() == ID_lt || expr.id() == ID_ge);
   	if (expr.id() == ID_lt){
-  		out << "oclt";
+  		out << "(oclt";
 		out << " ";
 		convert_expr(expr.op0());
 		out << " ";
@@ -2939,12 +2948,12 @@ void smt2_convt::convert_relation(const exprt &expr)
 		out << ")";
   	}
   	else if(expr.id() == ID_ge){
-  		out << "(not oclt";
+  		out << "(oclt";
   		out << " ";
   		convert_expr(expr.op0());
   		out << " ";
   		convert_expr(expr.op1());
-  		out <<"))";
+  		out <<")";
   	}
   }
   // __FHY_ADD_END__
@@ -4189,9 +4198,17 @@ void smt2_convt::set_to(const exprt &expr, bool value)
 
   if(!value)
   {
-    out << "(not ";
-    convert_expr(expr);
-    out << ")";
+  	// __FHY_ADD_BEGIN__
+  	if(expr.id() == ID_ge && expr.op0().type().id() == ID_oc){
+//  		printf("meet oc type: expr.id(): %s, expr.op0().type(): %s\n", expr.id().c_str(), expr.op0().type().id().c_str());
+  		convert_expr(expr);
+  	}
+  	else{
+		out << "(not ";
+		convert_expr(expr);
+		out << ")";
+  	}
+  	// __FHY_ADD_END__
   }
   else
     convert_expr(expr);
