@@ -753,7 +753,8 @@ void smt2_convt::convert_literal(const literalt l)
   else
   {
     if(l.sign())
-      out << "(not ";
+    	out << "(not ";
+    
 
     out << "|B" << l.var_no() << "|";
 
@@ -1112,12 +1113,22 @@ void smt2_convt::convert_expr(const exprt &expr)
       "logical and, or, and xor expressions should have at least two operands");
 
     out << "(" << expr.id();
-    forall_operands(it, expr)
-    {
-      out << " ";
-      convert_expr(*it);
+    // __FHY_ADD_BEGIN__
+    if(expr.id() == ID_or && expr.operands().size() == 2){
+    	for(auto it = expr.operands().rbegin(); it != expr.operands().rend(); ++it){
+			out << " ";
+			convert_expr(*it);
+    	}
+    }
+    else{
+		forall_operands(it, expr)
+		{
+			out << " ";
+			convert_expr(*it);
+		}
     }
     out << ")";
+	// __FHY_ADD_END__
   }
   else if(expr.id()==ID_implies)
   {
@@ -1140,10 +1151,16 @@ void smt2_convt::convert_expr(const exprt &expr)
     DATA_INVARIANT(
       not_expr.type().id() == ID_bool,
       "not expression should have Boolean type");
-
-    out << "(not ";
-    convert_expr(not_expr.op());
-    out << ")";
+    
+    // __FHY_ADD_BEGIN__
+//    if(not_expr.op().id() == ID_ge && not_expr.op().op0().type().id() == ID_oc){
+//    	convert_expr(not_expr.op());
+//    } else{
+	out << "(not ";
+	convert_expr(not_expr.op());
+	out << ")";
+//    }
+    // __FHY_ADD_END__
   }
   else if(expr.id() == ID_equal)
   {
@@ -1152,12 +1169,33 @@ void smt2_convt::convert_expr(const exprt &expr)
     DATA_INVARIANT(
       base_type_eq(equal_expr.op0().type(), equal_expr.op1().type(), ns),
       "operands of equal expression shall have same type");
-
-    out << "(= ";
-    convert_expr(expr.op0());
-    out << " ";
-    convert_expr(expr.op1());
-    out << ")";
+    // __FHY_ADD_BEGIN__
+    if(expr.op0().type().id() == ID_oc){
+    	assert(expr.op1().type().id() == ID_oc);
+    	out << "(and ";
+    	
+    	out << "(not ";
+    	out << "(oclt ";
+		convert_expr(expr.op0());
+		out << " ";
+		convert_expr(expr.op1());
+		out << ")) ";
+	
+		out << "(not ";
+		out << "(oclt ";
+		convert_expr(expr.op1());
+		out << " ";
+		convert_expr(expr.op0());
+		out << ")))";
+    }
+    else{
+		out << "(= ";
+		convert_expr(expr.op0());
+		out << " ";
+		convert_expr(expr.op1());
+		out << ")";
+    }
+    // __FHY_ADD_END__
   }
   else if(expr.id() == ID_notequal)
   {
@@ -1166,12 +1204,30 @@ void smt2_convt::convert_expr(const exprt &expr)
     DATA_INVARIANT(
       base_type_eq(notequal_expr.op0().type(), notequal_expr.op1().type(), ns),
       "operands of not equal expression shall have same type");
+    if(expr.op0().type().id() == ID_oc){
+        assert(expr.op1().tyep().id() == ID_oc);
+        std::cout << "or relation between oclt literals\n";
+        out << "(or ";
 
-    out << "(not (= ";
-    convert_expr(notequal_expr.op0());
-    out << " ";
-    convert_expr(notequal_expr.op1());
-    out << "))";
+        out << "(oclt ";
+        convert_expr(notequal_expr.op0());
+        out << " ";
+        convert_expr(notequal_expr.op1());
+        out << ")";
+
+        out << "(oclt ";
+        convert_expr(notequal_expr.op1());
+        out << " ";
+        convert_expr(notequal_expr.op0());
+        out << "))";
+    }
+    else{
+        out << "(not (= ";
+        convert_expr(notequal_expr.op0());
+        out << " ";
+        convert_expr(notequal_expr.op1());
+        out << "))";
+    }
   }
   else if(expr.id()==ID_ieee_float_equal ||
           expr.id()==ID_ieee_float_notequal)
@@ -1189,7 +1245,8 @@ void smt2_convt::convert_expr(const exprt &expr)
     if(use_FPA_theory)
     {
       if(expr.id()==ID_ieee_float_notequal)
-        out << "(not ";
+      	out << "(not ";
+      
 
       out << "(fp.eq ";
       convert_expr(expr.op0());
@@ -1209,8 +1266,10 @@ void smt2_convt::convert_expr(const exprt &expr)
           expr.id()==ID_gt)
   {
   	// __FHY_ADD_BEGIN__
-  	if(expr.id() != ID_lt && expr.type().id() == ID_oc){
-  		fprintf(stderr, "Oc type error.\n");
+  	if(expr.op0().type().id() == ID_oc){
+  		if(expr.id() != ID_lt && expr.id() != ID_ge){
+			fprintf(stderr, "Oc type error.\n");
+  		}
   	}
   	// __FHY_ADD_END__
     convert_relation(expr);
@@ -2928,23 +2987,20 @@ void smt2_convt::convert_relation(const exprt &expr)
   }
   // __FHY_ADD_BEGIN__
   else if(op_type.id() == ID_oc){
-//  	printf("op_type: %s  expr_type: %s \n", op_type.id().c_str(), expr.id().c_str());
   	assert(expr.id() == ID_lt || expr.id() == ID_ge);
-  	if (expr.id() == ID_lt){
-  		out << "oclt";
-		out << " ";
+  	if(expr.id() == ID_lt){
+		out << "(oclt ";
 		convert_expr(expr.op0());
 		out << " ";
 		convert_expr(expr.op1());
 		out << ")";
   	}
-  	else if(expr.id() == ID_ge){
-  		out << "(not oclt";
-  		out << " ";
-  		convert_expr(expr.op0());
-  		out << " ";
-  		convert_expr(expr.op1());
-  		out <<"))";
+  	else if(expr.id()== ID_ge){
+		out << "(not (oclt ";
+		convert_expr(expr.op0());
+		out << " ";
+		convert_expr(expr.op1());
+		out << "))";
   	}
   }
   // __FHY_ADD_END__
@@ -4189,9 +4245,16 @@ void smt2_convt::set_to(const exprt &expr, bool value)
 
   if(!value)
   {
-    out << "(not ";
-    convert_expr(expr);
-    out << ")";
+  	// __FHY_ADD_BEGIN__
+//  	if(expr.id() == ID_ge && expr.op0().type().id() == ID_oc){
+//  		convert_expr(expr);
+//  	}
+//  	else{
+	out << "(not ";
+	convert_expr(expr);
+	out << ")";
+//  	}
+  	// __FHY_ADD_END__
   }
   else
     convert_expr(expr);
