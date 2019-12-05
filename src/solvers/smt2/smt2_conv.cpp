@@ -1206,7 +1206,7 @@ void smt2_convt::convert_expr(const exprt &expr)
       "operands of not equal expression shall have same type");
     // __FHY_ADD_BEGIN__
     if(expr.op0().type().id() == ID_oc){
-        assert(expr.op1().tyep().id() == ID_oc);
+        assert(expr.op1().type().id() == ID_oc);
         std::cout << "or relation between oclt literals\n";
         out << "(or ";
 
