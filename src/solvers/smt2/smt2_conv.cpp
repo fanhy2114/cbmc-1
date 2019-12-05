@@ -1153,6 +1153,7 @@ void smt2_convt::convert_expr(const exprt &expr)
       "not expression should have Boolean type");
     
     // __FHY_ADD_BEGIN__
+<<<<<<< HEAD
 //    if(not_expr.op().id() == ID_ge && not_expr.op().op0().type().id() == ID_oc){
 //    	convert_expr(not_expr.op());
 //    } else{
@@ -1160,6 +1161,15 @@ void smt2_convt::convert_expr(const exprt &expr)
 	convert_expr(not_expr.op());
 	out << ")";
 //    }
+=======
+    if(not_expr.op().id() == ID_ge && not_expr.op().op0().type().id() == ID_oc){
+    	convert_expr(not_expr.op());
+    } else{
+		out << "(not ";
+		convert_expr(not_expr.op());
+		out << ")";
+    }
+>>>>>>> f9cc94bf1e1de5f3c8ddf149ae3bdba7d596006c
     // __FHY_ADD_END__
   }
   else if(expr.id() == ID_equal)
@@ -2988,19 +2998,35 @@ void smt2_convt::convert_relation(const exprt &expr)
   // __FHY_ADD_BEGIN__
   else if(op_type.id() == ID_oc){
   	assert(expr.id() == ID_lt || expr.id() == ID_ge);
+<<<<<<< HEAD
   	if(expr.id() == ID_lt){
 		out << "(oclt ";
+=======
+  	if (expr.id() == ID_lt){
+  		out << "(oclt";
+		out << " ";
+>>>>>>> f9cc94bf1e1de5f3c8ddf149ae3bdba7d596006c
 		convert_expr(expr.op0());
 		out << " ";
 		convert_expr(expr.op1());
 		out << ")";
   	}
+<<<<<<< HEAD
   	else if(expr.id()== ID_ge){
 		out << "(not (oclt ";
 		convert_expr(expr.op0());
 		out << " ";
 		convert_expr(expr.op1());
 		out << "))";
+=======
+  	else if(expr.id() == ID_ge){
+  		out << "(oclt";
+  		out << " ";
+  		convert_expr(expr.op0());
+  		out << " ";
+  		convert_expr(expr.op1());
+  		out <<")";
+>>>>>>> f9cc94bf1e1de5f3c8ddf149ae3bdba7d596006c
   	}
   }
   // __FHY_ADD_END__
@@ -4246,6 +4272,7 @@ void smt2_convt::set_to(const exprt &expr, bool value)
   if(!value)
   {
   	// __FHY_ADD_BEGIN__
+<<<<<<< HEAD
 //  	if(expr.id() == ID_ge && expr.op0().type().id() == ID_oc){
 //  		convert_expr(expr);
 //  	}
@@ -4254,6 +4281,17 @@ void smt2_convt::set_to(const exprt &expr, bool value)
 	convert_expr(expr);
 	out << ")";
 //  	}
+=======
+  	if(expr.id() == ID_ge && expr.op0().type().id() == ID_oc){
+//  		printf("meet oc type: expr.id(): %s, expr.op0().type(): %s\n", expr.id().c_str(), expr.op0().type().id().c_str());
+  		convert_expr(expr);
+  	}
+  	else{
+		out << "(not ";
+		convert_expr(expr);
+		out << ")";
+  	}
+>>>>>>> f9cc94bf1e1de5f3c8ddf149ae3bdba7d596006c
   	// __FHY_ADD_END__
   }
   else
