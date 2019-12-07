@@ -179,6 +179,23 @@ For more information on the structure of `unit/` and how to tag tests, see
 repository](https://github.com/diffblue/cbmc/blob/develop/CODING_STANDARD.md#unit-tests)
 
 
+\subsection compilation-and-development-subsection-coverage Test coverage
+
+On Unix-style systems you can automatically generate a code coverage report. To
+obtain an HTML report for the test and unit tests, first build the dedicated
+coverage configuration using CMake (setting `enable_coverage` and building the
+`coverage` target):
+
+    cmake -H. -Bcov-build -Denable_coverage=1 -Dparallel_tests=2
+    make -C cov-build coverage
+
+This configures a build environment in the `cov-build/` folder with coverage
+recording at runtime enabled. The actual build (using `make` in the above case)
+will run the test suite, running `parallel_tests`-many tests concurrently (in
+the above case: 2). The HTML report is generated using `lcov` and stored in
+`cov-build/html/`.
+
+
 \subsection compilation-and-development-subsection-sat-solver Using a different SAT solver
 
 By default, CBMC will assume MiniSat 2 as the SAT back-end. Several other
@@ -253,3 +270,35 @@ branch, e.g. to run it on lines that have been changed from `develop`:
 
 There are also instructions for adding this as a git pre-commit hook in
 [CODING_STANDARD.md](https://github.com/diffblue/cbmc/blob/develop/CODING_STANDARD.md#pre-commit-hook-to-run-cpplint-locally).
+
+
+\section compilation-and-development-section-time-profiling Time profiling
+
+To do time profiling with a tool like `gprof`, the flags `-g` (build with debug
+symbols) and `-pg` (enable profiling information) must be
+used when compiling, and `-pg` must be used when linking. If you are building
+with cmake you can just add "-Denable_profiling=1" to your cmake invocation, and
+reload cmake before building your desired binary. Note that these flags require
+everything to be rebuilt, so it will take a long time even if you are using
+ccache.
+
+Run your binary as normal. A file called gmon.out will be created in the
+working directory of the binary at the end of execution. In most instances this
+will be the same as the working directory at the beginning of execution. It is
+also possible to choose the output location by setting the environment variable
+GMON_OUT_PREFIX - the output file location is then whatever you set it to with
+the process id appended to the end.
+
+Make sure gprof is installed by running `gprof -v`. If it is not installed then
+run `sudo apt install binutils`.
+
+Run `gprof <path-to-binary> <path-to-gmon.out>` and redirect the output to a
+file. This will take a while to run - e.g. 12 minutes for test-gen run on a
+trivial function.
+
+The output file will now be a large text file. There are two sections: the "flat
+profile", which ignores context, and just tells you how much time was spent in
+each function; and the "call graph", which includes context, and tells you how
+much time was spent within each call stack. For more information see online
+tutorials, like
+https://ftp.gnu.org/old-gnu/Manuals/gprof-2.9.1/html_chapter/gprof_5.html

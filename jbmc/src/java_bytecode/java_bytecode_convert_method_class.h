@@ -40,11 +40,14 @@ public:
     optionalt<ci_lazy_methods_neededt> needed_lazy_methods,
     java_string_library_preprocesst &_string_preprocess,
     const class_hierarchyt &class_hierarchy,
-    bool threading_support)
+    bool threading_support,
+    bool assert_no_exceptions_thrown)
     : messaget(_message_handler),
       symbol_table(symbol_table),
+      ns(symbol_table),
       max_array_length(_max_array_length),
       throw_assertion_error(throw_assertion_error),
+      assert_no_exceptions_thrown(assert_no_exceptions_thrown),
       threading_support(threading_support),
       needed_lazy_methods(std::move(needed_lazy_methods)),
       string_preprocess(_string_preprocess),
@@ -60,17 +63,22 @@ public:
   typedef methodt::local_variable_tablet local_variable_tablet;
   typedef methodt::local_variablet local_variablet;
 
-  void operator()(const symbolt &class_symbol, const methodt &method)
+  void operator()(
+    const symbolt &class_symbol,
+    const methodt &method,
+    const optionalt<prefix_filtert> &method_context)
   {
-    convert(class_symbol, method);
+    convert(class_symbol, method, method_context);
   }
 
   typedef uint16_t method_offsett;
 
 protected:
   symbol_table_baset &symbol_table;
+  namespacet ns;
   const size_t max_array_length;
   const bool throw_assertion_error;
+  const bool assert_no_exceptions_thrown;
   const bool threading_support;
   optionalt<ci_lazy_methods_neededt> needed_lazy_methods;
 
@@ -116,10 +124,40 @@ public:
     symbol_exprt symbol_expr;
     size_t start_pc;
     size_t length;
-    bool is_parameter;
+    bool is_parameter = false;
     std::vector<holet> holes;
 
-    variablet() : symbol_expr(), start_pc(0), length(0), is_parameter(false)
+    variablet(
+      const symbol_exprt &_symbol_expr,
+      std::size_t _start_pc,
+      std::size_t _length)
+      : symbol_expr(_symbol_expr), start_pc(_start_pc), length(_length)
+    {
+    }
+
+    variablet(
+      const symbol_exprt &_symbol_expr,
+      std::size_t _start_pc,
+      std::size_t _length,
+      bool _is_parameter)
+      : symbol_expr(_symbol_expr),
+        start_pc(_start_pc),
+        length(_length),
+        is_parameter(_is_parameter)
+    {
+    }
+
+    variablet(
+      const symbol_exprt &_symbol_expr,
+      std::size_t _start_pc,
+      std::size_t _length,
+      bool _is_parameter,
+      std::vector<holet> &&_holes)
+      : symbol_expr(_symbol_expr),
+        start_pc(_start_pc),
+        length(_length),
+        is_parameter(_is_parameter),
+        holes(std::move(_holes))
     {
     }
   };
@@ -151,11 +189,7 @@ protected:
     NO_CAST
   };
 
-  exprt variable(
-    const exprt &arg,
-    char type_char,
-    size_t address,
-    variable_cast_argumentt do_cast);
+  exprt variable(const exprt &arg, char type_char, size_t address);
 
   // temporary variables
   std::list<symbol_exprt> tmp_vars;
@@ -261,24 +295,23 @@ protected:
     const address_mapt &amap,
     bool allow_merge = true);
 
-  optionalt<symbolt> get_lambda_method_symbol(
-    const java_class_typet::java_lambda_method_handlest &lambda_method_handles,
-    const size_t index);
-
   // conversion
-  void convert(const symbolt &class_symbol, const methodt &);
-
-  code_blockt convert_instructions(
+  void convert(
+    const symbolt &class_symbol,
     const methodt &,
-    const java_class_typet::java_lambda_method_handlest &);
+    const optionalt<prefix_filtert> &method_context);
 
-  const bytecode_infot &get_bytecode_info(const irep_idt &statement);
+  code_blockt convert_parameter_annotations(
+    const methodt &method,
+    const java_method_typet &method_type);
+
+  code_blockt convert_instructions(const methodt &);
 
   codet get_clinit_call(const irep_idt &classname);
 
   bool is_method_inherited(
     const irep_idt &classname,
-    const irep_idt &methodid) const;
+    const irep_idt &mangled_method_name) const;
 
   irep_idt get_static_field(
     const irep_idt &class_identifier, const irep_idt &component_name) const;
@@ -316,9 +349,10 @@ protected:
       &ret_instructions) const;
 
   optionalt<exprt> convert_invoke_dynamic(
-    const java_class_typet::java_lambda_method_handlest &lambda_method_handles,
     const source_locationt &location,
-    const exprt &arg0);
+    std::size_t instruction_address,
+    const exprt &arg0,
+    codet &result_code);
 
   code_blockt convert_astore(
     const irep_idt &statement,
@@ -332,8 +366,19 @@ protected:
     const method_offsett address,
     const source_locationt &location);
 
-  exprt
-  convert_aload(const irep_idt &statement, const exprt::operandst &op) const;
+  static exprt
+  convert_aload(const irep_idt &statement, const exprt::operandst &op);
+
+  /// Load reference from local variable.
+  /// \p index must be an unsigned byte and an index in the local variable array
+  /// of the current frame. The type of the local variable at index \p index
+  /// must:
+  ///   - be a reference type if \p type_char is 'a'
+  ///   - be either boolean, byte, short, int, or char if \p type_char is 'i', a
+  ///     typecast to `int` is added if needed
+  ///   - match \c java_type_of_char(type_char) otherwise
+  /// \return the local variable at \p index
+  exprt convert_load(const exprt &index, char type_char, size_t address);
 
   code_blockt convert_ret(
     const std::vector<method_offsett> &jsr_ret_targets,
@@ -343,7 +388,7 @@ protected:
 
   code_ifthenelset convert_if_cmp(
     const java_bytecode_convert_methodt::address_mapt &address_map,
-    const irep_idt &statement,
+    const u1 bytecode,
     const exprt::operandst &op,
     const mp_integer &number,
     const source_locationt &location) const;
@@ -387,13 +432,15 @@ protected:
     exprt::operandst &results) const;
 
   void convert_getstatic(
+    const source_locationt &source_location,
     const exprt &arg0,
     const symbol_exprt &symbol_expr,
     bool is_assertions_disabled_field,
     codet &c,
     exprt::operandst &results);
 
-  code_blockt convert_putfield(const exprt &arg0, const exprt::operandst &op);
+  code_blockt
+  convert_putfield(const fieldref_exprt &arg0, const exprt::operandst &op);
 
   code_blockt convert_putstatic(
     const source_locationt &location,
@@ -448,13 +495,13 @@ protected:
   void convert_invoke(
     source_locationt location,
     const irep_idt &statement,
-    exprt &arg0,
+    class_method_descriptor_exprt &class_method_descriptor,
     codet &c,
     exprt::operandst &results);
 
   exprt::operandst &convert_const(
     const irep_idt &statement,
-    const exprt &arg0,
+    const constant_exprt &arg0,
     exprt::operandst &results) const;
 
   void convert_dup2_x2(exprt::operandst &op, exprt::operandst &results);
@@ -469,5 +516,7 @@ protected:
     const source_locationt &location);
 
   codet convert_pop(const irep_idt &statement, const exprt::operandst &op);
+
+  friend class java_bytecode_convert_method_unit_testt;
 };
 #endif

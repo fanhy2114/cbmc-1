@@ -34,14 +34,15 @@ We assume that you have a Debian/Ubuntu or Red Hat-like distribution.
    yum install gcc72-c++ flex bison perl-libwww-perl patch tar
    ```
 
-   To compile JBMC, you additionally need the JDK and Maven 3.
+   To compile JBMC, you additionally need the JDK and Maven 3. You also
+   need jq if you wish to run the entire test suite.
    On Debian-like distributions, do as root:
    ```
-   apt-get install openjdk-8-jdk maven
+   apt-get install openjdk-8-jdk maven jq
    ```
    On Red Hat/Fedora or derivates, do as root:
    ```
-   dnf install java-1.8.0-openjdk-devel maven
+   dnf install java-1.8.0-openjdk-devel maven jq
    ```
 
 2. As a user, get the CBMC source via
@@ -144,7 +145,7 @@ Follow these instructions:
 
 # COMPILATION ON WINDOWS
 
-There are two options: the Visual Studio compiler with version 12 (2013) or
+There are two options: the Visual Studio compiler with version 14 (2015) or
 later, or the MinGW cross compiler with version 5.4 or later.
 We recommend Visual Studio.
 
@@ -218,7 +219,10 @@ require manual modification of build files.
      ```
      You shoud also install [Homebrew](https://brew.sh), after which you can
      run `brew install cmake` to install CMake.
-   - On Windows, ensure you have Visual Studio 2013 or later installed.
+   - On platforms where installing the Java Development Kit and Maven is
+     difficult, you can avoid needing these dependencies by not building
+     JBMC. Just pass `-DWITH_JBMC=OFF` to cmake in step (4) below.
+   - On Windows, ensure you have Visual Studio 2015 or later installed.
      Then, download CMake from the [official download
      page](https://cmake.org/download).
      You'll also need `git` and `patch`, which are both provided by the
@@ -282,3 +286,56 @@ To work with Eclipse, do the following:
 5. Click "Finish"
 6. Select Project -> Build All
 
+You can also select the repository's root folder as the "Existing Code 
+Location". This has the advantage that you can build both CBMC and JBMC without
+the need to integrate JBMC as a separate project. Be aware that you need to 
+change the build location (Select project in Eclipse -> Properties -> C/C++ 
+Build) to one of the src directories.
+
+
+# OPTIONS AND VARIABLES
+
+## Compiling with CUDD
+
+Cudd is a BDD library which can be used instead of the builtin miniBDD
+implementation.
+
+If compiling with make:
+
+1. Download and compile Cudd:
+   ```
+   make -C src cudd-download
+   ```
+2. Uncomment the definition of `CUDD` in the file `src/config.inc`.
+3. Compile with `make -C src`
+
+If compiling with cmake:
+
+1. Add the `-DCMAKE_USE_CUDD=true` flag to the `cmake` configuration phase.
+   For instance:
+   ```
+   cmake -H. -Bbuild -DCMAKE_USE_CUDD=true
+   ```
+2. Run the build:
+   ```
+   cmake --build build
+   ```
+
+## Use BDDs for guards
+
+There are two implementation for symex guards. The default one uses the
+internal representation of expression. The other one uses BDDs and
+though experimental, it is expected to have better performance,
+in particular when used in conjunction with CUDD.
+
+To use the BDD implementation of guards, add the `BDD_GUARDS`
+compilation flag:
+  * If compiling with make:
+    ```
+    make -C src CXXFLAGS="-O2 -DBDD_GUARDS"
+    ```
+  * If compiling with CMake:
+    ```
+    cmake -H. -Bbuild -DCMAKE_CXX_FLAGS="-DBDD_GUARDS"
+    ```
+    and then `cmake --build build`

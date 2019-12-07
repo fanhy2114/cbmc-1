@@ -17,15 +17,14 @@ Author: Daniel Kroening, kroening@kroening.com
 #include <memory>
 
 #include <ansi-c/ansi_c_language.h>
-#include <java_bytecode/java_bytecode_language.h>
 
 #include <goto-programs/goto_convert_functions.h>
 #include <goto-programs/goto_inline.h>
-#include <goto-programs/initialize_goto_model.h>
 #include <goto-programs/read_goto_binary.h>
 #include <goto-programs/remove_complex.h>
 #include <goto-programs/remove_function_pointers.h>
 #include <goto-programs/remove_returns.h>
+#include <goto-programs/remove_skip.h>
 #include <goto-programs/remove_vector.h>
 #include <goto-programs/remove_virtual_functions.h>
 #include <goto-programs/set_properties.h>
@@ -39,11 +38,15 @@ Author: Daniel Kroening, kroening@kroening.com
 #include <analyses/is_threaded.h>
 #include <analyses/local_may_alias.h>
 
+#include <java_bytecode/java_bytecode_language.h>
+#include <java_bytecode/lazy_goto_model.h>
 #include <java_bytecode/remove_exceptions.h>
 #include <java_bytecode/remove_instanceof.h>
 
 #include <langapi/language.h>
 #include <langapi/mode.h>
+
+#include <linking/static_lifetime_init.h>
 
 #include <util/config.h>
 #include <util/exit_codes.h>
@@ -58,9 +61,11 @@ Author: Daniel Kroening, kroening@kroening.com
 #include <goto-analyzer/unreachable_instructions.h>
 
 janalyzer_parse_optionst::janalyzer_parse_optionst(int argc, const char **argv)
-  : parse_options_baset(JANALYZER_OPTIONS, argc, argv),
-    messaget(ui_message_handler),
-    ui_message_handler(cmdline, std::string("JANALYZER ") + CBMC_VERSION)
+  : parse_options_baset(
+      JANALYZER_OPTIONS,
+      argc,
+      argv,
+      std::string("JANALYZER ") + CBMC_VERSION)
 {
 }
 
@@ -260,7 +265,8 @@ void janalyzer_parse_optionst::get_command_line_options(optionst &options)
       if(!options.get_bool_option("domain set"))
       {
         // Default to constants as it is light-weight but useful
-        status() << "Domain not specified, defaulting to --constants" << eom;
+        log.status() << "Domain not specified, defaulting to --constants"
+                     << messaget::eom;
         options.set_option("constants", true);
       }
     }
@@ -271,6 +277,7 @@ void janalyzer_parse_optionst::get_command_line_options(optionst &options)
 /// Ideally this should be a pure function of options.
 /// However at the moment some domains require the goto_model
 ai_baset *janalyzer_parse_optionst::build_analyzer(
+  goto_modelt &goto_model,
   const optionst &options,
   const namespacet &ns)
 {
@@ -343,44 +350,85 @@ int janalyzer_parse_optionst::doit()
 
   optionst options;
   get_command_line_options(options);
-  eval_verbosity(
+  messaget::eval_verbosity(
     cmdline.get_value("verbosity"), messaget::M_STATISTICS, ui_message_handler);
 
   //
   // Print a banner
   //
-  status() << "JANALYZER version " << CBMC_VERSION << " " << sizeof(void *) * 8
-           << "-bit " << config.this_architecture() << " "
-           << config.this_operating_system() << eom;
+  log.status() << "JANALYZER version " << CBMC_VERSION << " "
+               << sizeof(void *) * 8 << "-bit " << config.this_architecture()
+               << " " << config.this_operating_system() << messaget::eom;
 
   register_languages();
 
-  try
+  if(!((cmdline.isset("jar") && cmdline.args.empty()) ||
+       (cmdline.isset("gb") && cmdline.args.empty()) ||
+       (!cmdline.isset("jar") && !cmdline.isset("gb") &&
+        (cmdline.args.size() == 1))))
   {
-    goto_model =
-      initialize_goto_model(cmdline.args, get_message_handler(), options);
+    log.error() << "Please give exactly one class name, "
+                << "and/or use -jar jarfile or --gb goto-binary"
+                << messaget::eom;
+    return CPROVER_EXIT_USAGE_ERROR;
   }
 
-  catch(const char *e)
+  if((cmdline.args.size() == 1) && !cmdline.isset("show-parse-tree"))
   {
-    error() << e << eom;
-    return CPROVER_EXIT_EXCEPTION;
+    std::string main_class = cmdline.args[0];
+    // `java` accepts slashes and dots as package separators
+    std::replace(main_class.begin(), main_class.end(), '/', '.');
+    config.java.main_class = main_class;
+    cmdline.args.pop_back();
   }
 
-  catch(const std::string &e)
+  if(cmdline.isset("jar"))
   {
-    error() << e << eom;
-    return CPROVER_EXIT_EXCEPTION;
+    cmdline.args.push_back(cmdline.get_value("jar"));
   }
 
-  catch(int e)
+  if(cmdline.isset("gb"))
   {
-    error() << "Numeric exception: " << e << eom;
-    return CPROVER_EXIT_EXCEPTION;
+    cmdline.args.push_back(cmdline.get_value("gb"));
   }
 
-  if(process_goto_program(options))
+  // Shows the parse tree of the main class
+  if(cmdline.isset("show-parse-tree"))
+  {
+    std::unique_ptr<languaget> language = get_language_from_mode(ID_java);
+    CHECK_RETURN(language != nullptr);
+    language->set_language_options(options);
+    language->set_message_handler(ui_message_handler);
+
+    log.status() << "Parsing ..." << messaget::eom;
+
+    if(static_cast<java_bytecode_languaget *>(language.get())->parse())
+    {
+      log.error() << "PARSING ERROR" << messaget::eom;
+      return CPROVER_EXIT_PARSE_ERROR;
+    }
+
+    language->show_parse(std::cout);
+    return CPROVER_EXIT_SUCCESS;
+  }
+
+  lazy_goto_modelt lazy_goto_model =
+    lazy_goto_modelt::from_handler_object(*this, options, ui_message_handler);
+  lazy_goto_model.initialize(cmdline.args, options);
+
+  class_hierarchy =
+    util_make_unique<class_hierarchyt>(lazy_goto_model.symbol_table);
+
+  log.status() << "Generating GOTO Program" << messaget::eom;
+  lazy_goto_model.load_all_functions();
+
+  std::unique_ptr<abstract_goto_modelt> goto_model_ptr =
+    lazy_goto_modelt::process_whole_model_and_freeze(
+      std::move(lazy_goto_model));
+  if(goto_model_ptr == nullptr)
     return CPROVER_EXIT_INTERNAL_ERROR;
+
+  goto_modelt &goto_model = dynamic_cast<goto_modelt &>(*goto_model_ptr);
 
   // show it?
   if(cmdline.isset("show-symbol-table"))
@@ -395,45 +443,17 @@ int janalyzer_parse_optionst::doit()
     cmdline.isset("list-goto-functions"))
   {
     show_goto_functions(
-      goto_model,
-      get_message_handler(),
-      get_ui(),
-      cmdline.isset("list-goto-functions"));
+      goto_model, ui_message_handler, cmdline.isset("list-goto-functions"));
     return CPROVER_EXIT_SUCCESS;
   }
 
-  try
-  {
-    return perform_analysis(options);
-  }
-
-  catch(const char *e)
-  {
-    error() << e << eom;
-    return CPROVER_EXIT_EXCEPTION;
-  }
-
-  catch(const std::string &e)
-  {
-    error() << e << eom;
-    return CPROVER_EXIT_EXCEPTION;
-  }
-
-  catch(int e)
-  {
-    error() << "Numeric exception: " << e << eom;
-    return CPROVER_EXIT_EXCEPTION;
-  }
-
-  catch(const std::bad_alloc &)
-  {
-    error() << "Out of memory" << eom;
-    return CPROVER_EXIT_INTERNAL_OUT_OF_MEMORY;
-  }
+  return perform_analysis(goto_model, options);
 }
 
 /// Depending on the command line mode, run one of the analysis tasks
-int janalyzer_parse_optionst::perform_analysis(const optionst &options)
+int janalyzer_parse_optionst::perform_analysis(
+  goto_modelt &goto_model,
+  const optionst &options)
 {
   if(options.get_bool_option("taint"))
   {
@@ -441,14 +461,16 @@ int janalyzer_parse_optionst::perform_analysis(const optionst &options)
 
     if(cmdline.isset("show-taint"))
     {
-      taint_analysis(goto_model, taint_file, get_message_handler(), true, "");
+      taint_analysis(goto_model, taint_file, ui_message_handler, true);
       return CPROVER_EXIT_SUCCESS;
     }
     else
     {
-      std::string json_file = cmdline.get_value("json");
+      optionalt<std::string> json_file;
+      if(cmdline.isset("json"))
+        json_file = cmdline.get_value("json");
       bool result = taint_analysis(
-        goto_model, taint_file, get_message_handler(), false, json_file);
+        goto_model, taint_file, ui_message_handler, false, json_file);
       return result ? CPROVER_EXIT_VERIFICATION_UNSAFE : CPROVER_EXIT_SUCCESS;
     }
   }
@@ -469,7 +491,8 @@ int janalyzer_parse_optionst::perform_analysis(const optionst &options)
       std::ofstream ofs(json_file);
       if(!ofs)
       {
-        error() << "Failed to open json output `" << json_file << "'" << eom;
+        log.error() << "Failed to open json output '" << json_file << "'"
+                    << messaget::eom;
         return CPROVER_EXIT_INTERNAL_ERROR;
       }
 
@@ -494,7 +517,8 @@ int janalyzer_parse_optionst::perform_analysis(const optionst &options)
       std::ofstream ofs(json_file);
       if(!ofs)
       {
-        error() << "Failed to open json output `" << json_file << "'" << eom;
+        log.error() << "Failed to open json output '" << json_file << "'"
+                    << messaget::eom;
         return CPROVER_EXIT_INTERNAL_ERROR;
       }
 
@@ -519,7 +543,8 @@ int janalyzer_parse_optionst::perform_analysis(const optionst &options)
       std::ofstream ofs(json_file);
       if(!ofs)
       {
-        error() << "Failed to open json output `" << json_file << "'" << eom;
+        log.error() << "Failed to open json output '" << json_file << "'"
+                    << messaget::eom;
         return CPROVER_EXIT_INTERNAL_ERROR;
       }
 
@@ -550,12 +575,12 @@ int janalyzer_parse_optionst::perform_analysis(const optionst &options)
 
   if(cmdline.isset("show-properties"))
   {
-    show_properties(goto_model, get_message_handler(), get_ui());
+    show_properties(goto_model, ui_message_handler);
     return CPROVER_EXIT_SUCCESS;
   }
 
-  if(set_properties())
-    return CPROVER_EXIT_SET_PROPERTIES_FAILED;
+  if(cmdline.isset("property"))
+    ::set_properties(goto_model, cmdline.get_values("property"));
 
   if(options.get_bool_option("general-analysis"))
   {
@@ -569,28 +594,29 @@ int janalyzer_parse_optionst::perform_analysis(const optionst &options)
 
     if(!out)
     {
-      error() << "Failed to open output file `" << outfile << "'" << eom;
+      log.error() << "Failed to open output file '" << outfile << "'"
+                  << messaget::eom;
       return CPROVER_EXIT_INTERNAL_ERROR;
     }
 
     // Build analyzer
-    status() << "Selecting abstract domain" << eom;
+    log.status() << "Selecting abstract domain" << messaget::eom;
     namespacet ns(goto_model.symbol_table); // Must live as long as the domain.
-    std::unique_ptr<ai_baset> analyzer(build_analyzer(options, ns));
+    std::unique_ptr<ai_baset> analyzer(build_analyzer(goto_model, options, ns));
 
     if(analyzer == nullptr)
     {
-      status() << "Task / Interpreter / Domain combination not supported"
-               << messaget::eom;
+      log.status() << "Task / Interpreter / Domain combination not supported"
+                   << messaget::eom;
       return CPROVER_EXIT_INTERNAL_ERROR;
     }
 
     // Run
-    status() << "Computing abstract states" << eom;
+    log.status() << "Computing abstract states" << messaget::eom;
     (*analyzer)(goto_model);
 
     // Perform the task
-    status() << "Performing task" << eom;
+    log.status() << "Performing task" << messaget::eom;
     bool result = true;
     if(options.get_bool_option("show"))
     {
@@ -600,12 +626,12 @@ int janalyzer_parse_optionst::perform_analysis(const optionst &options)
     else if(options.get_bool_option("verify"))
     {
       result = static_verifier(
-        goto_model, *analyzer, options, get_message_handler(), out);
+        goto_model, *analyzer, options, ui_message_handler, out);
     }
     else if(options.get_bool_option("simplify"))
     {
       result = static_simplifier(
-        goto_model, *analyzer, options, get_message_handler(), out);
+        goto_model, *analyzer, options, ui_message_handler, out);
     }
     else if(options.get_bool_option("unreachable-instructions"))
     {
@@ -624,7 +650,7 @@ int janalyzer_parse_optionst::perform_analysis(const optionst &options)
     }
     else
     {
-      error() << "Unhandled task" << eom;
+      log.error() << "Unhandled task" << messaget::eom;
       return CPROVER_EXIT_INTERNAL_ERROR;
     }
 
@@ -633,101 +659,81 @@ int janalyzer_parse_optionst::perform_analysis(const optionst &options)
   }
 
   // Final defensive error case
-  error() << "no analysis option given -- consider reading --help" << eom;
+  log.error() << "no analysis option given -- consider reading --help"
+              << messaget::eom;
   return CPROVER_EXIT_USAGE_ERROR;
 }
 
-bool janalyzer_parse_optionst::set_properties()
+bool janalyzer_parse_optionst::process_goto_functions(
+  goto_modelt &goto_model,
+  const optionst &options)
 {
-  try
-  {
-    if(cmdline.isset("property"))
-      ::set_properties(goto_model, cmdline.get_values("property"));
-  }
+  log.status() << "Running GOTO functions transformation passes"
+               << messaget::eom;
 
-  catch(const char *e)
-  {
-    error() << e << eom;
-    return true;
-  }
+  // remove catch and throw
+  remove_exceptions(goto_model, *class_hierarchy.get(), ui_message_handler);
 
-  catch(const std::string &e)
-  {
-    error() << e << eom;
-    return true;
-  }
+  // recalculate numbers, etc.
+  goto_model.goto_functions.update();
 
-  catch(int)
-  {
-    return true;
-  }
+  // remove skips such that trivial GOTOs are deleted
+  remove_skip(goto_model);
+
+  // label the assertions
+  // This must be done after adding assertions and
+  // before using the argument of the "property" option.
+  // Do not re-label after using the property slicer because
+  // this would cause the property identifiers to change.
+  label_properties(goto_model);
 
   return false;
 }
 
-bool janalyzer_parse_optionst::process_goto_program(const optionst &options)
+void janalyzer_parse_optionst::process_goto_function(
+  goto_model_functiont &function,
+  const abstract_goto_modelt &model,
+  const optionst &options)
 {
-  try
-  {
-    // remove function pointers
-    status() << "Removing function pointers and virtual functions" << eom;
-    remove_function_pointers(
-      get_message_handler(), goto_model, cmdline.isset("pointer-check"));
+  journalling_symbol_tablet &symbol_table = function.get_symbol_table();
+  namespacet ns(symbol_table);
+  goto_functionst::goto_functiont &goto_function = function.get_goto_function();
 
-    // Java virtual functions -> explicit dispatch tables:
-    remove_virtual_functions(goto_model);
+  // Removal of RTTI inspection:
+  remove_instanceof(
+    function.get_function_id(),
+    goto_function,
+    symbol_table,
+    *class_hierarchy,
+    ui_message_handler);
+  // Java virtual functions -> explicit dispatch tables:
+  remove_virtual_functions(function, *class_hierarchy);
 
-    // remove Java throw and catch
-    // This introduces instanceof, so order is important:
-    remove_exceptions_using_instanceof(goto_model, get_message_handler());
+  auto function_is_stub = [&symbol_table, &model](const irep_idt &id) {
+    return symbol_table.lookup_ref(id).value.is_nil() &&
+           !model.can_produce_function(id);
+  };
 
-    // Java instanceof -> clsid comparison:
-    class_hierarchyt class_hierarchy(goto_model.symbol_table);
-    remove_instanceof(goto_model, class_hierarchy, get_message_handler());
+  remove_returns(function, function_is_stub);
 
-    // do partial inlining
-    status() << "Partial Inlining" << eom;
-    goto_partial_inline(goto_model, ui_message_handler);
+  // add generic checks
+  goto_check(
+    function.get_function_id(), function.get_goto_function(), ns, options);
+}
 
-    // remove returns, gcc vectors, complex
-    remove_returns(goto_model);
-    remove_vector(goto_model);
-    remove_complex(goto_model);
+bool janalyzer_parse_optionst::can_generate_function_body(const irep_idt &name)
+{
+  static const irep_idt initialize_id = INITIALIZE_FUNCTION;
 
-    // add generic checks
-    status() << "Generic Property Instrumentation" << eom;
-    goto_check(options, goto_model);
+  return name != goto_functionst::entry_point() && name != initialize_id;
+}
 
-    // recalculate numbers, etc.
-    goto_model.goto_functions.update();
-
-    // add loop ids
-    goto_model.goto_functions.compute_loop_numbers();
-  }
-
-  catch(const char *e)
-  {
-    error() << e << eom;
-    return true;
-  }
-
-  catch(const std::string &e)
-  {
-    error() << e << eom;
-    return true;
-  }
-
-  catch(int)
-  {
-    return true;
-  }
-
-  catch(const std::bad_alloc &)
-  {
-    error() << "Out of memory" << eom;
-    return true;
-  }
-
+bool janalyzer_parse_optionst::generate_function_body(
+  const irep_idt &function_name,
+  symbol_table_baset &symbol_table,
+  goto_functiont &function,
+  bool body_available)
+{
   return false;
 }
 
@@ -736,21 +742,23 @@ void janalyzer_parse_optionst::help()
 {
   // clang-format off
   std::cout << '\n' << banner_string("JANALYZER", CBMC_VERSION) << '\n'
+            << align_center_with_border("Copyright (C) 2016-2018") << '\n'
+            << align_center_with_border("Daniel Kroening, Diffblue") << '\n'
+            << align_center_with_border("kroening@kroening.com") << '\n'
             <<
-     /* NOLINTNEXTLINE(whitespace/line_length) */
-    "* *                   Copyright (C) 2016-2018                    * *\n"
-    "* *                  Daniel Kroening, Diffblue                   * *\n"
-    "* *                   kroening@kroening.com                      * *\n"
     "\n"
     "Usage:                       Purpose:\n"
     "\n"
     " janalyzer [-?] [-h] [--help] show help\n"
-    " janalyzer class              name of class or JAR file to be checked\n"
-    "                              In the case of a JAR file, if a main class can be\n" // NOLINT(*)
-    "                              inferred from --main-class, --function, or the JAR\n" // NOLINT(*)
-    "                              manifest (checked in this order), the behavior is\n" // NOLINT(*)
-    "                              the same as running janalyzer on the corresponding\n" // NOLINT(*)
-    "                              class file."
+    " janalyzer\n"
+    HELP_JAVA_CLASS_NAME
+    " janalyzer\n"
+    HELP_JAVA_JAR
+    " janalyzer\n"
+    HELP_JAVA_GOTO_BINARY
+    "\n"
+    HELP_JAVA_CLASSPATH
+    HELP_FUNCTIONS
     "\n"
     "Task options:\n"
     " --show                       display the abstract domains\n"
@@ -787,10 +795,7 @@ void janalyzer_parse_optionst::help()
     " --taint file_name            perform taint analysis using rules in given file\n"
     "\n"
     "Java Bytecode frontend options:\n"
-    " --classpath dir/jar          set the classpath\n"
-    " --main-class class-name      set the name of the main class\n"
     JAVA_BYTECODE_LANGUAGE_OPTIONS_HELP
-    HELP_FUNCTIONS
     "\n"
     "Program representations:\n"
     " --show-parse-tree            show parse tree\n"

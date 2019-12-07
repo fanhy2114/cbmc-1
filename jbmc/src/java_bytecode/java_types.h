@@ -13,11 +13,12 @@ Author: Daniel Kroening, kroening@kroening.com
 #include <algorithm>
 #include <set>
 
-#include <util/type.h>
-#include <util/std_types.h>
 #include <util/c_types.h>
+#include <util/narrow.h>
 #include <util/optional.h>
 #include <util/std_expr.h>
+#include <util/std_types.h>
+#include <util/type.h>
 
 class java_annotationt : public irept
 {
@@ -98,9 +99,217 @@ inline bool can_cast_type<annotated_typet>(const typet &)
   return true;
 }
 
+class java_method_typet : public code_typet
+{
+public:
+  using code_typet::parameterst;
+  using code_typet::parametert;
+
+  /// Constructs a new code type, i.e. method type
+  /// \param _parameters: the vector of method parameters
+  /// \param _return_type: the return type
+  java_method_typet(parameterst &&_parameters, typet &&_return_type)
+    : code_typet(std::move(_parameters), std::move(_return_type))
+  {
+    set(ID_C_java_method_type, true);
+  }
+
+  /// Constructs a new code type, i.e. method type
+  /// \param _parameters: the vector of method parameters
+  /// \param _return_type: the return type
+  java_method_typet(parameterst &&_parameters, const typet &_return_type)
+    : code_typet(std::move(_parameters), _return_type)
+  {
+    set(ID_C_java_method_type, true);
+  }
+
+  const std::vector<irep_idt> throws_exceptions() const
+  {
+    std::vector<irep_idt> exceptions;
+    for(const auto &e : find(ID_exceptions_thrown_list).get_sub())
+      exceptions.push_back(e.id());
+    return exceptions;
+  }
+
+  void add_throws_exception(irep_idt exception)
+  {
+    add(ID_exceptions_thrown_list).get_sub().push_back(irept(exception));
+  }
+
+  bool get_is_final() const
+  {
+    return get_bool(ID_final);
+  }
+
+  void set_is_final(bool is_final)
+  {
+    set(ID_final, is_final);
+  }
+
+  bool get_native() const
+  {
+    return get_bool(ID_is_native_method);
+  }
+
+  void set_native(bool is_native)
+  {
+    set(ID_is_native_method, is_native);
+  }
+
+  bool get_is_varargs() const
+  {
+    return get_bool(ID_is_varargs_method);
+  }
+
+  void set_is_varargs(bool is_varargs)
+  {
+    set(ID_is_varargs_method, is_varargs);
+  }
+
+  bool is_synthetic() const
+  {
+    return get_bool(ID_synthetic);
+  }
+
+  void set_is_synthetic(bool is_synthetic)
+  {
+    set(ID_synthetic, is_synthetic);
+  }
+};
+
+template <>
+inline bool can_cast_type<java_method_typet>(const typet &type)
+{
+  return type.id() == ID_code && type.get_bool(ID_C_java_method_type);
+}
+
+inline const java_method_typet &to_java_method_type(const typet &type)
+{
+  PRECONDITION(can_cast_type<java_method_typet>(type));
+  return static_cast<const java_method_typet &>(type);
+}
+
+inline java_method_typet &to_java_method_type(typet &type)
+{
+  PRECONDITION(can_cast_type<java_method_typet>(type));
+  return static_cast<java_method_typet &>(type);
+}
+
 class java_class_typet:public class_typet
 {
- public:
+public:
+  class componentt : public class_typet::componentt
+  {
+  public:
+    componentt() = default;
+
+    componentt(const irep_idt &_name, typet _type)
+      : class_typet::componentt(_name, std::move(_type))
+    {
+    }
+
+    /// is a field 'final'?
+    bool get_is_final() const
+    {
+      return get_bool(ID_final);
+    }
+
+    /// is a field 'final'?
+    void set_is_final(const bool is_final)
+    {
+      set(ID_final, is_final);
+    }
+  };
+
+  using componentst = std::vector<componentt>;
+
+  const componentst &components() const
+  {
+    return (const componentst &)(find(ID_components).get_sub());
+  }
+
+  componentst &components()
+  {
+    return (componentst &)(add(ID_components).get_sub());
+  }
+
+  const componentt &get_component(const irep_idt &component_name) const
+  {
+    return static_cast<const componentt &>(
+      class_typet::get_component(component_name));
+  }
+
+  class methodt : public class_typet::methodt
+  {
+  public:
+    methodt() = delete;
+
+    methodt(const irep_idt &_name, java_method_typet _type)
+      : class_typet::methodt(_name, std::move(_type))
+    {
+    }
+
+    const java_method_typet &type() const
+    {
+      return static_cast<const java_method_typet &>(
+        class_typet::methodt::type());
+    }
+
+    java_method_typet &type()
+    {
+      return static_cast<java_method_typet &>(class_typet::methodt::type());
+    }
+
+    /// is a method 'final'?
+    bool get_is_final() const
+    {
+      return get_bool(ID_final);
+    }
+
+    /// is a method 'final'?
+    void set_is_final(const bool is_final)
+    {
+      set(ID_final, is_final);
+    }
+
+    /// is a method 'native'?
+    bool get_is_native() const
+    {
+      return get_bool(ID_is_native_method);
+    }
+
+    /// marks a method as 'native'
+    void set_is_native(const bool is_native)
+    {
+      set(ID_is_native_method, is_native);
+    }
+  };
+
+  using methodst = std::vector<methodt>;
+
+  const methodst &methods() const
+  {
+    return (const methodst &)(find(ID_methods).get_sub());
+  }
+
+  methodst &methods()
+  {
+    return (methodst &)(add(ID_methods).get_sub());
+  }
+
+  using static_membert = componentt;
+  using static_memberst = std::vector<componentt>;
+
+  const static_memberst &static_members() const
+  {
+    return (const static_memberst &)class_typet::static_members();
+  }
+
+  static_memberst &static_members()
+  {
+    return (static_memberst &)class_typet::static_members();
+  }
+
   const irep_idt &get_access() const
   {
     return get(ID_access);
@@ -179,6 +388,66 @@ class java_class_typet:public class_typet
   bool get_is_stub() const
   {
     return get_bool(ID_incomplete_class);
+  }
+
+  /// is class an enumeration?
+  bool get_is_enumeration() const
+  {
+    return get_bool(ID_enumeration);
+  }
+
+  /// marks class as an enumeration
+  void set_is_enumeration(const bool is_enumeration)
+  {
+    set(ID_enumeration, is_enumeration);
+  }
+
+  /// is class abstract?
+  bool get_abstract() const
+  {
+    return get_bool(ID_abstract);
+  }
+
+  /// marks class abstract
+  void set_abstract(bool abstract)
+  {
+    set(ID_abstract, abstract);
+  }
+
+  /// is class synthetic?
+  bool get_synthetic() const
+  {
+    return get_bool(ID_synthetic);
+  }
+
+  /// marks class synthetic
+  void set_synthetic(bool synthetic)
+  {
+    set(ID_synthetic, synthetic);
+  }
+
+  /// is class an annotation?
+  bool get_is_annotation() const
+  {
+    return get_bool(ID_is_annotation);
+  }
+
+  /// marks class an annotation
+  void set_is_annotation(bool is_annotation)
+  {
+    set(ID_is_annotation, is_annotation);
+  }
+
+  /// is class an interface?
+  bool get_interface() const
+  {
+    return get_bool(ID_interface);
+  }
+
+  /// marks class an interface
+  void set_interface(bool interface)
+  {
+    set(ID_interface, interface);
   }
 
   // it may be better to introduce a class like
@@ -273,90 +542,46 @@ inline bool can_cast_type<java_class_typet>(const typet &type)
   return can_cast_type<class_typet>(type);
 }
 
-class java_method_typet : public code_typet
+/// This is a specialization of reference_typet.
+/// The subtype is guaranteed to be a struct_tag_typet.
+class java_reference_typet : public reference_typet
 {
 public:
-  using code_typet::parameterst;
-  using code_typet::parametert;
-
-  /// Constructs a new code type, i.e. method type
-  /// \param _parameters: the vector of method parameters
-  /// \param _return_type: the return type
-  java_method_typet(parameterst &&_parameters, typet &&_return_type)
-    : code_typet(std::move(_parameters), std::move(_return_type))
+  explicit java_reference_typet(
+    const struct_tag_typet &_subtype,
+    std::size_t _width)
+    : reference_typet(_subtype, _width)
   {
-    set(ID_C_java_method_type, true);
   }
 
-  /// Constructs a new code type, i.e. method type
-  /// \param _parameters: the vector of method parameters
-  /// \param _return_type: the return type
-  java_method_typet(parameterst &&_parameters, const typet &_return_type)
-    : code_typet(std::move(_parameters), _return_type)
+  struct_tag_typet &subtype()
   {
-    set(ID_C_java_method_type, true);
+    return static_cast<struct_tag_typet &>(reference_typet::subtype());
   }
 
-  const std::vector<irep_idt> throws_exceptions() const
+  const struct_tag_typet &subtype() const
   {
-    std::vector<irep_idt> exceptions;
-    for(const auto &e : find(ID_exceptions_thrown_list).get_sub())
-      exceptions.push_back(e.id());
-    return exceptions;
-  }
-
-  void add_throws_exceptions(irep_idt exception)
-  {
-    add(ID_exceptions_thrown_list).get_sub().push_back(irept(exception));
-  }
-
-  bool get_is_final() const
-  {
-    return get_bool(ID_final);
-  }
-
-  void set_is_final(bool is_final)
-  {
-    set(ID_final, is_final);
-  }
-
-  bool get_native() const
-  {
-    return get_bool(ID_is_native_method);
-  }
-
-  void set_native(bool is_native)
-  {
-    set(ID_is_native_method, is_native);
-  }
-
-  bool get_is_varargs() const
-  {
-    return get_bool(ID_is_varargs_method);
-  }
-
-  void set_is_varargs(bool is_varargs)
-  {
-    set(ID_is_varargs_method, is_varargs);
+    return static_cast<const struct_tag_typet &>(reference_typet::subtype());
   }
 };
 
 template <>
-inline bool can_cast_type<java_method_typet>(const typet &type)
+inline bool can_cast_type<java_reference_typet>(const typet &type)
 {
-  return type.id() == ID_code && type.get_bool(ID_C_java_method_type);
+  return type.id() == ID_pointer &&
+         to_type_with_subtype(type).subtype().id() == ID_struct_tag;
 }
 
-inline const java_method_typet &to_java_method_type(const typet &type)
+inline const java_reference_typet &to_java_reference_type(const typet &type)
 {
-  PRECONDITION(can_cast_type<java_method_typet>(type));
-  return static_cast<const java_method_typet &>(type);
+  PRECONDITION(can_cast_type<java_reference_typet>(type));
+  return static_cast<const java_reference_typet &>(type);
 }
 
-inline java_method_typet &to_java_method_type(typet &type)
+inline java_reference_typet &to_java_reference_type(typet &type)
 {
-  PRECONDITION(can_cast_type<java_method_typet>(type));
-  return static_cast<java_method_typet &>(type);
+  PRECONDITION(can_cast_type<java_reference_typet>(type));
+  return static_cast<java_reference_typet &>(type);
 }
 
 signedbv_typet java_int_type();
@@ -367,21 +592,34 @@ unsignedbv_typet java_char_type();
 floatbv_typet java_float_type();
 floatbv_typet java_double_type();
 c_bool_typet java_boolean_type();
-void_typet java_void_type();
+empty_typet java_void_type();
+java_reference_typet java_reference_type(const struct_tag_typet &subtype);
 reference_typet java_reference_type(const typet &subtype);
-reference_typet java_lang_object_type();
+java_reference_typet java_lang_object_type();
 struct_tag_typet java_classname(const std::string &);
 
-reference_typet java_array_type(const char subtype);
+#define JAVA_REFERENCE_ARRAY_CLASSID "java::array[reference]"
+
+java_reference_typet java_array_type(const char subtype);
+java_reference_typet
+java_reference_array_type(const struct_tag_typet &element_type);
 const typet &java_array_element_type(const struct_tag_typet &array_symbol);
 typet &java_array_element_type(struct_tag_typet &array_symbol);
 bool is_java_array_type(const typet &type);
 bool is_multidim_java_array_type(const typet &type);
 
+std::pair<typet, std::size_t>
+java_array_dimension_and_element_type(const struct_tag_typet &type);
+
+#define JAVA_ARRAY_DIMENSION_FIELD_NAME "@array_dimensions"
+exprt get_array_dimension_field(const exprt &pointer);
+#define JAVA_ARRAY_ELEMENT_CLASSID_FIELD_NAME "@element_class_identifier"
+exprt get_array_element_type_field(const exprt &pointer);
+
 typet java_type_from_char(char t);
-typet java_type_from_string(
+optionalt<typet> java_type_from_string(
   const std::string &,
-  const std::string &class_name_prefix="");
+  const std::string &class_name_prefix = "");
 char java_char_from_type(const typet &type);
 std::vector<typet> java_generic_type_from_string(
   const std::string &,
@@ -406,21 +644,21 @@ bool equal_java_types(const typet &type1, const typet &type2);
 /// Class to hold a Java generic type parameter (also called type variable),
 /// e.g., `T` in `List<T>`.
 /// The bound can specify type requirements.
-class java_generic_parametert:public reference_typet
+class java_generic_parameter_tagt : public struct_tag_typet
 {
 public:
   typedef struct_tag_typet type_variablet;
 
-  java_generic_parametert(
+  java_generic_parameter_tagt(
     const irep_idt &_type_var_name,
     const struct_tag_typet &_bound)
-    : reference_typet(java_reference_type(_bound))
+    : struct_tag_typet(_bound)
   {
     set(ID_C_java_generic_parameter, true);
     type_variables().push_back(struct_tag_typet(_type_var_name));
   }
 
-  /// \return the type variable as symbol type
+  /// \return the type variable as struct tag type
   const type_variablet &type_variable() const
   {
     PRECONDITION(!type_variables().empty());
@@ -430,7 +668,7 @@ public:
   type_variablet &type_variable_ref()
   {
     PRECONDITION(!type_variables().empty());
-    return const_cast<type_variablet &>(type_variables().front());
+    return type_variables().front();
   }
 
   const irep_idt get_name() const
@@ -454,10 +692,78 @@ private:
 /// Checks whether the type is a java generic parameter/variable, e.g., `T` in
 /// `List<T>`.
 /// \param type: the type to check
+/// \return true if type is a generic Java parameter tag type
+inline bool is_java_generic_parameter_tag(const typet &type)
+{
+  return type.get_bool(ID_C_java_generic_parameter);
+}
+
+/// \param type: source type
+/// \return cast of type into a java_generic_parametert
+inline const java_generic_parameter_tagt &
+to_java_generic_parameter_tag(const typet &type)
+{
+  PRECONDITION(is_java_generic_parameter_tag(type));
+  return static_cast<const java_generic_parameter_tagt &>(type);
+}
+
+/// \param type: source type
+/// \return cast of type into a java_generic_parameter_tag
+inline java_generic_parameter_tagt &to_java_generic_parameter_tag(typet &type)
+{
+  PRECONDITION(is_java_generic_parameter_tag(type));
+  return static_cast<java_generic_parameter_tagt &>(type);
+}
+
+/// Reference that points to a java_generic_parameter_tagt. All information is
+/// stored on the underlying tag.
+class java_generic_parametert : public reference_typet
+{
+public:
+  typedef struct_tag_typet type_variablet;
+
+  java_generic_parametert(
+    const irep_idt &_type_var_name,
+    const struct_tag_typet &_bound)
+    : reference_typet(java_reference_type(
+        java_generic_parameter_tagt(_type_var_name, _bound)))
+  {
+  }
+
+  /// \return the type variable as symbol type
+  const type_variablet &type_variable() const
+  {
+    return to_java_generic_parameter_tag(subtype()).type_variable();
+  }
+
+  type_variablet &type_variable_ref()
+  {
+    return to_java_generic_parameter_tag(subtype()).type_variable_ref();
+  }
+
+  const irep_idt get_name() const
+  {
+    return to_java_generic_parameter_tag(subtype()).get_name();
+  }
+};
+
+/// Check whether a reference to a typet is a Java generic parameter/variable,
+/// e.g., `T` in `List<T>`.
+/// \param base: Source type.
+/// \return True if \p type is a generic Java parameter type
+template <>
+inline bool can_cast_type<java_generic_parametert>(const typet &base)
+{
+  return is_reference(base) && is_java_generic_parameter_tag(base.subtype());
+}
+
+/// Checks whether the type is a java generic parameter/variable, e.g., `T` in
+/// `List<T>`.
+/// \param type: the type to check
 /// \return true if type is a generic Java parameter type
 inline bool is_java_generic_parameter(const typet &type)
 {
-  return type.get_bool(ID_C_java_generic_parameter);
+  return can_cast_type<java_generic_parametert>(type);
 }
 
 /// \param type: source type
@@ -492,36 +798,91 @@ inline java_generic_parametert &to_java_generic_parameter(typet &type)
 /// - in `HashMap<List<T>, V>` it would contain two elements, the first of
 ///   type `java_generic_typet` and the second of type
 ///   `java_generic_parametert`.
+class java_generic_struct_tag_typet : public struct_tag_typet
+{
+public:
+  typedef std::vector<reference_typet> generic_typest;
+
+  explicit java_generic_struct_tag_typet(const struct_tag_typet &type)
+    : struct_tag_typet(type)
+  {
+    set(ID_C_java_generic_symbol, true);
+  }
+
+  java_generic_struct_tag_typet(
+    const struct_tag_typet &type,
+    const std::string &base_ref,
+    const std::string &class_name_prefix);
+
+  const generic_typest &generic_types() const
+  {
+    return (const generic_typest &)(find(ID_generic_types).get_sub());
+  }
+
+  generic_typest &generic_types()
+  {
+    return (generic_typest &)(add(ID_generic_types).get_sub());
+  }
+
+  optionalt<size_t>
+  generic_type_index(const java_generic_parametert &type) const;
+};
+
+/// \param type: the type to check
+/// \return true if the type is a symbol type with generics
+inline bool is_java_generic_struct_tag_type(const typet &type)
+{
+  return type.get_bool(ID_C_java_generic_symbol);
+}
+
+/// \param type: the type to convert
+/// \return the converted type
+inline const java_generic_struct_tag_typet &
+to_java_generic_struct_tag_type(const typet &type)
+{
+  PRECONDITION(is_java_generic_struct_tag_type(type));
+  return static_cast<const java_generic_struct_tag_typet &>(type);
+}
+
+/// \param type: the type to convert
+/// \return the converted type
+inline java_generic_struct_tag_typet &
+to_java_generic_struct_tag_type(typet &type)
+{
+  PRECONDITION(is_java_generic_struct_tag_type(type));
+  return static_cast<java_generic_struct_tag_typet &>(type);
+}
+
+/// Reference that points to a java_generic_struct_tag_typet. All information is
+/// stored on the underlying tag.
 class java_generic_typet:public reference_typet
 {
 public:
-  typedef std::vector<reference_typet> generic_type_argumentst;
+  typedef java_generic_struct_tag_typet::generic_typest generic_type_argumentst;
 
-  explicit java_generic_typet(const typet &_type):
-    reference_typet(java_reference_type(_type))
+  explicit java_generic_typet(const typet &_type)
+    : reference_typet(java_reference_type(
+        java_generic_struct_tag_typet(to_struct_tag_type(_type))))
   {
-    set(ID_C_java_generic_type, true);
   }
 
   /// \return vector of type variables
   const generic_type_argumentst &generic_type_arguments() const
   {
-    return (const generic_type_argumentst &)(
-      find(ID_type_variables).get_sub());
+    return to_java_generic_struct_tag_type(subtype()).generic_types();
   }
 
   /// \return vector of type variables
   generic_type_argumentst &generic_type_arguments()
   {
-    return (generic_type_argumentst &)(
-      add(ID_type_variables).get_sub());
+    return to_java_generic_struct_tag_type(subtype()).generic_types();
   }
 };
 
 template <>
 inline bool can_cast_type<java_generic_typet>(const typet &type)
 {
-  return is_reference(type) && type.get_bool(ID_C_java_generic_type);
+  return is_reference(type) && is_java_generic_struct_tag_type(type.subtype());
 }
 
 /// \param type: the type to check
@@ -702,6 +1063,12 @@ to_java_implicitly_generic_class_type(java_class_typet &type)
   return static_cast<java_implicitly_generic_class_typet &>(type);
 }
 
+/// \param type: Source type
+/// \return The vector of implicitly generic and (explicitly) generic type
+///   parameters of the given type.
+std::vector<java_generic_parametert>
+get_all_generic_parameters(const typet &type);
+
 /// An exception that is raised for unsupported class signature.
 /// Currently we do not parse multiple bounds.
 class unsupported_java_class_signature_exceptiont:public std::logic_error
@@ -714,7 +1081,7 @@ public:
   }
 };
 
-inline typet java_type_from_string_with_exception(
+inline optionalt<typet> java_type_from_string_with_exception(
   const std::string &descriptor,
   const optionalt<std::string> &signature,
   const std::string &class_name)
@@ -750,7 +1117,7 @@ inline const optionalt<size_t> java_generics_get_index_for_subtype(
     return {};
   }
 
-  return std::distance(gen_types.cbegin(), iter);
+  return narrow_cast<size_t>(std::distance(gen_types.cbegin(), iter));
 }
 
 void get_dependencies_from_generic_parameters(
@@ -759,58 +1126,6 @@ void get_dependencies_from_generic_parameters(
 void get_dependencies_from_generic_parameters(
   const typet &,
   std::set<irep_idt> &);
-
-/// Type for a generic symbol, extends struct_tag_typet with a
-/// vector of java generic types.
-/// This is used to store the type of generic superclasses and interfaces.
-class java_generic_struct_tag_typet : public struct_tag_typet
-{
-public:
-  typedef std::vector<reference_typet> generic_typest;
-
-  java_generic_struct_tag_typet(
-    const struct_tag_typet &type,
-    const std::string &base_ref,
-    const std::string &class_name_prefix);
-
-  const generic_typest &generic_types() const
-  {
-    return (const generic_typest &)(find(ID_generic_types).get_sub());
-  }
-
-  generic_typest &generic_types()
-  {
-    return (generic_typest &)(add(ID_generic_types).get_sub());
-  }
-
-  optionalt<size_t>
-  generic_type_index(const java_generic_parametert &type) const;
-};
-
-/// \param type: the type to check
-/// \return true if the type is a symbol type with generics
-inline bool is_java_generic_struct_tag_type(const typet &type)
-{
-  return type.get_bool(ID_C_java_generic_symbol);
-}
-
-/// \param type: the type to convert
-/// \return the converted type
-inline const java_generic_struct_tag_typet &
-to_java_generic_struct_tag_type(const typet &type)
-{
-  PRECONDITION(is_java_generic_struct_tag_type(type));
-  return static_cast<const java_generic_struct_tag_typet &>(type);
-}
-
-/// \param type: the type to convert
-/// \return the converted type
-inline java_generic_struct_tag_typet &
-to_java_generic_struct_tag_type(typet &type)
-{
-  PRECONDITION(is_java_generic_struct_tag_type(type));
-  return static_cast<java_generic_struct_tag_typet &>(type);
-}
 
 /// Take a signature string and remove everything in angle brackets allowing for
 /// the type to be parsed normally, for example

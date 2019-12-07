@@ -9,13 +9,17 @@ Author: Chris Smowton, chris.smowton@diffblue.com
 /// \file
 /// Context-insensitive lazy methods container
 
-#include "ci_lazy_methods.h"
-#include "java_static_initializers.h"
+#include "ci_lazy_methods_needed.h"
 
-#include <java_bytecode/select_pointer_type.h>
-#include <string>
+#include <goto-programs/resolve_inherited_component.h>
+
 #include <util/namespace.h>
 #include <util/std_types.h>
+
+#include <string>
+
+#include "java_static_initializers.h"
+#include "select_pointer_type.h"
 
 /// Notes `method_symbol_name` is referenced from some reachable function, and
 /// should therefore be elaborated.
@@ -41,6 +45,24 @@ void ci_lazy_methods_neededt::add_clinit_call(const irep_idt &class_id)
     add_needed_method(clinit_wrapper);
 }
 
+/// For a given class id, if cproverNondetInitialize exists on it or any of its
+/// ancestors then note that it is needed.
+/// \param class_id: The given class id
+void ci_lazy_methods_neededt::add_cprover_nondet_initialize_if_it_exists(
+  const irep_idt &class_id)
+{
+  resolve_inherited_componentt resolve_inherited_component{symbol_table};
+  optionalt<resolve_inherited_componentt::inherited_componentt>
+    cprover_nondet_initialize = resolve_inherited_component(
+      class_id, "cproverNondetInitialize:()V", true);
+
+  if(cprover_nondet_initialize)
+  {
+    add_needed_method(
+      cprover_nondet_initialize->get_full_component_identifier());
+  }
+}
+
 /// Notes class `class_symbol_name` will be instantiated, or a static field
 /// belonging to it will be accessed. Also notes that its static initializer is
 /// therefore reachable.
@@ -52,11 +74,7 @@ bool ci_lazy_methods_neededt::add_needed_class(
   if(!instantiated_classes.insert(class_symbol_name).second)
     return false;
 
-  const std::string &class_name_string = id2string(class_symbol_name);
-  const irep_idt cprover_validate(
-    class_name_string + ".cproverNondetInitialize:()V");
-  if(symbol_table.symbols.count(cprover_validate))
-    add_needed_method(cprover_validate);
+  add_cprover_nondet_initialize_if_it_exists(class_symbol_name);
 
   // Special case for enums. We may want to generalise this, the comment in
   // \ref java_object_factoryt::gen_nondet_pointer_init (TG-4689).
@@ -138,7 +156,9 @@ void ci_lazy_methods_neededt::gather_field_types(
     {
       const typet &element_type =
         java_array_element_type(to_struct_tag_type(class_type));
-      if(element_type.id() == ID_pointer)
+      if(
+        element_type.id() == ID_pointer &&
+        element_type.subtype().id() != ID_empty)
       {
         // This is a reference array -- mark its element type available.
         add_all_needed_classes(to_pointer_type(element_type));

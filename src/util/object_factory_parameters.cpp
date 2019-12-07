@@ -7,6 +7,7 @@ Author: Diffblue Ltd
 \*******************************************************************/
 
 #include "object_factory_parameters.h"
+#include "string2int.h"
 
 #include <util/cmdline.h>
 #include <util/options.h>
@@ -76,10 +77,15 @@ void parse_object_factory_options(const cmdlinet &cmdline, optionst &options)
   }
   if(cmdline.isset("string-printable"))
   {
-    options.set_option("string-printable", cmdline.isset("string-printable"));
+    options.set_option("string-printable", true);
   }
   if(cmdline.isset("string-non-empty"))
   {
     options.set_option("min-nondet-string-length", 1);
+  }
+  if(cmdline.isset("string-input-value"))
+  {
+    options.set_option(
+      "string-input-value", cmdline.get_values("string-input-value"));
   }
 }

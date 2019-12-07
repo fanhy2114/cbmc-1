@@ -23,8 +23,8 @@
 #include <util/options.h>
 #include <util/symbol_table.h>
 
-#include <testing-utils/catch.hpp>
 #include <testing-utils/message.h>
+#include <testing-utils/use_catch.h>
 
 #include <iosfwd>
 
@@ -59,7 +59,7 @@ void get_goto_model(std::istream &in, goto_modelt &goto_model)
   language_filest language_files;
   language_files.set_message_handler(null_message_handler);
 
-  std::string filename("");
+  std::string filename;
 
   language_filet &language_file = language_files.add_file(filename);
 
@@ -97,7 +97,7 @@ TEST_CASE("json symbol table read/write consistency")
   register_language(new_ansi_c_language);
 
   cmdlinet cmdline;
-  config.main = "main";
+  config.main = std::string("main");
   config.set(cmdline);
 
   goto_modelt goto_model;

@@ -16,6 +16,8 @@ Author: Daniel Kroening, kroening@kroening.com
 #include <util/simplify_expr.h>
 #include <util/std_expr.h>
 
+#include <solvers/lowering/expr_lowering.h>
+
 bvt boolbvt::convert_index(const index_exprt &expr)
 {
   const exprt &array=expr.array();
@@ -41,28 +43,48 @@ bvt boolbvt::convert_index(const index_exprt &expr)
     {
       // use array decision procedure
 
-      // free variables
+      if(has_byte_operator(expr))
+      {
+        const index_exprt final_expr =
+          to_index_expr(lower_byte_operators(expr, ns));
+        CHECK_RETURN(final_expr != expr);
+        bv = convert_bv(final_expr);
 
-      bv.resize(width);
-      for(std::size_t i=0; i<width; i++)
-        bv[i]=prop.new_variable();
+        // record type if array is a symbol
+        const exprt &final_array = final_expr.array();
+        if(
+          final_array.id() == ID_symbol || final_array.id() == ID_nondet_symbol)
+        {
+          map.get_map_entry(final_array.get(ID_identifier), array_type);
+        }
 
-      record_array_index(expr);
+        // make sure we have the index in the cache
+        convert_bv(final_expr.index());
+      }
+      else
+      {
+        // free variables
+        bv.reserve(width);
+        for(std::size_t i = 0; i < width; i++)
+          bv.push_back(prop.new_variable());
 
-      // record type if array is a symbol
+        record_array_index(expr);
 
-      if(array.id()==ID_symbol)
-        map.get_map_entry(
-          to_symbol_expr(array).get_identifier(), array_type);
+        // record type if array is a symbol
+        if(array.id() == ID_symbol || array.id() == ID_nondet_symbol)
+          map.get_map_entry(array.get(ID_identifier), array_type);
 
-      // make sure we have the index in the cache
-      convert_bv(index);
+        // make sure we have the index in the cache
+        convert_bv(index);
+      }
 
       return bv;
     }
 
     // Must have a finite size
-    mp_integer array_size = numeric_cast_v<mp_integer>(array_type.size());
+    mp_integer array_size =
+      numeric_cast_v<mp_integer>(to_constant_expr(array_type.size()));
+
     {
       // see if the index address is constant
       // many of these are compacted by simplify_expr
@@ -84,12 +106,13 @@ bvt boolbvt::convert_index(const index_exprt &expr)
 
     if(array.id() == ID_constant || array.id() == ID_array)
     {
-      is_uniform =
-        array.operands().size() <= 1 ||
-        std::all_of(
-          ++array.operands().begin(),
-          array.operands().end(),
-          [&array](const exprt &expr) { return expr == array.op0(); });
+      is_uniform = array.operands().size() <= 1 ||
+                   std::all_of(
+                     ++array.operands().begin(),
+                     array.operands().end(),
+                     [&array](const exprt &expr) {
+                       return expr == to_multi_ary_expr(array).op0();
+                     });
     }
 
     if(is_uniform && prop.has_set_to())
@@ -102,17 +125,21 @@ bvt boolbvt::convert_index(const index_exprt &expr)
       symbol_exprt result(identifier, expr.type());
       bv = convert_bv(result);
 
-      equal_exprt value_equality(result, array.op0());
+      // return an unconstrained value in case of an empty array (the access is
+      // necessarily out-of-bounds)
+      if(!array.has_operands())
+        return bv;
+
+      equal_exprt value_equality(result, to_multi_ary_expr(array).op0());
 
       binary_relation_exprt lower_bound(
         from_integer(0, index.type()), ID_le, index);
-      CHECK_RETURN(lower_bound.lhs().is_not_nil());
       binary_relation_exprt upper_bound(
         index, ID_lt, from_integer(array_size, index.type()));
-      CHECK_RETURN(upper_bound.rhs().is_not_nil());
 
-      and_exprt range_condition(lower_bound, upper_bound);
-      implies_exprt implication(range_condition, value_equality);
+      and_exprt range_condition(std::move(lower_bound), std::move(upper_bound));
+      implies_exprt implication(
+        std::move(range_condition), std::move(value_equality));
 
       // Simplify may remove the lower bound if the type
       // is correct.

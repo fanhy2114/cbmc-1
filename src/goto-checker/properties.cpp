@@ -14,6 +14,7 @@ Author: Daniel Kroening, Peter Schrammel
 #include <util/exit_codes.h>
 #include <util/invariant.h>
 #include <util/json.h>
+#include <util/json_stream.h>
 #include <util/xml.h>
 
 std::string as_string(resultt result)
@@ -44,9 +45,9 @@ std::string as_string(property_statust status)
   case property_statust::NOT_REACHABLE:
     return "UNREACHABLE";
   case property_statust::PASS:
-    return "PASS";
+    return "SUCCESS";
   case property_statust::FAIL:
-    return "FAIL";
+    return "FAILURE";
   case property_statust::ERROR:
     return "ERROR";
   }
@@ -62,17 +63,20 @@ property_infot::property_infot(
 {
 }
 
-/// Return the properties in the goto model and initialize them to NOT_CHECKED
 propertiest initialize_properties(const abstract_goto_modelt &goto_model)
 {
   propertiest properties;
+  update_properties_from_goto_model(properties, goto_model);
+  return properties;
+}
+
+void update_properties_from_goto_model(
+  propertiest &properties,
+  const abstract_goto_modelt &goto_model)
+{
   const auto &goto_functions = goto_model.get_goto_functions();
   for(const auto &function_pair : goto_functions.function_map)
   {
-    // don't collect properties from inlined functions
-    if(function_pair.second.is_inlined())
-      continue;
-
     const goto_programt &goto_program = function_pair.second.body;
 
     // need pointer to goto instruction
@@ -89,7 +93,6 @@ propertiest initialize_properties(const abstract_goto_modelt &goto_model)
         property_infot{i_it, description, property_statust::NOT_CHECKED});
     }
   }
-  return properties;
 }
 
 std::string
@@ -107,14 +110,31 @@ xmlt xml(const irep_idt &property_id, const property_infot &property_info)
   return xml_result;
 }
 
+template <class json_objectT>
+static void json(
+  json_objectT &result,
+  const irep_idt &property_id,
+  const property_infot &property_info)
+{
+  result["property"] = json_stringt(property_id);
+  result["description"] = json_stringt(property_info.description);
+  result["status"] = json_stringt(as_string(property_info.status));
+}
+
 json_objectt
 json(const irep_idt &property_id, const property_infot &property_info)
 {
   json_objectt result;
-  result["property"] = json_stringt(property_id);
-  result["description"] = json_stringt(property_info.description);
-  result["status"] = json_stringt(as_string(property_info.status));
+  json<json_objectt>(result, property_id, property_info);
   return result;
+}
+
+void json(
+  json_stream_objectt &result,
+  const irep_idt &property_id,
+  const property_infot &property_info)
+{
+  json<json_stream_objectt>(result, property_id, property_info);
 }
 
 int result_to_exit_code(resultt result)
@@ -170,10 +190,14 @@ bool has_properties_to_check(const propertiest &properties)
 property_statust &operator|=(property_statust &a, property_statust const &b)
 {
   // non-monotonic use is likely a bug
+  // UNKNOWN is neutral element w.r.t. ERROR/PASS/NOT_REACHABLE/FAIL
+  // clang-format off
   PRECONDITION(
     a == property_statust::NOT_CHECKED ||
     (a == property_statust::UNKNOWN && b != property_statust::NOT_CHECKED) ||
+    b == property_statust::UNKNOWN ||
     a == b);
+  // clang-format on
   switch(a)
   {
   case property_statust::NOT_CHECKED:

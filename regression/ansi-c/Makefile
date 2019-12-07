@@ -10,10 +10,16 @@ else
 endif
 
 test:
-	@../test.pl -p -c $(exe)
+	@../test.pl -e -p -c $(exe)
+ifneq ($(BUILD_ENV_),MSVC)
+	@../test.pl -e -p -c "$(exe) -xc++ -D_Bool=bool" -I test-c++-front-end -s c++-front-end
+endif
 
 tests.log: ../test.pl
-	@../test.pl -p -c $(exe)
+	@../test.pl -e -p -c $(exe)
+ifneq ($(BUILD_ENV_),MSVC)
+	@../test.pl -e -p -c "$(exe) -xc++ -D_Bool=bool" -I test-c++-front-end -s c++-front-end
+endif
 
 show:
 	@for dir in *; do \

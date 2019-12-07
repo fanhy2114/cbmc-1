@@ -9,32 +9,24 @@ Author: Daniel Kroening, kroening@kroening.com
 #include "boolbv.h"
 
 #include <util/arith_tools.h>
+#include <util/expr_util.h>
 #include <util/invariant.h>
 #include <util/optional.h>
 #include <util/replace_expr.h>
 #include <util/simplify_expr.h>
 
 /// A method to detect equivalence between experts that can contain typecast
-bool expr_eq(const exprt &expr1, const exprt &expr2)
+static bool expr_eq(const exprt &expr1, const exprt &expr2)
 {
-  exprt e1=expr1, e2=expr2;
-  if(expr1.id()==ID_typecast)
-    e1=expr1.op0();
-  if(expr2.id()==ID_typecast)
-    e2=expr2.op0();
-  return e1==e2;
+  return skip_typecast(expr1) == skip_typecast(expr2);
 }
 
 /// To obtain the min value for the quantifier variable of the specified
 /// forall/exists operator. The min variable is in the form of "!(var_expr >
 /// constant)".
-exprt get_quantifier_var_min(
-  const exprt &var_expr,
-  const exprt &quantifier_expr)
+static optionalt<constant_exprt>
+get_quantifier_var_min(const exprt &var_expr, const exprt &quantifier_expr)
 {
-  PRECONDITION(quantifier_expr.id() == ID_or || quantifier_expr.id() == ID_and);
-
-  exprt res = false_exprt();
   if(quantifier_expr.id()==ID_or)
   {
     /**
@@ -45,16 +37,18 @@ exprt get_quantifier_var_min(
     {
       if(x.id()!=ID_not)
         continue;
-      exprt y=x.op0();
+      exprt y = to_not_expr(x).op();
       if(y.id()!=ID_ge)
         continue;
-      if(expr_eq(var_expr, y.op0()) && y.op1().id()==ID_constant)
+      const auto &y_binary = to_binary_relation_expr(y);
+      if(
+        expr_eq(var_expr, y_binary.lhs()) && y_binary.rhs().id() == ID_constant)
       {
-        return y.op1();
+        return to_constant_expr(y_binary.rhs());
       }
     }
   }
-  else
+  else if(quantifier_expr.id() == ID_and)
   {
     /**
      * The min variable
@@ -64,23 +58,23 @@ exprt get_quantifier_var_min(
     {
       if(x.id()!=ID_ge)
         continue;
-      if(expr_eq(var_expr, x.op0()) && x.op1().id()==ID_constant)
+      const auto &x_binary = to_binary_relation_expr(x);
+      if(
+        expr_eq(var_expr, x_binary.lhs()) && x_binary.rhs().id() == ID_constant)
       {
-        return x.op1();
+        return to_constant_expr(x_binary.rhs());
       }
     }
   }
-  return res;
+
+  return {};
 }
 
 /// To obtain the max value for the quantifier variable of the specified
 /// forall/exists operator.
-exprt get_quantifier_var_max(
-  const exprt &var_expr,
-  const exprt &quantifier_expr)
+static optionalt<constant_exprt>
+get_quantifier_var_max(const exprt &var_expr, const exprt &quantifier_expr)
 {
-  PRECONDITION(quantifier_expr.id() == ID_or || quantifier_expr.id() == ID_and);
-  exprt res = false_exprt();
   if(quantifier_expr.id()==ID_or)
   {
     /**
@@ -91,18 +85,21 @@ exprt get_quantifier_var_max(
     {
       if(x.id()!=ID_ge)
         continue;
-      if(expr_eq(var_expr, x.op0()) && x.op1().id()==ID_constant)
+      const auto &x_binary = to_binary_relation_expr(x);
+      if(
+        expr_eq(var_expr, x_binary.lhs()) && x_binary.rhs().id() == ID_constant)
       {
-        exprt over_expr=x.op1();
+        const constant_exprt &over_expr = to_constant_expr(x_binary.rhs());
+
         mp_integer over_i = numeric_cast_v<mp_integer>(over_expr);
+
         /**
          * Due to the ''simplify'',
          * the ''over_i'' value we obtain here is not the exact
          * maximum index as specified in the original code.
          **/
         over_i-=1;
-        res=from_integer(over_i, x.op1().type());
-        return res;
+        return from_integer(over_i, x_binary.rhs().type());
       }
     }
   }
@@ -116,27 +113,27 @@ exprt get_quantifier_var_max(
     {
       if(x.id()!=ID_not)
         continue;
-      exprt y=x.op0();
+      exprt y = to_not_expr(x).op();
       if(y.id()!=ID_ge)
         continue;
-      if(expr_eq(var_expr, y.op0()) && y.op1().id()==ID_constant)
+      const auto &y_binary = to_binary_relation_expr(y);
+      if(
+        expr_eq(var_expr, y_binary.lhs()) && y_binary.rhs().id() == ID_constant)
       {
-        exprt over_expr=y.op1();
+        const constant_exprt &over_expr = to_constant_expr(y_binary.rhs());
         mp_integer over_i = numeric_cast_v<mp_integer>(over_expr);
         over_i-=1;
-        res=from_integer(over_i, y.op1().type());
-        return res;
+        return from_integer(over_i, y_binary.rhs().type());
       }
     }
   }
-  return res;
+
+  return {};
 }
 
-optionalt<exprt>
+static optionalt<exprt>
 instantiate_quantifier(const quantifier_exprt &expr, const namespacet &ns)
 {
-  PRECONDITION(expr.id() == ID_forall || expr.id() == ID_exists);
-
   const symbol_exprt &var_expr = expr.symbol();
 
   /**
@@ -144,21 +141,21 @@ instantiate_quantifier(const quantifier_exprt &expr, const namespacet &ns)
    * an OR/AND expr.
    **/
 
-  const exprt &re = simplify_expr(expr.where(), ns);
+  const exprt re = simplify_expr(expr.where(), ns);
 
   if(re.is_true() || re.is_false())
   {
     return re;
   }
 
-  const exprt &min_i = get_quantifier_var_min(var_expr, re);
-  const exprt &max_i = get_quantifier_var_max(var_expr, re);
+  const optionalt<constant_exprt> min_i = get_quantifier_var_min(var_expr, re);
+  const optionalt<constant_exprt> max_i = get_quantifier_var_max(var_expr, re);
 
-  if(min_i.is_false() || max_i.is_false())
+  if(!min_i.has_value() || !max_i.has_value())
     return nullopt;
 
-  mp_integer lb = numeric_cast_v<mp_integer>(min_i);
-  mp_integer ub = numeric_cast_v<mp_integer>(max_i);
+  mp_integer lb = numeric_cast_v<mp_integer>(min_i.value());
+  mp_integer ub = numeric_cast_v<mp_integer>(max_i.value());
 
   if(lb>ub)
     return nullopt;
@@ -175,50 +172,57 @@ instantiate_quantifier(const quantifier_exprt &expr, const namespacet &ns)
 
   if(expr.id()==ID_forall)
   {
-    return conjunction(expr_insts);
+    // maintain the domain constraint if it isn't guaranteed by the
+    // instantiations (for a disjunction the domain constraint is implied by the
+    // instantiations)
+    if(re.id() == ID_and)
+    {
+      expr_insts.push_back(binary_predicate_exprt(
+        var_expr, ID_gt, from_integer(lb, var_expr.type())));
+      expr_insts.push_back(binary_predicate_exprt(
+        var_expr, ID_le, from_integer(ub, var_expr.type())));
+    }
+    return simplify_expr(conjunction(expr_insts), ns);
   }
   else if(expr.id() == ID_exists)
   {
-    return disjunction(expr_insts);
+    // maintain the domain constraint if it isn't trivially satisfied by the
+    // instantiations (for a conjunction the instantiations are stronger
+    // constraints)
+    if(re.id() == ID_or)
+    {
+      expr_insts.push_back(binary_predicate_exprt(
+        var_expr, ID_gt, from_integer(lb, var_expr.type())));
+      expr_insts.push_back(binary_predicate_exprt(
+        var_expr, ID_le, from_integer(ub, var_expr.type())));
+    }
+    return simplify_expr(disjunction(expr_insts), ns);
   }
 
   UNREACHABLE;
-  return nullopt;
 }
 
 literalt boolbvt::convert_quantifier(const quantifier_exprt &src)
 {
   PRECONDITION(src.id() == ID_forall || src.id() == ID_exists);
 
-  quantifier_exprt expr(src);
-  const auto res = instantiate_quantifier(expr, ns);
+  const auto res = instantiate_quantifier(src, ns);
 
-  if(!res)
-  {
-    return SUB::convert_rest(src);
-  }
+  if(res)
+    return convert_bool(*res);
 
-  quantifiert quantifier;
-  quantifier.expr = *res;
-  quantifier_list.push_back(quantifier);
+  // we failed to instantiate here, need to pass to post-processing
+  quantifier_list.emplace_back(quantifiert(src, prop.new_variable()));
 
-  literalt l=prop.new_variable();
-  quantifier_list.back().l=l;
-
-  return l;
+  return quantifier_list.back().l;
 }
 
 void boolbvt::post_process_quantifiers()
 {
-  std::set<exprt> instances;
-
   if(quantifier_list.empty())
     return;
 
-  for(auto it=quantifier_list.begin();
-      it!=quantifier_list.end();
-      ++it)
-  {
-    prop.set_equal(convert_bool(it->expr), it->l);
-  }
+  // we do not yet have any elaborate post-processing
+  for(const auto &q : quantifier_list)
+    conversion_failed(q.expr);
 }

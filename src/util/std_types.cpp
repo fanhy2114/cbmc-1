@@ -13,6 +13,7 @@ Author: Daniel Kroening, kroening@kroening.com
 #include "std_types.h"
 
 #include "arith_tools.h"
+#include "bv_arithmetic.h"
 #include "namespace.h"
 #include "std_expr.h"
 #include "string2int.h"
@@ -79,7 +80,8 @@ const struct_tag_typet &struct_typet::baset::type() const
   return to_struct_tag_type(exprt::type());
 }
 
-struct_typet::baset::baset(const struct_tag_typet &base) : exprt(ID_base, base)
+struct_typet::baset::baset(struct_tag_typet base)
+  : exprt(ID_base, std::move(base))
 {
 }
 
@@ -161,52 +163,27 @@ mp_integer range_typet::get_to() const
   return string2integer(get_string(ID_to));
 }
 
-mp_integer signedbv_typet::smallest() const
+mp_integer integer_bitvector_typet::smallest() const
 {
-  return -power(2, get_width()-1);
+  return bv_spect(*this).min_value();
 }
 
-mp_integer signedbv_typet::largest() const
+mp_integer integer_bitvector_typet::largest() const
 {
-  return power(2, get_width()-1)-1;
+  return bv_spect(*this).max_value();
 }
 
-constant_exprt signedbv_typet::zero_expr() const
-{
-  return from_integer(0, *this);
-}
-
-constant_exprt signedbv_typet::smallest_expr() const
-{
-  return from_integer(smallest(), *this);
-}
-
-constant_exprt signedbv_typet::largest_expr() const
-{
-  return from_integer(largest(), *this);
-}
-
-mp_integer unsignedbv_typet::smallest() const
-{
-  return 0;
-}
-
-mp_integer unsignedbv_typet::largest() const
-{
-  return power(2, get_width())-1;
-}
-
-constant_exprt unsignedbv_typet::zero_expr() const
+constant_exprt integer_bitvector_typet::zero_expr() const
 {
   return from_integer(0, *this);
 }
 
-constant_exprt unsignedbv_typet::smallest_expr() const
+constant_exprt integer_bitvector_typet::smallest_expr() const
 {
   return from_integer(smallest(), *this);
 }
 
-constant_exprt unsignedbv_typet::largest_expr() const
+constant_exprt integer_bitvector_typet::largest_expr() const
 {
   return from_integer(largest(), *this);
 }
@@ -262,9 +239,7 @@ bool is_constant_or_has_constant_components(
   // we have to use the namespace to resolve to its definition:
   // struct t { const int a; };
   // struct t t1;
-  if(type.id() == ID_symbol_type ||
-     type.id() == ID_struct_tag ||
-     type.id() == ID_union_tag)
+  if(type.id() == ID_struct_tag || type.id() == ID_union_tag)
   {
     const auto &resolved_type = ns.follow(type);
     return has_constant_components(resolved_type);
@@ -282,4 +257,20 @@ bool is_constant_or_has_constant_components(
   }
 
   return false;
+}
+
+vector_typet::vector_typet(const typet &_subtype, const constant_exprt &_size)
+  : type_with_subtypet(ID_vector, _subtype)
+{
+  size() = _size;
+}
+
+const constant_exprt &vector_typet::size() const
+{
+  return static_cast<const constant_exprt &>(find(ID_size));
+}
+
+constant_exprt &vector_typet::size()
+{
+  return static_cast<constant_exprt &>(add(ID_size));
 }

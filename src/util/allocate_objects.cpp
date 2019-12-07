@@ -121,25 +121,7 @@ symbol_exprt allocate_objectst::allocate_automatic_local_object(
   return aux_symbol.symbol_expr();
 }
 
-/// Generates code for allocating a dynamic object. A new variable with basename
-/// prefix `alloc_site` is introduced to which the allocated memory is assigned.
-/// Then, the variable is assigned to `target_expr`. For example, with
-/// `target_expr` being `*p` the following code is generated:
-///
-/// `alloc_site$1 = ALLOCATE(object_size, FALSE);`
-/// `*p = alloc_site$1;`
-///
-/// The function returns a dereference expressiont that dereferences the
-/// allocation site variable (e.g., `*alloc_site$1`) and which can be used to
-/// initialize the allocated memory.
-///
-/// \param output_code: Code block to which the necessary code is added
-/// \param target_expr: A pointer to the allocated memory will be assigned to
-///   this (lvalue) expression
-/// \param allocate_type: Type of the object allocated
-/// \return A dereference_exprt that dereferences the pointer to the allocated
-///   memory, or an empty expression when `allocate_type` is void
-exprt allocate_objectst::allocate_dynamic_object(
+exprt allocate_objectst::allocate_dynamic_object_symbol(
   code_blockt &output_code,
   const exprt &target_expr,
   const typet &allocate_type)
@@ -147,23 +129,17 @@ exprt allocate_objectst::allocate_dynamic_object(
   if(allocate_type.id() == ID_empty)
   {
     // make null
-    null_pointer_exprt null_pointer_expr(to_pointer_type(target_expr.type()));
-    code_assignt code(target_expr, null_pointer_expr);
-    code.add_source_location() = source_location;
-    output_code.add(code);
+    code_assignt code{target_expr,
+                      null_pointer_exprt{to_pointer_type(target_expr.type())},
+                      source_location};
+    output_code.add(std::move(code));
 
     return exprt();
   }
 
   // build size expression
-  exprt object_size = size_of_expr(allocate_type, ns);
-  INVARIANT(!object_size.is_nil(), "Size of objects should be known");
-
-  // malloc expression
-  side_effect_exprt malloc_expr(
-    ID_allocate, pointer_type(allocate_type), source_location);
-  malloc_expr.copy_to_operands(object_size);
-  malloc_expr.copy_to_operands(false_exprt());
+  auto object_size = size_of_expr(allocate_type, ns);
+  INVARIANT(object_size.has_value(), "Size of objects should be known");
 
   // create a symbol for the malloc expression so we can initialize
   // without having to do it potentially through a double-deref, which
@@ -178,20 +154,27 @@ exprt allocate_objectst::allocate_dynamic_object(
 
   symbols_created.push_back(&malloc_sym);
 
-  code_assignt assign(malloc_sym.symbol_expr(), malloc_expr);
-  assign.add_source_location() = source_location;
+  code_assignt assign =
+    make_allocate_code(malloc_sym.symbol_expr(), object_size.value());
   output_code.add(assign);
 
-  exprt malloc_symbol_expr =
-    ns.follow(malloc_sym.symbol_expr().type()) != ns.follow(target_expr.type())
-      ? (exprt)typecast_exprt(malloc_sym.symbol_expr(), target_expr.type())
-      : malloc_sym.symbol_expr();
+  exprt malloc_symbol_expr = typecast_exprt::conditional_cast(
+    malloc_sym.symbol_expr(), target_expr.type());
 
   code_assignt code(target_expr, malloc_symbol_expr);
   code.add_source_location() = source_location;
   output_code.add(code);
 
-  return dereference_exprt(malloc_sym.symbol_expr());
+  return malloc_sym.symbol_expr();
+}
+
+exprt allocate_objectst::allocate_dynamic_object(
+  code_blockt &output_code,
+  const exprt &target_expr,
+  const typet &allocate_type)
+{
+  return dereference_exprt(
+    allocate_dynamic_object_symbol(output_code, target_expr, allocate_type));
 }
 
 exprt allocate_objectst::allocate_non_dynamic_object(
@@ -212,12 +195,8 @@ exprt allocate_objectst::allocate_non_dynamic_object(
   aux_symbol.is_static_lifetime = static_lifetime;
   symbols_created.push_back(&aux_symbol);
 
-  exprt aoe =
-    ns.follow(aux_symbol.symbol_expr().type()) !=
-        ns.follow(target_expr.type().subtype())
-      ? (exprt)typecast_exprt(
-          address_of_exprt(aux_symbol.symbol_expr()), target_expr.type())
-      : address_of_exprt(aux_symbol.symbol_expr());
+  exprt aoe = typecast_exprt::conditional_cast(
+    address_of_exprt(aux_symbol.symbol_expr()), target_expr.type());
 
   code_assignt code(target_expr, aoe);
   code.add_source_location() = source_location;
@@ -268,12 +247,14 @@ void allocate_objectst::mark_created_symbols_as_input(code_blockt &init_code)
   //   INPUT("<identifier>", <identifier>);
   for(symbolt const *symbol_ptr : symbols_created)
   {
-    codet input_code(ID_input);
-    input_code.operands().resize(2);
-    input_code.op0() = address_of_exprt(index_exprt(
-      string_constantt(symbol_ptr->base_name), from_integer(0, index_type())));
-    input_code.op1() = symbol_ptr->symbol_expr();
-    input_code.add_source_location() = source_location;
-    init_code.add(std::move(input_code));
+    init_code.add(code_inputt{
+      symbol_ptr->base_name, symbol_ptr->symbol_expr(), source_location});
   }
+}
+
+code_assignt make_allocate_code(const symbol_exprt &lhs, const exprt &size)
+{
+  side_effect_exprt alloc{
+    ID_allocate, {size, false_exprt()}, lhs.type(), lhs.source_location()};
+  return code_assignt(lhs, alloc);
 }

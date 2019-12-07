@@ -23,13 +23,11 @@ struct java_bytecode_parse_treet
 {
   // Disallow copy construction and copy assignment, but allow move construction
   // and move assignment.
-  #ifndef _MSC_VER // Ommit this on MS VC2013 as move is not supported.
   java_bytecode_parse_treet(const java_bytecode_parse_treet &) = delete;
   java_bytecode_parse_treet &
   operator=(const java_bytecode_parse_treet &) = delete;
   java_bytecode_parse_treet(java_bytecode_parse_treet &&) = default;
   java_bytecode_parse_treet &operator=(java_bytecode_parse_treet &&) = default;
-  #endif
 
   struct annotationt
   {
@@ -58,7 +56,7 @@ struct java_bytecode_parse_treet
   {
     source_locationt source_location;
     unsigned address;
-    irep_idt statement;
+    u8 bytecode;
     typedef std::vector<exprt> argst;
     argst args;
   };
@@ -87,7 +85,7 @@ struct java_bytecode_parse_treet
   {
     irep_idt base_name;
     bool is_native = false, is_abstract = false, is_synchronized = false,
-         is_bridge = false, is_varargs = false;
+         is_bridge = false, is_varargs = false, is_synthetic = false;
     source_locationt source_location;
 
     typedef std::vector<instructiont> instructionst;
@@ -206,12 +204,10 @@ struct java_bytecode_parse_treet
 
     // Disallow copy construction and copy assignment, but allow move
     // construction and move assignment.
-    #ifndef _MSC_VER // Ommit this on MS VC2013 as move is not supported.
     classt(const classt &) = delete;
     classt &operator=(const classt &) = delete;
     classt(classt &&) = default;
     classt &operator=(classt &&) = default;
-    #endif
 
     irep_idt name, super_class, inner_name;
     bool is_abstract=false;
@@ -341,6 +337,22 @@ public:
     set(ID_class, class_name);
     set(ID_component_name, component_name);
   }
+
+  irep_idt class_name() const
+  {
+    return get(ID_class);
+  }
+
+  irep_idt component_name() const
+  {
+    return get(ID_component_name);
+  }
 };
+
+template <>
+inline bool can_cast_expr<fieldref_exprt>(const exprt &base)
+{
+  return !base.get(ID_class).empty() && !base.get(ID_component_name).empty();
+}
 
 #endif // CPROVER_JAVA_BYTECODE_JAVA_BYTECODE_PARSE_TREE_H

@@ -12,11 +12,11 @@ Author: Daniel Kroening, kroening@kroening.com
 
 #include <list>
 
-#include "base_type.h"
 #include "expr.h"
 #include "expr_cast.h"
 #include "invariant.h"
 #include "std_expr.h"
+#include "std_types.h"
 #include "validate.h"
 #include "validate_code.h"
 
@@ -34,18 +34,33 @@ Author: Daniel Kroening, kroening@kroening.com
 class codet:public exprt
 {
 public:
-  DEPRECATED("use codet(statement) instead")
-  codet():exprt(ID_code, typet(ID_code))
+  /// \param statement: Specifies the type of the `codet` to be constructed,
+  ///   e.g. `ID_block` for a \ref code_blockt or `ID_assign` for a
+  ///   \ref code_assignt.
+  explicit codet(const irep_idt &statement) : exprt(ID_code, empty_typet())
   {
+    set_statement(statement);
+  }
+
+  codet(const irep_idt &statement, source_locationt loc)
+    : exprt(ID_code, empty_typet(), std::move(loc))
+  {
+    set_statement(statement);
   }
 
   /// \param statement: Specifies the type of the `codet` to be constructed,
   ///   e.g. `ID_block` for a \ref code_blockt or `ID_assign` for a
   ///   \ref code_assignt.
-  explicit codet(const irep_idt &statement):
-    exprt(ID_code, typet(ID_code))
+  /// \param _op: any operands to be added
+  explicit codet(const irep_idt &statement, operandst _op) : codet(statement)
   {
-    set_statement(statement);
+    operands() = std::move(_op);
+  }
+
+  codet(const irep_idt &statement, operandst op, source_locationt loc)
+    : codet(statement, std::move(loc))
+  {
+    operands() = std::move(op);
   }
 
   void set_statement(const irep_idt &statement)
@@ -62,6 +77,8 @@ public:
   const codet &first_statement() const;
   codet &last_statement();
   const codet &last_statement() const;
+
+  DEPRECATED(SINCE(2019, 2, 6, "use code_blockt(...) instead"))
   class code_blockt &make_block();
 
   /// Check that the code statement is well-formed (shallow checks only, i.e.,
@@ -108,6 +125,11 @@ public:
   {
     check_code(code, vm);
   }
+
+  using exprt::op0;
+  using exprt::op1;
+  using exprt::op2;
+  using exprt::op3;
 };
 
 namespace detail // NOLINT
@@ -176,14 +198,14 @@ public:
     return result;
   }
 
-  explicit code_blockt(const std::vector<codet> &_statements):codet(ID_block)
+  explicit code_blockt(const std::vector<codet> &_statements)
+    : codet(ID_block, (const std::vector<exprt> &)_statements)
   {
-    operands()=(const std::vector<exprt> &)_statements;
   }
 
-  explicit code_blockt(std::vector<codet> &&_statements):codet(ID_block)
+  explicit code_blockt(std::vector<codet> &&_statements)
+    : codet(ID_block, std::move((std::vector<exprt> &&) _statements))
   {
-    operands()=std::move((std::vector<exprt> &&)_statements);
   }
 
   void add(const codet &code)
@@ -196,10 +218,10 @@ public:
     add_to_operands(std::move(code));
   }
 
-  void add(codet code, const source_locationt &loc)
+  void add(codet code, source_locationt loc)
   {
-    code.add_source_location() = loc;
-    add(code);
+    code.add_source_location().swap(loc);
+    add(std::move(code));
   }
 
   void append(const code_blockt &extra_block);
@@ -211,6 +233,19 @@ public:
   }
 
   codet &find_last_statement();
+
+  static void validate_full(
+    const codet &code,
+    const namespacet &ns,
+    const validation_modet vm = validation_modet::INVARIANT)
+  {
+    for(const auto &statement : code.operands())
+    {
+      DATA_CHECK(
+        vm, code.id() == ID_code, "code block must be made up of codet");
+      validate_full_code(to_code(statement), ns, vm);
+    }
+  }
 };
 
 template<> inline bool can_cast_expr<code_blockt>(const exprt &base)
@@ -240,6 +275,12 @@ public:
   code_skipt():codet(ID_skip)
   {
   }
+
+protected:
+  using codet::op0;
+  using codet::op1;
+  using codet::op2;
+  using codet::op3;
 };
 
 template<> inline bool can_cast_expr<code_skipt>(const exprt &base)
@@ -261,9 +302,14 @@ public:
     operands().resize(2);
   }
 
-  code_assignt(const exprt &lhs, const exprt &rhs):codet(ID_assign)
+  code_assignt(exprt lhs, exprt rhs)
+    : codet(ID_assign, {std::move(lhs), std::move(rhs)})
   {
-    add_to_operands(lhs, rhs);
+  }
+
+  code_assignt(exprt lhs, exprt rhs, source_locationt loc)
+    : codet(ID_assign, {std::move(lhs), std::move(rhs)}, std::move(loc))
+  {
   }
 
   exprt &lhs()
@@ -296,14 +342,14 @@ public:
 
   static void validate(
     const codet &code,
-    const namespacet &ns,
+    const namespacet &,
     const validation_modet vm = validation_modet::INVARIANT)
   {
     check(code, vm);
 
     DATA_CHECK(
       vm,
-      base_type_eq(code.op0().type(), code.op1().type(), ns),
+      code.op0().type() == code.op1().type(),
       "lhs and rhs of assignment must have same type");
   }
 
@@ -319,6 +365,12 @@ public:
 
     validate(code, ns, vm);
   }
+
+protected:
+  using codet::op0;
+  using codet::op1;
+  using codet::op2;
+  using codet::op3;
 };
 
 template<> inline bool can_cast_expr<code_assignt>(const exprt &base)
@@ -328,7 +380,7 @@ template<> inline bool can_cast_expr<code_assignt>(const exprt &base)
 
 inline void validate_expr(const code_assignt & x)
 {
-  validate_operands(x, 2, "assignment must have two operands");
+  code_assignt::check(x);
 }
 
 inline const code_assignt &to_code_assign(const codet &code)
@@ -352,9 +404,8 @@ inline code_assignt &to_code_assign(codet &code)
 class code_declt:public codet
 {
 public:
-  explicit code_declt(const symbol_exprt &symbol) : codet(ID_decl)
+  explicit code_declt(symbol_exprt symbol) : codet(ID_decl, {std::move(symbol)})
   {
-    add_to_operands(symbol);
   }
 
   symbol_exprt &symbol()
@@ -376,8 +427,11 @@ public:
     const codet &code,
     const validation_modet vm = validation_modet::INVARIANT)
   {
+    // will be size()==1 in the future
     DATA_CHECK(
-      vm, code.operands().size() == 1, "declaration must have one operand");
+      vm,
+      code.operands().size() >= 1,
+      "declaration must have one or more operands");
     DATA_CHECK(
       vm,
       code.op0().id() == ID_symbol,
@@ -393,29 +447,20 @@ template<> inline bool can_cast_expr<code_declt>(const exprt &base)
 
 inline void validate_expr(const code_declt &x)
 {
-  validate_operands(x, 1, "decls must have one or more operands", true);
+  code_declt::check(x);
 }
 
 inline const code_declt &to_code_decl(const codet &code)
 {
   PRECONDITION(code.get_statement() == ID_decl);
-
-  // will be size()==1 in the future
-  DATA_INVARIANT(
-    code.operands().size() >= 1, "decls must have one or more operands");
-  DATA_INVARIANT(
-    code.op0().id() == ID_symbol, "decls symbols must be a \"symbol\"");
-
+  code_declt::check(code);
   return static_cast<const code_declt &>(code);
 }
 
 inline code_declt &to_code_decl(codet &code)
 {
   PRECONDITION(code.get_statement() == ID_decl);
-
-  // will be size()==1 in the future
-  DATA_INVARIANT(
-    code.operands().size() >= 1, "decls must have one or more operands");
+  code_declt::check(code);
   return static_cast<code_declt &>(code);
 }
 
@@ -424,9 +469,8 @@ inline code_declt &to_code_decl(codet &code)
 class code_deadt:public codet
 {
 public:
-  explicit code_deadt(const symbol_exprt &symbol) : codet(ID_dead)
+  explicit code_deadt(symbol_exprt symbol) : codet(ID_dead, {std::move(symbol)})
   {
-    add_to_operands(symbol);
   }
 
   symbol_exprt &symbol()
@@ -455,9 +499,14 @@ public:
     DATA_CHECK(
       vm,
       code.op0().id() == ID_symbol,
-      "removing a non-symbol: " +
-        id2string(to_symbol_expr(code.op0()).get_identifier()) + "from scope");
+      "removing a non-symbol: " + id2string(code.op0().id()) + "from scope");
   }
+
+protected:
+  using codet::op0;
+  using codet::op1;
+  using codet::op2;
+  using codet::op3;
 };
 
 template<> inline bool can_cast_expr<code_deadt>(const exprt &base)
@@ -467,28 +516,20 @@ template<> inline bool can_cast_expr<code_deadt>(const exprt &base)
 
 inline void validate_expr(const code_deadt &x)
 {
-  validate_operands(x, 1, "dead statement must have one operand");
+  code_deadt::check(x);
 }
 
 inline const code_deadt &to_code_dead(const codet &code)
 {
   PRECONDITION(code.get_statement() == ID_dead);
-  DATA_INVARIANT(
-    code.operands().size() == 1, "dead statement must have one operand");
-  DATA_INVARIANT(
-    to_unary_expr(code).op().id() == ID_symbol,
-    "dead statement must take symbol operand");
+  code_deadt::check(code);
   return static_cast<const code_deadt &>(code);
 }
 
 inline code_deadt &to_code_dead(codet &code)
 {
   PRECONDITION(code.get_statement() == ID_dead);
-  DATA_INVARIANT(
-    code.operands().size() == 1, "dead statement must have one operand");
-  DATA_INVARIANT(
-    to_unary_expr(code).op().id() == ID_symbol,
-    "dead statement must take symbol operand");
+  code_deadt::check(code);
   return static_cast<code_deadt &>(code);
 }
 
@@ -496,15 +537,8 @@ inline code_deadt &to_code_dead(codet &code)
 class code_assumet:public codet
 {
 public:
-  DEPRECATED("use code_assumet(expr) instead")
-  code_assumet():codet(ID_assume)
+  explicit code_assumet(exprt expr) : codet(ID_assume, {std::move(expr)})
   {
-    operands().resize(1);
-  }
-
-  explicit code_assumet(const exprt &expr):codet(ID_assume)
-  {
-    add_to_operands(expr);
   }
 
   const exprt &assumption() const
@@ -516,6 +550,12 @@ public:
   {
     return op0();
   }
+
+protected:
+  using codet::op0;
+  using codet::op1;
+  using codet::op2;
+  using codet::op3;
 };
 
 template<> inline bool can_cast_expr<code_assumet>(const exprt &base)
@@ -523,24 +563,25 @@ template<> inline bool can_cast_expr<code_assumet>(const exprt &base)
   return detail::can_cast_code_impl(base, ID_assume);
 }
 
-// to_code_assume only checks the code statement, so no validate_expr is
-// provided for code_assumet
+inline void validate_expr(const code_assumet &x)
+{
+  validate_operands(x, 1, "assume must have one operand");
+}
 
 inline const code_assumet &to_code_assume(const codet &code)
 {
   PRECONDITION(code.get_statement() == ID_assume);
-  return static_cast<const code_assumet &>(code);
+  const code_assumet &ret = static_cast<const code_assumet &>(code);
+  validate_expr(ret);
+  return ret;
 }
 
 inline code_assumet &to_code_assume(codet &code)
 {
   PRECONDITION(code.get_statement() == ID_assume);
-  return static_cast<code_assumet &>(code);
-}
-
-inline void validate_expr(const code_assumet &x)
-{
-  validate_operands(x, 1, "assume must have one operand");
+  code_assumet &ret = static_cast<code_assumet &>(code);
+  validate_expr(ret);
+  return ret;
 }
 
 /// A non-fatal assertion, which checks a condition then permits execution to
@@ -548,15 +589,8 @@ inline void validate_expr(const code_assumet &x)
 class code_assertt:public codet
 {
 public:
-  DEPRECATED("use code_assertt(expr) instead")
-  code_assertt():codet(ID_assert)
+  explicit code_assertt(exprt expr) : codet(ID_assert, {std::move(expr)})
   {
-    operands().resize(1);
-  }
-
-  explicit code_assertt(const exprt &expr):codet(ID_assert)
-  {
-    add_to_operands(expr);
   }
 
   const exprt &assertion() const
@@ -568,6 +602,12 @@ public:
   {
     return op0();
   }
+
+protected:
+  using codet::op0;
+  using codet::op1;
+  using codet::op2;
+  using codet::op3;
 };
 
 template<> inline bool can_cast_expr<code_assertt>(const exprt &base)
@@ -575,24 +615,118 @@ template<> inline bool can_cast_expr<code_assertt>(const exprt &base)
   return detail::can_cast_code_impl(base, ID_assert);
 }
 
-// to_code_assert only checks the code statement, so no validate_expr is
-// provided for code_assertt
+inline void validate_expr(const code_assertt &x)
+{
+  validate_operands(x, 1, "assert must have one operand");
+}
 
 inline const code_assertt &to_code_assert(const codet &code)
 {
   PRECONDITION(code.get_statement() == ID_assert);
-  return static_cast<const code_assertt &>(code);
+  const code_assertt &ret = static_cast<const code_assertt &>(code);
+  validate_expr(ret);
+  return ret;
 }
 
 inline code_assertt &to_code_assert(codet &code)
 {
   PRECONDITION(code.get_statement() == ID_assert);
-  return static_cast<code_assertt &>(code);
+  code_assertt &ret = static_cast<code_assertt &>(code);
+  validate_expr(ret);
+  return ret;
 }
 
-inline void validate_expr(const code_assertt &x)
+/// A `codet` representing the declaration that an input of a particular
+/// description has a value which corresponds to the value of a given expression
+/// (or expressions).
+/// When working with the C front end, calls to the `__CPROVER_input` intrinsic
+/// can be added to the input code in order add instructions of this type to the
+/// goto program.
+/// The first argument is expected to be a C string denoting the input
+/// identifier. The second argument is the expression for the input value.
+class code_inputt : public codet
 {
-  validate_operands(x, 1, "assert must have one operand");
+public:
+  /// This constructor is for support of calls to `__CPROVER_input` in user
+  /// code. Where the first first argument is a description which may be any
+  /// `const char *` and one or more corresponding expression arguments follow.
+  explicit code_inputt(
+    std::vector<exprt> arguments,
+    optionalt<source_locationt> location = {});
+
+  /// This constructor is intended for generating input instructions as part of
+  /// synthetic entry point code, rather than as part of user code.
+  /// \param description: This is used to construct an expression for a pointer
+  ///   to a string constant containing the description text. This expression
+  ///   is then used as the first argument.
+  /// \param expression: This expression corresponds to a value which should be
+  ///   recorded as an input.
+  /// \param location: A location to associate with this instruction.
+  code_inputt(
+    const irep_idt &description,
+    exprt expression,
+    optionalt<source_locationt> location = {});
+
+  static void check(
+    const codet &code,
+    const validation_modet vm = validation_modet::INVARIANT);
+};
+
+template <>
+inline bool can_cast_expr<code_inputt>(const exprt &base)
+{
+  return detail::can_cast_code_impl(base, ID_input);
+}
+
+inline void validate_expr(const code_inputt &input)
+{
+  code_inputt::check(input);
+}
+
+/// A `codet` representing the declaration that an output of a particular
+/// description has a value which corresponds to the value of a given expression
+/// (or expressions).
+/// When working with the C front end, calls to the `__CPROVER_output` intrinsic
+/// can be added to the input code in order add instructions of this type to the
+/// goto program.
+/// The first argument is expected to be a C string denoting the output
+/// identifier. The second argument is the expression for the output value.
+class code_outputt : public codet
+{
+public:
+  /// This constructor is for support of calls to `__CPROVER_output` in user
+  /// code. Where the first first argument is a description which may be any
+  /// `const char *` and one or more corresponding expression arguments follow.
+  explicit code_outputt(
+    std::vector<exprt> arguments,
+    optionalt<source_locationt> location = {});
+
+  /// This constructor is intended for generating output instructions as part of
+  /// synthetic entry point code, rather than as part of user code.
+  /// \param description: This is used to construct an expression for a pointer
+  ///   to a string constant containing the description text.
+  /// \param expression: This expression corresponds to a value which should be
+  ///   recorded as an output.
+  /// \param location: A location to associate with this instruction.
+  code_outputt(
+    const irep_idt &description,
+    exprt expression,
+    optionalt<source_locationt> location = {});
+
+  static void check(
+    const codet &code,
+    const validation_modet vm = validation_modet::INVARIANT);
+};
+
+template <>
+inline bool can_cast_expr<code_outputt>(const exprt &base)
+{
+  return detail::can_cast_code_impl(base, ID_output);
+}
+
+inline void validate_expr(const code_outputt &output)
+{
+  code_outputt::check(output);
 }
 
 /// Create a fatal assertion, which checks a condition and then halts if it does
@@ -614,7 +748,11 @@ code_blockt create_fatal_assertion(
 class code_ifthenelset:public codet
 {
 public:
-  DEPRECATED("use code_ifthenelset(condition, then_code[, else_code]) instead")
+  DEPRECATED(SINCE(
+    2018,
+    12,
+    2,
+    "use code_ifthenelset(condition, then_code[, else_code]) instead"))
   code_ifthenelset():codet(ID_ifthenelse)
   {
     operands().resize(3);
@@ -623,20 +761,19 @@ public:
   }
 
   /// An if \p condition then \p then_code else \p else_code statement.
-  code_ifthenelset(
-    const exprt &condition,
-    const codet &then_code,
-    const codet &else_code)
-    : codet(ID_ifthenelse)
+  code_ifthenelset(exprt condition, codet then_code, codet else_code)
+    : codet(
+        ID_ifthenelse,
+        {std::move(condition), std::move(then_code), std::move(else_code)})
   {
-    add_to_operands(condition, then_code, else_code);
   }
 
   /// An if \p condition then \p then_code statement (no "else" case).
-  code_ifthenelset(const exprt &condition, const codet &then_code)
-    : codet(ID_ifthenelse)
+  code_ifthenelset(exprt condition, codet then_code)
+    : codet(
+        ID_ifthenelse,
+        {std::move(condition), std::move(then_code), nil_exprt()})
   {
-    add_to_operands(condition, then_code, nil_exprt());
   }
 
   const exprt &cond() const
@@ -673,6 +810,12 @@ public:
   {
     return static_cast<codet &>(op2());
   }
+
+protected:
+  using codet::op0;
+  using codet::op1;
+  using codet::op2;
+  using codet::op3;
 };
 
 template<> inline bool can_cast_expr<code_ifthenelset>(const exprt &base)
@@ -688,34 +831,26 @@ inline void validate_expr(const code_ifthenelset &x)
 inline const code_ifthenelset &to_code_ifthenelse(const codet &code)
 {
   PRECONDITION(code.get_statement() == ID_ifthenelse);
-  DATA_INVARIANT(
-    code.operands().size() == 3, "if-then-else must have three operands");
-  return static_cast<const code_ifthenelset &>(code);
+  const code_ifthenelset &ret = static_cast<const code_ifthenelset &>(code);
+  validate_expr(ret);
+  return ret;
 }
 
 inline code_ifthenelset &to_code_ifthenelse(codet &code)
 {
   PRECONDITION(code.get_statement() == ID_ifthenelse);
-  DATA_INVARIANT(
-    code.operands().size() == 3, "if-then-else must have three operands");
-  return static_cast<code_ifthenelset &>(code);
+  code_ifthenelset &ret = static_cast<code_ifthenelset &>(code);
+  validate_expr(ret);
+  return ret;
 }
 
 /// \ref codet representing a `switch` statement.
 class code_switcht:public codet
 {
 public:
-  DEPRECATED("use code_switcht(value, body) instead")
-  code_switcht():codet(ID_switch)
+  code_switcht(exprt _value, codet _body)
+    : codet(ID_switch, {std::move(_value), std::move(_body)})
   {
-    operands().resize(2);
-  }
-
-  code_switcht(const exprt &_value, const codet &_body) : codet(ID_switch)
-  {
-    operands().resize(2);
-    value() = _value;
-    body() = _body;
   }
 
   const exprt &value() const
@@ -737,6 +872,12 @@ public:
   {
     return static_cast<codet &>(op1());
   }
+
+protected:
+  using codet::op0;
+  using codet::op1;
+  using codet::op2;
+  using codet::op3;
 };
 
 template<> inline bool can_cast_expr<code_switcht>(const exprt &base)
@@ -752,32 +893,26 @@ inline void validate_expr(const code_switcht &x)
 inline const code_switcht &to_code_switch(const codet &code)
 {
   PRECONDITION(code.get_statement() == ID_switch);
-  DATA_INVARIANT(code.operands().size() == 2, "switch must have two operands");
-  return static_cast<const code_switcht &>(code);
+  const code_switcht &ret = static_cast<const code_switcht &>(code);
+  validate_expr(ret);
+  return ret;
 }
 
 inline code_switcht &to_code_switch(codet &code)
 {
   PRECONDITION(code.get_statement() == ID_switch);
-  DATA_INVARIANT(code.operands().size() == 2, "switch must have two operands");
-  return static_cast<code_switcht &>(code);
+  code_switcht &ret = static_cast<code_switcht &>(code);
+  validate_expr(ret);
+  return ret;
 }
 
 /// \ref codet representing a `while` statement.
 class code_whilet:public codet
 {
 public:
-  DEPRECATED("use code_whilet(cond, body) instead")
-  code_whilet():codet(ID_while)
+  code_whilet(exprt _cond, codet _body)
+    : codet(ID_while, {std::move(_cond), std::move(_body)})
   {
-    operands().resize(2);
-  }
-
-  code_whilet(const exprt &_cond, const codet &_body) : codet(ID_while)
-  {
-    operands().resize(2);
-    cond() = _cond;
-    body() = _body;
   }
 
   const exprt &cond() const
@@ -799,6 +934,12 @@ public:
   {
     return static_cast<codet &>(op1());
   }
+
+protected:
+  using codet::op0;
+  using codet::op1;
+  using codet::op2;
+  using codet::op3;
 };
 
 template<> inline bool can_cast_expr<code_whilet>(const exprt &base)
@@ -814,32 +955,26 @@ inline void validate_expr(const code_whilet &x)
 inline const code_whilet &to_code_while(const codet &code)
 {
   PRECONDITION(code.get_statement() == ID_while);
-  DATA_INVARIANT(code.operands().size() == 2, "while must have two operands");
-  return static_cast<const code_whilet &>(code);
+  const code_whilet &ret = static_cast<const code_whilet &>(code);
+  validate_expr(ret);
+  return ret;
 }
 
 inline code_whilet &to_code_while(codet &code)
 {
   PRECONDITION(code.get_statement() == ID_while);
-  DATA_INVARIANT(code.operands().size() == 2, "while must have two operands");
-  return static_cast<code_whilet &>(code);
+  code_whilet &ret = static_cast<code_whilet &>(code);
+  validate_expr(ret);
+  return ret;
 }
 
 /// \ref codet representation of a `do while` statement.
 class code_dowhilet:public codet
 {
 public:
-  DEPRECATED("use code_dowhilet(cond, body) instead")
-  code_dowhilet():codet(ID_dowhile)
+  code_dowhilet(exprt _cond, codet _body)
+    : codet(ID_dowhile, {std::move(_cond), std::move(_body)})
   {
-    operands().resize(2);
-  }
-
-  code_dowhilet(const exprt &_cond, const codet &_body) : codet(ID_dowhile)
-  {
-    operands().resize(2);
-    cond() = _cond;
-    body() = _body;
   }
 
   const exprt &cond() const
@@ -861,6 +996,12 @@ public:
   {
     return static_cast<codet &>(op1());
   }
+
+protected:
+  using codet::op0;
+  using codet::op1;
+  using codet::op2;
+  using codet::op3;
 };
 
 template<> inline bool can_cast_expr<code_dowhilet>(const exprt &base)
@@ -876,24 +1017,25 @@ inline void validate_expr(const code_dowhilet &x)
 inline const code_dowhilet &to_code_dowhile(const codet &code)
 {
   PRECONDITION(code.get_statement() == ID_dowhile);
-  DATA_INVARIANT(
-    code.operands().size() == 2, "do-while must have two operands");
-  return static_cast<const code_dowhilet &>(code);
+  const code_dowhilet &ret = static_cast<const code_dowhilet &>(code);
+  validate_expr(ret);
+  return ret;
 }
 
 inline code_dowhilet &to_code_dowhile(codet &code)
 {
   PRECONDITION(code.get_statement() == ID_dowhile);
-  DATA_INVARIANT(
-    code.operands().size() == 2, "do-while must have two operands");
-  return static_cast<code_dowhilet &>(code);
+  code_dowhilet &ret = static_cast<code_dowhilet &>(code);
+  validate_expr(ret);
+  return ret;
 }
 
 /// \ref codet representation of a `for` statement.
 class code_fort:public codet
 {
 public:
-  DEPRECATED("use code_fort(init, cond, iter, body) instead")
+  DEPRECATED(
+    SINCE(2018, 12, 2, "use code_fort(init, cond, iter, body) instead"))
   code_fort():codet(ID_for)
   {
     operands().resize(4);
@@ -901,16 +1043,14 @@ public:
 
   /// A statement describing a for loop with initializer \p _init, loop
   /// condition \p _cond, increment \p _iter, and body \p _body.
-  code_fort(
-    const exprt &_init,
-    const exprt &_cond,
-    const exprt &_iter,
-    const codet &_body)
-    : codet(ID_for)
+  code_fort(exprt _init, exprt _cond, exprt _iter, codet _body)
+    : codet(
+        ID_for,
+        {std::move(_init),
+         std::move(_cond),
+         std::move(_iter),
+         std::move(_body)})
   {
-    reserve_operands(4);
-    add_to_operands(_init, _cond, _iter);
-    add_to_operands(_body);
   }
 
   // nil or a statement
@@ -953,6 +1093,29 @@ public:
   {
     return static_cast<codet &>(op3());
   }
+
+  /// Produce a code_fort representing:
+  /// ```
+  /// for(loop_index = start_index; loop_index < end_index; ++loop_index)
+  ///    body
+  /// ```
+  /// \param start_index: The expression to start the counter at
+  /// \param end_index: The exclusive limit of the loop
+  /// \param loop_index: The pre-declared symbol to use as the counter
+  /// \param body: The code that should be put in the body of the loop
+  /// \param location: The source location using for the increment instruction
+  static code_fort from_index_bounds(
+    exprt start_index,
+    exprt end_index,
+    symbol_exprt loop_index,
+    codet body,
+    source_locationt location);
+
+protected:
+  using codet::op0;
+  using codet::op1;
+  using codet::op2;
+  using codet::op3;
 };
 
 template<> inline bool can_cast_expr<code_fort>(const exprt &base)
@@ -968,26 +1131,23 @@ inline void validate_expr(const code_fort &x)
 inline const code_fort &to_code_for(const codet &code)
 {
   PRECONDITION(code.get_statement() == ID_for);
-  DATA_INVARIANT(code.operands().size() == 4, "for must have four operands");
-  return static_cast<const code_fort &>(code);
+  const code_fort &ret = static_cast<const code_fort &>(code);
+  validate_expr(ret);
+  return ret;
 }
 
 inline code_fort &to_code_for(codet &code)
 {
   PRECONDITION(code.get_statement() == ID_for);
-  DATA_INVARIANT(code.operands().size() == 4, "for must have four operands");
-  return static_cast<code_fort &>(code);
+  code_fort &ret = static_cast<code_fort &>(code);
+  validate_expr(ret);
+  return ret;
 }
 
 /// \ref codet representation of a `goto` statement.
 class code_gotot:public codet
 {
 public:
-  DEPRECATED("use code_gotot(label) instead")
-  code_gotot():codet(ID_goto)
-  {
-  }
-
   explicit code_gotot(const irep_idt &label):codet(ID_goto)
   {
     set_destination(label);
@@ -1002,6 +1162,12 @@ public:
   {
     return get(ID_destination);
   }
+
+protected:
+  using codet::op0;
+  using codet::op1;
+  using codet::op2;
+  using codet::op3;
 };
 
 template<> inline bool can_cast_expr<code_gotot>(const exprt &base)
@@ -1017,15 +1183,17 @@ inline void validate_expr(const code_gotot &x)
 inline const code_gotot &to_code_goto(const codet &code)
 {
   PRECONDITION(code.get_statement() == ID_goto);
-  DATA_INVARIANT(code.operands().empty(), "goto must not have operands");
-  return static_cast<const code_gotot &>(code);
+  const code_gotot &ret = static_cast<const code_gotot &>(code);
+  validate_expr(ret);
+  return ret;
 }
 
 inline code_gotot &to_code_goto(codet &code)
 {
   PRECONDITION(code.get_statement() == ID_goto);
-  DATA_INVARIANT(code.operands().empty(), "goto must not have operands");
-  return static_cast<code_gotot &>(code);
+  code_gotot &ret = static_cast<code_gotot &>(code);
+  validate_expr(ret);
+  return ret;
 }
 
 /// \ref codet representation of a function call statement.
@@ -1036,54 +1204,27 @@ inline code_gotot &to_code_goto(codet &code)
 class code_function_callt:public codet
 {
 public:
-  DEPRECATED("Use code_function_callt(...) instead")
-  code_function_callt():codet(ID_function_call)
+  explicit code_function_callt(exprt _function)
+    : codet(
+        ID_function_call,
+        {nil_exprt(), std::move(_function), exprt(ID_arguments)})
   {
-    operands().resize(3);
-    lhs().make_nil();
-    op2().id(ID_arguments);
-  }
-
-  explicit code_function_callt(const exprt &_function) : codet(ID_function_call)
-  {
-    operands().resize(3);
-    lhs().make_nil();
-    op2().id(ID_arguments);
-    function() = _function;
   }
 
   typedef exprt::operandst argumentst;
 
-  code_function_callt(
-    const exprt &_lhs,
-    const exprt &_function,
-    argumentst &&_arguments)
-    : code_function_callt(_function)
-  {
-    lhs() = _lhs;
-    arguments() = std::move(_arguments);
-  }
-
-  code_function_callt(
-    const exprt &_lhs,
-    const exprt &_function,
-    const argumentst &_arguments)
-    : code_function_callt(_function)
-  {
-    lhs() = _lhs;
-    arguments() = _arguments;
-  }
-
-  code_function_callt(const exprt &_function, argumentst &&_arguments)
-    : code_function_callt(_function)
+  code_function_callt(exprt _lhs, exprt _function, argumentst _arguments)
+    : codet(
+        ID_function_call,
+        {std::move(_lhs), std::move(_function), exprt(ID_arguments)})
   {
     arguments() = std::move(_arguments);
   }
 
-  code_function_callt(const exprt &_function, const argumentst &_arguments)
-    : code_function_callt(_function)
+  code_function_callt(exprt _function, argumentst _arguments)
+    : code_function_callt(std::move(_function))
   {
-    arguments() = _arguments;
+    arguments() = std::move(_arguments);
   }
 
   exprt &lhs()
@@ -1130,21 +1271,15 @@ public:
 
   static void validate(
     const codet &code,
-    const namespacet &ns,
+    const namespacet &,
     const validation_modet vm = validation_modet::INVARIANT)
   {
     check(code, vm);
 
-    if(code.op0().id() == ID_nil)
+    if(code.op0().id() != ID_nil)
       DATA_CHECK(
         vm,
-        to_code_type(code.op1().type()).return_type().id() == ID_empty,
-        "void function should not return value");
-    else
-      DATA_CHECK(
-        vm,
-        base_type_eq(
-          code.op0().type(), to_code_type(code.op1().type()).return_type(), ns),
+        code.op0().type() == to_code_type(code.op1().type()).return_type(),
         "function returns expression of wrong type");
   }
 
@@ -1160,6 +1295,12 @@ public:
 
     validate(code, ns, vm);
   }
+
+protected:
+  using codet::op0;
+  using codet::op1;
+  using codet::op2;
+  using codet::op3;
 };
 
 template<> inline bool can_cast_expr<code_function_callt>(const exprt &base)
@@ -1167,39 +1308,35 @@ template<> inline bool can_cast_expr<code_function_callt>(const exprt &base)
   return detail::can_cast_code_impl(base, ID_function_call);
 }
 
-// to_code_function_call only checks the code statement, so no validate_expr is
-// provided for code_function_callt
+inline void validate_expr(const code_function_callt &x)
+{
+  code_function_callt::check(x);
+}
 
 inline const code_function_callt &to_code_function_call(const codet &code)
 {
   PRECONDITION(code.get_statement() == ID_function_call);
+  code_function_callt::check(code);
   return static_cast<const code_function_callt &>(code);
 }
 
 inline code_function_callt &to_code_function_call(codet &code)
 {
   PRECONDITION(code.get_statement() == ID_function_call);
+  code_function_callt::check(code);
   return static_cast<code_function_callt &>(code);
-}
-
-inline void validate_expr(const code_function_callt &x)
-{
-  validate_operands(x, 3, "function calls must have three operands");
 }
 
 /// \ref codet representation of a "return from a function" statement.
 class code_returnt:public codet
 {
 public:
-  code_returnt():codet(ID_return)
+  code_returnt() : codet(ID_return, {nil_exprt()})
   {
-    operands().resize(1);
-    op0().make_nil();
   }
 
-  explicit code_returnt(const exprt &_op):codet(ID_return)
+  explicit code_returnt(exprt _op) : codet(ID_return, {std::move(_op)})
   {
-    add_to_operands(_op);
   }
 
   const exprt &return_value() const
@@ -1214,8 +1351,6 @@ public:
 
   bool has_return_value() const
   {
-    if(operands().empty())
-      return false; // backwards compatibility
     return return_value().is_not_nil();
   }
 
@@ -1225,6 +1360,12 @@ public:
   {
     DATA_CHECK(vm, code.operands().size() == 1, "return must have one operand");
   }
+
+protected:
+  using codet::op0;
+  using codet::op1;
+  using codet::op2;
+  using codet::op3;
 };
 
 template<> inline bool can_cast_expr<code_returnt>(const exprt &base)
@@ -1232,48 +1373,40 @@ template<> inline bool can_cast_expr<code_returnt>(const exprt &base)
   return detail::can_cast_code_impl(base, ID_return);
 }
 
-// to_code_return only checks the code statement, so no validate_expr is
-// provided for code_returnt
+inline void validate_expr(const code_returnt &x)
+{
+  code_returnt::check(x);
+}
 
 inline const code_returnt &to_code_return(const codet &code)
 {
   PRECONDITION(code.get_statement() == ID_return);
+  code_returnt::check(code);
   return static_cast<const code_returnt &>(code);
 }
 
 inline code_returnt &to_code_return(codet &code)
 {
   PRECONDITION(code.get_statement() == ID_return);
+  code_returnt::check(code);
   return static_cast<code_returnt &>(code);
-}
-
-inline void validate_expr(const code_returnt &x)
-{
-  validate_operands(x, 1, "return must have one operand");
 }
 
 /// \ref codet representation of a label for branch targets.
 class code_labelt:public codet
 {
 public:
-  DEPRECATED("use code_labelt(label) instead")
-  code_labelt():codet(ID_label)
-  {
-    operands().resize(1);
-  }
-
+  DEPRECATED(SINCE(2019, 2, 6, "use code_labelt(label, _code) instead"))
   explicit code_labelt(const irep_idt &_label):codet(ID_label)
   {
     operands().resize(1);
     set_label(_label);
   }
 
-  code_labelt(
-    const irep_idt &_label, const codet &_code):codet(ID_label)
+  code_labelt(const irep_idt &_label, codet _code)
+    : codet(ID_label, {std::move(_code)})
   {
-    operands().resize(1);
     set_label(_label);
-    code()=_code;
   }
 
   const irep_idt &get_label() const
@@ -1295,6 +1428,12 @@ public:
   {
     return static_cast<const codet &>(op0());
   }
+
+protected:
+  using codet::op0;
+  using codet::op1;
+  using codet::op2;
+  using codet::op3;
 };
 
 template<> inline bool can_cast_expr<code_labelt>(const exprt &base)
@@ -1310,15 +1449,17 @@ inline void validate_expr(const code_labelt &x)
 inline const code_labelt &to_code_label(const codet &code)
 {
   PRECONDITION(code.get_statement() == ID_label);
-  DATA_INVARIANT(code.operands().size() == 1, "label must have one operand");
-  return static_cast<const code_labelt &>(code);
+  const code_labelt &ret = static_cast<const code_labelt &>(code);
+  validate_expr(ret);
+  return ret;
 }
 
 inline code_labelt &to_code_label(codet &code)
 {
   PRECONDITION(code.get_statement() == ID_label);
-  DATA_INVARIANT(code.operands().size() == 1, "label must have one operand");
-  return static_cast<code_labelt &>(code);
+  code_labelt &ret = static_cast<code_labelt &>(code);
+  validate_expr(ret);
+  return ret;
 }
 
 /// \ref codet representation of a switch-case, i.e.\ a `case` statement within
@@ -1326,16 +1467,9 @@ inline code_labelt &to_code_label(codet &code)
 class code_switch_caset:public codet
 {
 public:
-  DEPRECATED("use code_switch_caset(case_op, code) instead")
-  code_switch_caset():codet(ID_switch_case)
+  code_switch_caset(exprt _case_op, codet _code)
+    : codet(ID_switch_case, {std::move(_case_op), std::move(_code)})
   {
-    operands().resize(2);
-  }
-
-  code_switch_caset(
-    const exprt &_case_op, const codet &_code):codet(ID_switch_case)
-  {
-    add_to_operands(_case_op, _code);
   }
 
   bool is_default() const
@@ -1367,6 +1501,12 @@ public:
   {
     return static_cast<const codet &>(op1());
   }
+
+protected:
+  using codet::op0;
+  using codet::op1;
+  using codet::op2;
+  using codet::op3;
 };
 
 template<> inline bool can_cast_expr<code_switch_caset>(const exprt &base)
@@ -1382,17 +1522,103 @@ inline void validate_expr(const code_switch_caset &x)
 inline const code_switch_caset &to_code_switch_case(const codet &code)
 {
   PRECONDITION(code.get_statement() == ID_switch_case);
-  DATA_INVARIANT(
-    code.operands().size() == 2, "switch-case must have two operands");
-  return static_cast<const code_switch_caset &>(code);
+  const code_switch_caset &ret = static_cast<const code_switch_caset &>(code);
+  validate_expr(ret);
+  return ret;
 }
 
 inline code_switch_caset &to_code_switch_case(codet &code)
 {
   PRECONDITION(code.get_statement() == ID_switch_case);
-  DATA_INVARIANT(
-    code.operands().size() == 2, "switch-case must have two operands");
-  return static_cast<code_switch_caset &>(code);
+  code_switch_caset &ret = static_cast<code_switch_caset &>(code);
+  validate_expr(ret);
+  return ret;
+}
+
+/// \ref codet representation of a switch-case, i.e.\ a `case` statement
+/// within a `switch`. This is the variant that takes a range,
+/// which is a gcc extension.
+class code_gcc_switch_case_ranget : public codet
+{
+public:
+  code_gcc_switch_case_ranget(exprt _lower, exprt _upper, codet _code)
+    : codet(
+        ID_gcc_switch_case_range,
+        {std::move(_lower), std::move(_upper), std::move(_code)})
+  {
+  }
+
+  /// lower bound of range
+  const exprt &lower() const
+  {
+    return op0();
+  }
+
+  /// lower bound of range
+  exprt &lower()
+  {
+    return op0();
+  }
+
+  /// upper bound of range
+  const exprt &upper() const
+  {
+    return op1();
+  }
+
+  /// upper bound of range
+  exprt &upper()
+  {
+    return op1();
+  }
+
+  /// the statement to be executed when the case applies
+  codet &code()
+  {
+    return static_cast<codet &>(op2());
+  }
+
+  /// the statement to be executed when the case applies
+  const codet &code() const
+  {
+    return static_cast<const codet &>(op2());
+  }
+
+protected:
+  using codet::op0;
+  using codet::op1;
+  using codet::op2;
+  using codet::op3;
+};
+
+template <>
+inline bool can_cast_expr<code_gcc_switch_case_ranget>(const exprt &base)
+{
+  return detail::can_cast_code_impl(base, ID_gcc_switch_case_range);
+}
+
+inline void validate_expr(const code_gcc_switch_case_ranget &x)
+{
+  validate_operands(x, 3, "gcc-switch-case-range must have three operands");
+}
+
+inline const code_gcc_switch_case_ranget &
+to_code_gcc_switch_case_range(const codet &code)
+{
+  PRECONDITION(code.get_statement() == ID_gcc_switch_case_range);
+  const code_gcc_switch_case_ranget &ret =
+    static_cast<const code_gcc_switch_case_ranget &>(code);
+  validate_expr(ret);
+  return ret;
+}
+
+inline code_gcc_switch_case_ranget &to_code_gcc_switch_case_range(codet &code)
+{
+  PRECONDITION(code.get_statement() == ID_gcc_switch_case_range);
+  code_gcc_switch_case_ranget &ret =
+    static_cast<code_gcc_switch_case_ranget &>(code);
+  validate_expr(ret);
+  return ret;
 }
 
 /// \ref codet representation of a `break` statement (within a `for` or `while`
@@ -1403,6 +1629,12 @@ public:
   code_breakt():codet(ID_break)
   {
   }
+
+protected:
+  using codet::op0;
+  using codet::op1;
+  using codet::op2;
+  using codet::op3;
 };
 
 template<> inline bool can_cast_expr<code_breakt>(const exprt &base)
@@ -1433,6 +1665,12 @@ public:
   code_continuet():codet(ID_continue)
   {
   }
+
+protected:
+  using codet::op0;
+  using codet::op1;
+  using codet::op2;
+  using codet::op3;
 };
 
 template<> inline bool can_cast_expr<code_continuet>(const exprt &base)
@@ -1463,9 +1701,8 @@ public:
   {
   }
 
-  explicit code_asmt(const exprt &expr):codet(ID_asm)
+  explicit code_asmt(exprt expr) : codet(ID_asm, {std::move(expr)})
   {
-    add_to_operands(expr);
   }
 
   const irep_idt &get_flavor() const
@@ -1499,20 +1736,111 @@ inline const code_asmt &to_code_asm(const codet &code)
   return static_cast<const code_asmt &>(code);
 }
 
+/// \ref codet representation of an inline assembler statement,
+/// for the gcc flavor.
+class code_asm_gcct : public code_asmt
+{
+public:
+  code_asm_gcct()
+  {
+    set_flavor(ID_gcc);
+    operands().resize(5);
+  }
+
+  exprt &asm_text()
+  {
+    return op0();
+  }
+
+  const exprt &asm_text() const
+  {
+    return op0();
+  }
+
+  exprt &outputs()
+  {
+    return op1();
+  }
+
+  const exprt &outputs() const
+  {
+    return op1();
+  }
+
+  exprt &inputs()
+  {
+    return op2();
+  }
+
+  const exprt &inputs() const
+  {
+    return op2();
+  }
+
+  exprt &clobbers()
+  {
+    return op3();
+  }
+
+  const exprt &clobbers() const
+  {
+    return op3();
+  }
+
+  exprt &labels()
+  {
+    return operands()[4];
+  }
+
+  const exprt &labels() const
+  {
+    return operands()[4];
+  }
+
+protected:
+  using code_asmt::op0;
+  using code_asmt::op1;
+  using code_asmt::op2;
+  using code_asmt::op3;
+};
+
+template <>
+inline bool can_cast_expr<code_asm_gcct>(const exprt &base)
+{
+  return detail::can_cast_code_impl(base, ID_asm);
+}
+
+inline void validate_expr(const code_asm_gcct &x)
+{
+  validate_operands(x, 5, "code_asm_gcc must have five operands");
+}
+
+inline code_asm_gcct &to_code_asm_gcc(codet &code)
+{
+  PRECONDITION(code.get_statement() == ID_asm);
+  PRECONDITION(to_code_asm(code).get_flavor() == ID_gcc);
+  code_asm_gcct &ret = static_cast<code_asm_gcct &>(code);
+  validate_expr(ret);
+  return ret;
+}
+
+inline const code_asm_gcct &to_code_asm_gcc(const codet &code)
+{
+  PRECONDITION(code.get_statement() == ID_asm);
+  PRECONDITION(to_code_asm(code).get_flavor() == ID_gcc);
+  const code_asm_gcct &ret = static_cast<const code_asm_gcct &>(code);
+  validate_expr(ret);
+  return ret;
+}
+
 /// \ref codet representation of an expression statement.
 /// It has one operand, which is the expression it stores.
 class code_expressiont:public codet
 {
 public:
-  DEPRECATED("use code_expressiont(expr) instead")
-  code_expressiont():codet(ID_expression)
+  explicit code_expressiont(exprt expr)
+    : codet(ID_expression, {std::move(expr)})
   {
-    operands().resize(1);
-  }
-
-  explicit code_expressiont(const exprt &expr):codet(ID_expression)
-  {
-    add_to_operands(expr);
   }
 
   const exprt &expression() const
@@ -1524,6 +1852,12 @@ public:
   {
     return op0();
   }
+
+protected:
+  using codet::op0;
+  using codet::op1;
+  using codet::op2;
+  using codet::op3;
 };
 
 template<> inline bool can_cast_expr<code_expressiont>(const exprt &base)
@@ -1539,17 +1873,17 @@ inline void validate_expr(const code_expressiont &x)
 inline code_expressiont &to_code_expression(codet &code)
 {
   PRECONDITION(code.get_statement() == ID_expression);
-  DATA_INVARIANT(
-    code.operands().size() == 1, "expression statement must have one operand");
-  return static_cast<code_expressiont &>(code);
+  code_expressiont &ret = static_cast<code_expressiont &>(code);
+  validate_expr(ret);
+  return ret;
 }
 
 inline const code_expressiont &to_code_expression(const codet &code)
 {
   PRECONDITION(code.get_statement() == ID_expression);
-  DATA_INVARIANT(
-    code.operands().size() == 1, "expression statement must have one operand");
-  return static_cast<const code_expressiont &>(code);
+  const code_expressiont &ret = static_cast<const code_expressiont &>(code);
+  validate_expr(ret);
+  return ret;
 }
 
 /// An expression containing a side effect.
@@ -1557,30 +1891,36 @@ inline const code_expressiont &to_code_expression(const codet &code)
 /// subtypes are not subtypes of \ref codet, but they inherit directly from
 /// \ref exprt. They do have a `statement` like [codets](\ref codet), but their
 /// [id()](\ref irept::id) is `ID_side_effect`, not `ID_code`.
-class side_effect_exprt:public exprt
+class side_effect_exprt : public exprt
 {
 public:
-  DEPRECATED("use side_effect_exprt(statement, type, loc) instead")
-  explicit side_effect_exprt(const irep_idt &statement) : exprt(ID_side_effect)
+  DEPRECATED(
+    SINCE(2018, 8, 9, "use side_effect_exprt(statement, type, loc) instead"))
+  side_effect_exprt(const irep_idt &statement, const typet &_type)
+    : exprt(ID_side_effect, _type)
   {
     set_statement(statement);
   }
 
-  DEPRECATED("use side_effect_exprt(statement, type, loc) instead")
-  side_effect_exprt(const irep_idt &statement, const typet &_type):
-    exprt(ID_side_effect, _type)
+  /// constructor with operands
+  side_effect_exprt(
+    const irep_idt &statement,
+    operandst _operands,
+    typet _type,
+    source_locationt loc)
+    : exprt(ID_side_effect, std::move(_type), std::move(loc))
   {
     set_statement(statement);
+    operands() = std::move(_operands);
   }
 
   side_effect_exprt(
     const irep_idt &statement,
-    const typet &_type,
-    const source_locationt &loc)
-    : exprt(ID_side_effect, _type)
+    typet _type,
+    source_locationt loc)
+    : exprt(ID_side_effect, std::move(_type), std::move(loc))
   {
     set_statement(statement);
-    add_source_location() = loc;
   }
 
   const irep_idt &get_statement() const
@@ -1633,21 +1973,19 @@ inline const side_effect_exprt &to_side_effect_expr(const exprt &expr)
 class side_effect_expr_nondett:public side_effect_exprt
 {
 public:
-  DEPRECATED("use side_effect_expr_nondett(statement, type, loc) instead")
-  side_effect_expr_nondett():side_effect_exprt(ID_nondet)
-  {
-    set_nullable(true);
-  }
-
-  DEPRECATED("use side_effect_expr_nondett(statement, type, loc) instead")
+  DEPRECATED(SINCE(
+    2018,
+    8,
+    9,
+    "use side_effect_expr_nondett(statement, type, loc) instead"))
   explicit side_effect_expr_nondett(const typet &_type):
     side_effect_exprt(ID_nondet, _type)
   {
     set_nullable(true);
   }
 
-  side_effect_expr_nondett(const typet &_type, const source_locationt &loc)
-    : side_effect_exprt(ID_nondet, _type, loc)
+  side_effect_expr_nondett(typet _type, source_locationt loc)
+    : side_effect_exprt(ID_nondet, std::move(_type), std::move(loc))
   {
     set_nullable(true);
   }
@@ -1687,37 +2025,143 @@ inline const side_effect_expr_nondett &to_side_effect_expr_nondet(
   return static_cast<const side_effect_expr_nondett &>(side_effect_expr_nondet);
 }
 
+/// A \ref side_effect_exprt that performs an assignment
+class side_effect_expr_assignt : public side_effect_exprt
+{
+public:
+  /// construct an assignment side-effect, given lhs and rhs
+  /// The type is copied from lhs
+  side_effect_expr_assignt(
+    const exprt &_lhs,
+    const exprt &_rhs,
+    const source_locationt &loc)
+    : side_effect_exprt(ID_assign, {_lhs, _rhs}, _lhs.type(), loc)
+  {
+  }
+
+  /// construct an assignment side-effect, given lhs, rhs and the type
+  side_effect_expr_assignt(
+    exprt _lhs,
+    exprt _rhs,
+    typet _type,
+    source_locationt loc)
+    : side_effect_exprt(
+        ID_assign,
+        {std::move(_lhs), std::move(_rhs)},
+        std::move(_type),
+        std::move(loc))
+  {
+  }
+
+  exprt &lhs()
+  {
+    return op0();
+  }
+
+  const exprt &lhs() const
+  {
+    return op0();
+  }
+
+  exprt &rhs()
+  {
+    return op1();
+  }
+
+  const exprt &rhs() const
+  {
+    return op1();
+  }
+};
+
+template <>
+inline bool can_cast_expr<side_effect_expr_assignt>(const exprt &base)
+{
+  return detail::can_cast_side_effect_expr_impl(base, ID_assign);
+}
+
+inline side_effect_expr_assignt &to_side_effect_expr_assign(exprt &expr)
+{
+  auto &side_effect_expr_assign = to_side_effect_expr(expr);
+  PRECONDITION(side_effect_expr_assign.get_statement() == ID_assign);
+  return static_cast<side_effect_expr_assignt &>(side_effect_expr_assign);
+}
+
+inline const side_effect_expr_assignt &
+to_side_effect_expr_assign(const exprt &expr)
+{
+  const auto &side_effect_expr_assign = to_side_effect_expr(expr);
+  PRECONDITION(side_effect_expr_assign.get_statement() == ID_assign);
+  return static_cast<const side_effect_expr_assignt &>(side_effect_expr_assign);
+}
+
+/// A \ref side_effect_exprt that contains a statement
+class side_effect_expr_statement_expressiont : public side_effect_exprt
+{
+public:
+  /// construct an assignment side-effect, given lhs, rhs and the type
+  side_effect_expr_statement_expressiont(
+    codet _code,
+    typet _type,
+    source_locationt loc)
+    : side_effect_exprt(
+        ID_statement_expression,
+        {std::move(_code)},
+        std::move(_type),
+        std::move(loc))
+  {
+  }
+
+  codet &statement()
+  {
+    return to_code(op0());
+  }
+
+  const codet &statement() const
+  {
+    return to_code(op0());
+  }
+};
+
+template <>
+inline bool
+can_cast_expr<side_effect_expr_statement_expressiont>(const exprt &base)
+{
+  return detail::can_cast_side_effect_expr_impl(base, ID_statement_expression);
+}
+
+inline side_effect_expr_statement_expressiont &
+to_side_effect_expr_statement_expression(exprt &expr)
+{
+  auto &side_effect_expr_statement_expression = to_side_effect_expr(expr);
+  PRECONDITION(
+    side_effect_expr_statement_expression.get_statement() ==
+    ID_statement_expression);
+  return static_cast<side_effect_expr_statement_expressiont &>(
+    side_effect_expr_statement_expression);
+}
+
+inline const side_effect_expr_statement_expressiont &
+to_side_effect_expr_statement_expression(const exprt &expr)
+{
+  const auto &side_effect_expr_statement_expression = to_side_effect_expr(expr);
+  PRECONDITION(
+    side_effect_expr_statement_expression.get_statement() ==
+    ID_statement_expression);
+  return static_cast<const side_effect_expr_statement_expressiont &>(
+    side_effect_expr_statement_expression);
+}
+
 /// A \ref side_effect_exprt representation of a function call side effect.
 class side_effect_expr_function_callt:public side_effect_exprt
 {
 public:
-  DEPRECATED(
+  DEPRECATED(SINCE(
+    2018,
+    8,
+    9,
     "use side_effect_expr_function_callt("
-    "function, arguments, type, loc) instead")
-  side_effect_expr_function_callt()
-    : side_effect_exprt(ID_function_call, typet(), source_locationt())
-  {
-    operands().resize(2);
-    op1().id(ID_arguments);
-  }
-
-  DEPRECATED(
-    "use side_effect_expr_function_callt("
-    "function, arguments, type, loc) instead")
-  side_effect_expr_function_callt(
-    const exprt &_function,
-    const exprt::operandst &_arguments)
-    : side_effect_exprt(ID_function_call)
-  {
-    operands().resize(2);
-    op1().id(ID_arguments);
-    function() = _function;
-    arguments() = _arguments;
-  }
-
-  DEPRECATED(
-    "use side_effect_expr_function_callt("
-    "function, arguments, type, loc) instead")
+    "function, arguments, type, loc) instead"))
   side_effect_expr_function_callt(
     const exprt &_function,
     const exprt::operandst &_arguments,
@@ -1731,14 +2175,17 @@ public:
   }
 
   side_effect_expr_function_callt(
-    const exprt &_function,
-    const exprt::operandst &_arguments,
-    const typet &_type,
-    const source_locationt &loc)
-    : side_effect_exprt(ID_function_call, _type, loc)
+    exprt _function,
+    exprt::operandst _arguments,
+    typet _type,
+    source_locationt loc)
+    : side_effect_exprt(
+        ID_function_call,
+        {std::move(_function),
+         multi_ary_exprt{ID_arguments, std::move(_arguments), typet{}}},
+        std::move(_type),
+        std::move(loc))
   {
-    add_to_operands(_function, exprt(ID_arguments));
-    arguments() = _arguments;
   }
 
   exprt &function()
@@ -1792,18 +2239,13 @@ inline const side_effect_expr_function_callt
 class side_effect_expr_throwt:public side_effect_exprt
 {
 public:
-  DEPRECATED("use side_effect_expr_throwt(exception_list) instead")
-  side_effect_expr_throwt():side_effect_exprt(ID_throw)
-  {
-  }
-
   side_effect_expr_throwt(
-    const irept &exception_list,
-    const typet &type,
-    const source_locationt &loc)
-    : side_effect_exprt(ID_throw, type, loc)
+    irept exception_list,
+    typet type,
+    source_locationt loc)
+    : side_effect_exprt(ID_throw, std::move(type), std::move(loc))
   {
-    set(ID_exception_list, exception_list);
+    set(ID_exception_list, std::move(exception_list));
   }
 };
 
@@ -1905,6 +2347,12 @@ public:
   const exception_listt &exception_list() const {
     return (const exception_listt &)find(ID_exception_list).get_sub();
   }
+
+protected:
+  using codet::op0;
+  using codet::op1;
+  using codet::op2;
+  using codet::op3;
 };
 
 template<> inline bool can_cast_expr<code_push_catcht>(const exprt &base)
@@ -1936,6 +2384,12 @@ public:
   code_pop_catcht():codet(ID_pop_catch)
   {
   }
+
+protected:
+  using codet::op0;
+  using codet::op1;
+  using codet::op2;
+  using codet::op3;
 };
 
 template<> inline bool can_cast_expr<code_pop_catcht>(const exprt &base)
@@ -1968,11 +2422,12 @@ class code_landingpadt:public codet
   {
     operands().resize(1);
   }
-  explicit code_landingpadt(const exprt &catch_expr):
-  codet(ID_exception_landingpad)
+
+  explicit code_landingpadt(exprt catch_expr)
+    : codet(ID_exception_landingpad, {std::move(catch_expr)})
   {
-    add_to_operands(catch_expr);
   }
+
   const exprt &catch_expr() const
   {
     return op0();
@@ -1981,6 +2436,12 @@ class code_landingpadt:public codet
   {
     return op0();
   }
+
+protected:
+  using codet::op0;
+  using codet::op1;
+  using codet::op2;
+  using codet::op3;
 };
 
 template<> inline bool can_cast_expr<code_landingpadt>(const exprt &base)
@@ -2007,16 +2468,16 @@ static inline const code_landingpadt &to_code_landingpad(const codet &code)
 class code_try_catcht:public codet
 {
 public:
-  DEPRECATED("use code_try_catcht(try_code) instead")
+  DEPRECATED(SINCE(2018, 12, 2, "use code_try_catcht(try_code) instead"))
   code_try_catcht():codet(ID_try_catch)
   {
     operands().resize(1);
   }
 
   /// A statement representing try \p _try_code catch ...
-  explicit code_try_catcht(const codet &_try_code) : codet(ID_try_catch)
+  explicit code_try_catcht(codet _try_code)
+    : codet(ID_try_catch, {std::move(_try_code)})
   {
-    add_to_operands(_try_code);
   }
 
   codet &try_code()
@@ -2057,6 +2518,12 @@ public:
   {
     add_to_operands(to_catch, code_catch);
   }
+
+protected:
+  using codet::op0;
+  using codet::op1;
+  using codet::op2;
+  using codet::op3;
 };
 
 template<> inline bool can_cast_expr<code_try_catcht>(const exprt &base)
@@ -2072,17 +2539,67 @@ inline void validate_expr(const code_try_catcht &x)
 inline const code_try_catcht &to_code_try_catch(const codet &code)
 {
   PRECONDITION(code.get_statement() == ID_try_catch);
-  DATA_INVARIANT(
-    code.operands().size() >= 3, "try-catch must have three or more operands");
-  return static_cast<const code_try_catcht &>(code);
+  const code_try_catcht &ret = static_cast<const code_try_catcht &>(code);
+  validate_expr(ret);
+  return ret;
 }
 
 inline code_try_catcht &to_code_try_catch(codet &code)
 {
   PRECONDITION(code.get_statement() == ID_try_catch);
+  code_try_catcht &ret = static_cast<code_try_catcht &>(code);
+  validate_expr(ret);
+  return ret;
+}
+
+/// This class is used to interface between a language frontend
+/// and goto-convert -- it communicates the identifiers of the parameters
+/// of a function or method
+class code_function_bodyt : public codet
+{
+public:
+  explicit code_function_bodyt(
+    const std::vector<irep_idt> &parameter_identifiers,
+    code_blockt _block)
+    : codet(ID_function_body, {std::move(_block)})
+  {
+    set_parameter_identifiers(parameter_identifiers);
+  }
+
+  code_blockt &block()
+  {
+    return to_code_block(to_code(op0()));
+  }
+
+  const code_blockt &block() const
+  {
+    return to_code_block(to_code(op0()));
+  }
+
+  std::vector<irep_idt> get_parameter_identifiers() const;
+  void set_parameter_identifiers(const std::vector<irep_idt> &);
+
+protected:
+  using codet::op0;
+  using codet::op1;
+  using codet::op2;
+  using codet::op3;
+};
+
+inline const code_function_bodyt &to_code_function_body(const codet &code)
+{
+  PRECONDITION(code.get_statement() == ID_function_body);
   DATA_INVARIANT(
-    code.operands().size() >= 3, "try-catch must have three or more operands");
-  return static_cast<code_try_catcht &>(code);
+    code.operands().size() == 1, "code_function_body must have one operand");
+  return static_cast<const code_function_bodyt &>(code);
+}
+
+inline code_function_bodyt &to_code_function_body(codet &code)
+{
+  PRECONDITION(code.get_statement() == ID_function_body);
+  DATA_INVARIANT(
+    code.operands().size() == 1, "code_function_body must have one operand");
+  return static_cast<code_function_bodyt &>(code);
 }
 
 #endif // CPROVER_UTIL_STD_CODE_H

@@ -9,7 +9,6 @@ Author: Daniel Kroening, kroening@kroening.com
 #ifndef CPROVER_UTIL_ALLOCATE_OBJECTS_H
 #define CPROVER_UTIL_ALLOCATE_OBJECTS_H
 
-#include "base_type.h"
 #include "expr.h"
 #include "namespace.h"
 #include "source_location.h"
@@ -63,6 +62,29 @@ public:
     const typet &allocate_type,
     const irep_idt &basename_prefix = "tmp");
 
+  /// Generates code for allocating a dynamic object. A new variable with
+  /// basename prefix `alloc_site` is introduced to which the allocated memory
+  /// is assigned.
+  /// Then, the variable is assigned to `target_expr`. For example, with
+  /// `target_expr` being `*p` the following code is generated:
+  ///
+  /// `alloc_site$1 = ALLOCATE(object_size, FALSE);`
+  /// `*p = alloc_site$1;`
+  ///
+  /// \param output_code: Code block to which the necessary code is added
+  /// \param target_expr: A pointer to the allocated memory will be assigned to
+  ///   this (lvalue) expression
+  /// \param allocate_type: Type of the object allocated
+  /// \return The pointer to the allocated memory, or an empty expression
+  ///   when `allocate_type` is void
+  exprt allocate_dynamic_object_symbol(
+    code_blockt &output_code,
+    const exprt &target_expr,
+    const typet &allocate_type);
+
+  /// Generate the same code as \ref allocate_dynamic_object_symbol, but
+  /// return a dereference_exprt that dereferences the newly created pointer
+  /// to the allocated memory.
   exprt allocate_dynamic_object(
     code_blockt &output_code,
     const exprt &target_expr,
@@ -79,9 +101,9 @@ public:
   void mark_created_symbols_as_input(code_blockt &init_code);
 
 private:
-  const irep_idt &symbol_mode;
-  const source_locationt &source_location;
-  const irep_idt &name_prefix;
+  const irep_idt symbol_mode;
+  const source_locationt source_location;
+  const irep_idt name_prefix;
 
   symbol_table_baset &symbol_table;
   const namespacet ns;
@@ -95,5 +117,11 @@ private:
     const bool static_lifetime,
     const irep_idt &basename_prefix);
 };
+
+/// Create code allocating an object of size `size` and assigning it to `lhs`
+/// \param lhs: pointer which will be allocated
+/// \param size: size of the object
+/// \return code allocating the object and assigning it to `lhs`
+code_assignt make_allocate_code(const symbol_exprt &lhs, const exprt &size);
 
 #endif // CPROVER_UTIL_ALLOCATE_OBJECTS_H

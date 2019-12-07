@@ -173,12 +173,8 @@ exprt convert_integer_literal(const std::string &src)
 
   if(is_imaginary)
   {
-    complex_typet complex_type;
-    complex_type.subtype()=type;
-    result=exprt(ID_complex, complex_type);
-    result.operands().resize(2);
-    result.op0()=from_integer(0, type);
-    result.op1()=from_integer(value, type);
+    result = complex_exprt(
+      from_integer(0, type), from_integer(value, type), complex_typet(type));
   }
   else
   {

@@ -6,7 +6,7 @@ Author: Diffblue Ltd.
 
 \*******************************************************************/
 
-#include <testing-utils/catch.hpp>
+#include <testing-utils/use_catch.h>
 
 #include <util/c_types.h>
 #include <util/expr_util.h>
@@ -37,9 +37,8 @@ SCENARIO("has_subtype", "[core][utils][has_subtype]")
 
   GIVEN("a struct with char and int fields")
   {
-    struct_typet struct_type;
-    struct_type.components().emplace_back("char_field", char_type);
-    struct_type.components().emplace_back("int_field", int_type);
+    struct_typet struct_type(
+      {{"char_field", char_type}, {"int_field", int_type}});
     THEN("char and int are subtypes")
     {
       REQUIRE(has_subtype(struct_type, is_type(char_type), ns));
@@ -67,9 +66,7 @@ SCENARIO("has_subtype", "[core][utils][has_subtype]")
   GIVEN("a recursive struct definition")
   {
     struct_tag_typet struct_tag("A-struct");
-    struct_typet::componentt comp("ptr", pointer_type(struct_tag));
-    struct_typet struct_type;
-    struct_type.components().push_back(comp);
+    struct_typet struct_type({{"ptr", pointer_type(struct_tag)}});
 
     symbolt s;
     s.type = struct_type;

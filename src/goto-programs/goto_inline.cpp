@@ -15,7 +15,6 @@ Author: Daniel Kroening, kroening@kroening.com
 
 #include <util/prefix.h>
 #include <util/cprover_prefix.h>
-#include <util/base_type.h>
 #include <util/std_code.h>
 #include <util/std_expr.h>
 
@@ -195,7 +194,7 @@ void goto_partial_inline(
         continue;
 
       if(
-        called_function.is_inlined() ||
+        to_code_type(ns.lookup(id).type).get_inlined() ||
         called_function.body.instructions.size() <= smallfunc_limit)
       {
         PRECONDITION(i_it->is_function_call());

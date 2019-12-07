@@ -9,13 +9,11 @@ Author: Daniel Kroening, kroening@kroening.com
 #ifndef CPROVER_UTIL_EXPR_H
 #define CPROVER_UTIL_EXPR_H
 
+#include "deprecate.h"
 #include "type.h"
 #include "validate_expressions.h"
 #include "validate_types.h"
 #include "validation_mode.h"
-
-#include <functional>
-#include <list>
 
 #define forall_operands(it, expr) \
   if((expr).has_operands()) /* NOLINT(readability/braces) */ \
@@ -59,9 +57,24 @@ public:
   // constructors
   exprt() { }
   explicit exprt(const irep_idt &_id):irept(_id) { }
-  exprt(const irep_idt &_id, const typet &_type):irept(_id)
+
+  exprt(irep_idt _id, typet _type)
+    : irept(std::move(_id), {{ID_type, std::move(_type)}}, {})
   {
-    add(ID_type, _type);
+  }
+
+  exprt(irep_idt _id, typet _type, operandst &&_operands)
+    : irept(
+        std::move(_id),
+        {{ID_type, std::move(_type)}},
+        std::move((irept::subt &&) _operands))
+  {
+  }
+
+  exprt(const irep_idt &id, typet type, source_locationt loc)
+    : exprt(id, std::move(type))
+  {
+    add_source_location() = std::move(loc);
   }
 
   /// Return the type of the expression
@@ -70,6 +83,10 @@ public:
   {
     return static_cast<const typet &>(find(ID_type));
   }
+
+  /// Amount of nodes this expression tree contains. This is the size of the
+  /// actual tree, ignoring memory/sub-tree sharing.
+  std::size_t size() const;
 
   /// Return true if there is at least one operand.
   bool has_operands() const
@@ -108,14 +125,22 @@ public:
   void reserve_operands(operandst::size_type n)
   { operands().reserve(n) ; }
 
-  DEPRECATED("use add_to_operands(std::move(expr)) instead")
+  DEPRECATED(SINCE(2018, 10, 1, "use add_to_operands(std::move(expr)) instead"))
   void move_to_operands(exprt &expr);
 
-  DEPRECATED("use add_to_operands(std::move(e1), std::move(e2)) instead")
+  DEPRECATED(SINCE(
+    2018,
+    10,
+    1,
+    "use add_to_operands(std::move(e1), std::move(e2)) instead"))
   void move_to_operands(exprt &e1, exprt &e2);
 
-  DEPRECATED(
-    "use add_to_operands(std::move(e1), std::move(e2), std::move(e3)) instead")
+  DEPRECATED(SINCE(
+    2018,
+    10,
+    1,
+    "use add_to_operands(std::move(e1), std::move(e2), std::move(e3))"
+    "instead"))
   void move_to_operands(exprt &e1, exprt &e2, exprt &e3);
 
   /// Copy the given argument to the end of `exprt`'s operands.
@@ -212,8 +237,7 @@ public:
     op.push_back(std::move(e3));
   }
 
-  void make_typecast(const typet &_type);
-
+  DEPRECATED(SINCE(2019, 5, 28, "use make_boolean_expr(value) instead"))
   void make_bool(bool value);
 
   bool is_constant() const;
@@ -233,6 +257,11 @@ public:
   source_locationt &add_source_location()
   {
     return static_cast<source_locationt &>(add(ID_C_source_location));
+  }
+
+  void drop_source_location()
+  {
+    remove(ID_C_source_location);
   }
 
   /// Check that the expression is well-formed (shallow checks only, i.e.,
@@ -302,8 +331,19 @@ protected:
   }
 
 public:
+  /// These are pre-order traversal visitors, i.e.,
+  /// the visitor is executed on a node _before_ its children
+  /// have been visited.
   void visit(class expr_visitort &visitor);
   void visit(class const_expr_visitort &visitor) const;
+  void visit_pre(std::function<void(exprt &)>);
+  void visit_pre(std::function<void(const exprt &)>) const;
+
+  /// These are post-order traversal visitors, i.e.,
+  /// the visitor is executed on a node _after_ its children
+  /// have been visited.
+  void visit_post(std::function<void(exprt &)>);
+  void visit_post(std::function<void(const exprt &)>) const;
 
   depth_iteratort depth_begin();
   depth_iteratort depth_end();
@@ -316,6 +356,33 @@ public:
   const_unique_depth_iteratort unique_depth_end() const;
   const_unique_depth_iteratort unique_depth_cbegin() const;
   const_unique_depth_iteratort unique_depth_cend() const;
+};
+
+/// Base class for all expressions. This protects low-level methods in
+/// exprt that are not type safe. Depcrecated constructors are removed.
+/// This API will eventually replace exprt.
+class expr_protectedt : public exprt
+{
+protected:
+  // constructors
+  expr_protectedt(irep_idt _id, typet _type)
+    : exprt(std::move(_id), std::move(_type))
+  {
+  }
+
+  expr_protectedt(irep_idt _id, typet _type, operandst _operands)
+    : exprt(std::move(_id), std::move(_type), std::move(_operands))
+  {
+  }
+
+  // protect these low-level methods
+  using exprt::add;
+  using exprt::make_bool;
+  using exprt::op0;
+  using exprt::op1;
+  using exprt::op2;
+  using exprt::op3;
+  using exprt::remove;
 };
 
 class expr_visitort

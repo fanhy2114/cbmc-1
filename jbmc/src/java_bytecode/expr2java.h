@@ -11,9 +11,11 @@ Author: Daniel Kroening, kroening@cs.cmu.edu
 #define CPROVER_JAVA_BYTECODE_EXPR2JAVA_H
 
 #include <cmath>
+#include <limits>
 #include <numeric>
 #include <sstream>
 #include <string>
+
 #include <ansi-c/expr2c_class.h>
 
 class expr2javat:public expr2ct
@@ -26,9 +28,10 @@ public:
 protected:
   virtual std::string convert_with_precedence(
     const exprt &src, unsigned &precedence) override;
-  std::string convert_java_this(const exprt &src, unsigned precedence);
-  std::string convert_java_instanceof(const exprt &src, unsigned precedence);
-  std::string convert_java_new(const exprt &src, unsigned precedence);
+  std::string convert_java_this();
+  std::string convert_java_instanceof(const exprt &src);
+  std::string convert_java_new(const exprt &src);
+  std::string convert_code_java_new(const exprt &src, unsigned precedence);
   std::string convert_code_java_delete(const exprt &src, unsigned precedence);
   virtual std::string convert_struct(
     const exprt &src, unsigned &precedence) override;
@@ -72,13 +75,16 @@ std::string floating_point_to_java_string(float_type value)
     std::ostringstream raw_stream;
     raw_stream << value;
     const auto raw_decimal = raw_stream.str();
-    if(raw_decimal.find('.') == std::string::npos)
+    const bool is_scientific = raw_decimal.find('e') != std::string::npos;
+    if(
+      raw_decimal.find('.') == std::string::npos &&
+      !is_scientific) // don't add trailing .0 if in scientific notation
+    {
       return raw_decimal + ".0";
+    }
     return raw_decimal;
   }();
   const bool is_lossless = [&] {
-    if(value == std::numeric_limits<float_type>::min())
-      return true;
     try
     {
       return std::stod(decimal) == value;

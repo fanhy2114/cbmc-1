@@ -8,7 +8,7 @@ Author: Kareem Khazem <karkhaz@karkhaz.com>, 2018
 
 #include "compound_block_locations.h"
 
-#include <testing-utils/catch.hpp>
+#include <testing-utils/use_catch.h>
 
 #include <fstream>
 #include <utility>
@@ -21,7 +21,6 @@ Author: Kareem Khazem <karkhaz@karkhaz.com>, 2018
 
 #include <goto-programs/goto_model.h>
 
-#include <langapi/language_ui.h>
 #include <langapi/mode.h>
 
 #include <util/cmdline.h>
@@ -278,7 +277,7 @@ void compound_block_locationst::check_compound_block_locations(
   register_language(new_ansi_c_language);
   cmdlinet cmdline;
   cmdline.args.push_back(tmp());
-  config.main = "main";
+  config.main = std::string("main");
   config.set(cmdline);
 
   optionst opts;
@@ -290,7 +289,7 @@ void compound_block_locationst::check_compound_block_locations(
 
   goto_modelt gm;
   int ret;
-  ret = cbmc_parse_optionst::get_goto_program(gm, opts, cmdline, log, mh);
+  ret = cbmc_parse_optionst::get_goto_program(gm, opts, cmdline, mh);
   REQUIRE(ret == -1);
 
   const auto found = gm.goto_functions.function_map.find("main");

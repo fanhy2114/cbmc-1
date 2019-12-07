@@ -30,6 +30,11 @@ Date:   December 2016
 
 #include <analyses/uncaught_exceptions_analysis.h>
 
+#include <linking/static_lifetime_init.h>
+
+#include "java_expr.h"
+#include "java_types.h"
+
 /// Lowers high-level exception descriptions into low-level operations suitable
 /// for symex and other analyses that don't understand the THROW or CATCH GOTO
 /// instructions.
@@ -107,7 +112,8 @@ public:
   }
 
   void operator()(goto_functionst &goto_functions);
-  void operator()(goto_programt &goto_program);
+  void
+  operator()(const irep_idt &function_identifier, goto_programt &goto_program);
 
 protected:
   symbol_table_baset &symbol_table;
@@ -115,6 +121,13 @@ protected:
   function_may_throwt function_may_throw;
   bool remove_added_instanceof;
   message_handlert &message_handler;
+
+  enum class instrumentation_resultt
+  {
+    DID_NOTHING,
+    ADDED_CODE_WITHOUT_MAY_THROW,
+    ADDED_CODE_WITH_MAY_THROW,
+  };
 
   symbol_exprt get_inflight_exception_global();
 
@@ -132,24 +145,28 @@ protected:
     std::size_t &universal_catch);
 
   void add_exception_dispatch_sequence(
+    const irep_idt &function_identifier,
     goto_programt &goto_program,
     const goto_programt::targett &instr_it,
     const stack_catcht &stack_catch,
     const std::vector<symbol_exprt> &locals);
 
   bool instrument_throw(
+    const irep_idt &function_identifier,
     goto_programt &goto_program,
     const goto_programt::targett &,
     const stack_catcht &,
     const std::vector<symbol_exprt> &);
 
-  bool instrument_function_call(
+  instrumentation_resultt instrument_function_call(
+    const irep_idt &function_identifier,
     goto_programt &goto_program,
     const goto_programt::targett &,
     const stack_catcht &,
     const std::vector<symbol_exprt> &);
 
   void instrument_exceptions(
+    const irep_idt &function_identifier,
     goto_programt &goto_program);
 };
 
@@ -200,7 +217,7 @@ bool remove_exceptionst::function_or_callees_may_throw(
 /// Translates an exception landing-pad into instructions that copy the
 /// in-flight exception pointer to a nominated expression, then clear the
 /// in-flight exception (i.e. null the pointer), hence marking it caught.
-/// \param goto_program: body of the function containing this landingpad
+/// \param [out] goto_program: body of the function containing this landingpad
 ///   instruction
 /// \param instr_it: iterator pointing to the landingpad instruction.
 ///   Will be overwritten.
@@ -223,27 +240,26 @@ void remove_exceptionst::instrument_exception_handler(
     const symbol_exprt thrown_global_symbol=
       get_inflight_exception_global();
     // next we reset the exceptional return to NULL
-    null_pointer_exprt null_voidptr((pointer_type(empty_typet())));
+    null_pointer_exprt null_voidptr((pointer_type(java_void_type())));
 
     // add the assignment @inflight_exception = NULL
-    goto_programt::targett t_null=goto_program.insert_after(instr_it);
-    t_null->make_assignment();
-    t_null->source_location=instr_it->source_location;
-    t_null->code=code_assignt(
-      thrown_global_symbol,
-      null_voidptr);
-    t_null->function=instr_it->function;
+    goto_program.insert_after(
+      instr_it,
+      goto_programt::make_assignment(
+        code_assignt(thrown_global_symbol, null_voidptr),
+        instr_it->source_location));
 
     // add the assignment exc = @inflight_exception (before the null assignment)
-    goto_programt::targett t_exc=goto_program.insert_after(instr_it);
-    t_exc->make_assignment();
-    t_exc->source_location=instr_it->source_location;
-    t_exc->code=code_assignt(
-      thrown_exception_local,
-      typecast_exprt(thrown_global_symbol, thrown_exception_local.type()));
-    t_exc->function=instr_it->function;
+    goto_program.insert_after(
+      instr_it,
+      goto_programt::make_assignment(
+        code_assignt(
+          thrown_exception_local,
+          typecast_exprt(thrown_global_symbol, thrown_exception_local.type())),
+        instr_it->source_location));
   }
-  instr_it->make_skip();
+
+  instr_it->turn_into_skip();
 }
 
 /// Find the innermost universal exception handler for the current
@@ -299,12 +315,14 @@ goto_programt::targett remove_exceptionst::find_universal_exception(
 /// if (exception instanceof ExnA) then goto handlerA
 /// else if (exception instanceof ExnB) then goto handlerB
 /// else goto universal_handler or (dead locals; function exit)
+/// \param function_identifier: name of the function containing \p instr_it
 /// \param goto_program: body of the function to which instr_it belongs
 /// \param instr_it: throw or call instruction that may be an
 ///   exception source
 /// \param stack_catch: exception handlers currently registered
 /// \param locals: local variables to kill on a function-exit edge
 void remove_exceptionst::add_exception_dispatch_sequence(
+  const irep_idt &function_identifier,
   goto_programt &goto_program,
   const goto_programt::targett &instr_it,
   const remove_exceptionst::stack_catcht &stack_catch,
@@ -342,21 +360,21 @@ void remove_exceptionst::add_exception_dispatch_sequence(
       if(!stack_catch[i][j].first.empty())
       {
         // Normal exception handler, make an instanceof check.
-        goto_programt::targett t_exc=goto_program.insert_after(instr_it);
-        t_exc->make_goto(new_state_pc);
-        t_exc->source_location=instr_it->source_location;
-        t_exc->function=instr_it->function;
+        goto_programt::targett t_exc = goto_program.insert_after(
+          instr_it,
+          goto_programt::make_goto(
+            new_state_pc, true_exprt(), instr_it->source_location));
 
         // use instanceof to check that this is the correct handler
         struct_tag_typet type(stack_catch[i][j].first);
-        type_exprt expr(type);
 
-        binary_predicate_exprt check(exc_thrown, ID_java_instanceof, expr);
+        java_instanceof_exprt check(exc_thrown, type);
         t_exc->guard=check;
 
         if(remove_added_instanceof)
         {
           remove_instanceof(
+            function_identifier,
             t_exc,
             goto_program,
             symbol_table,
@@ -367,24 +385,21 @@ void remove_exceptionst::add_exception_dispatch_sequence(
     }
   }
 
-  default_dispatch->make_goto(default_target);
-  default_dispatch->source_location=instr_it->source_location;
-  default_dispatch->function=instr_it->function;
+  *default_dispatch = goto_programt::make_goto(
+    default_target, true_exprt(), instr_it->source_location);
 
   // add dead instructions
   for(const auto &local : locals)
   {
-    goto_programt::targett t_dead=goto_program.insert_after(instr_it);
-    t_dead->make_dead();
-    t_dead->code=code_deadt(local);
-    t_dead->source_location=instr_it->source_location;
-    t_dead->function=instr_it->function;
+    goto_program.insert_after(
+      instr_it, goto_programt::make_dead(local, instr_it->source_location));
   }
 }
 
 /// instruments each throw with conditional GOTOS to the corresponding
 /// exception handlers
 bool remove_exceptionst::instrument_throw(
+  const irep_idt &function_identifier,
   goto_programt &goto_program,
   const goto_programt::targett &instr_it,
   const remove_exceptionst::stack_catcht &stack_catch,
@@ -396,7 +411,7 @@ bool remove_exceptionst::instrument_throw(
     uncaught_exceptions_domaint::get_exception_symbol(instr_it->code);
 
   add_exception_dispatch_sequence(
-    goto_program, instr_it, stack_catch, locals);
+    function_identifier, goto_program, instr_it, stack_catch, locals);
 
   // find the symbol where the thrown exception should be stored:
   symbol_exprt exc_thrown =
@@ -415,7 +430,9 @@ bool remove_exceptionst::instrument_throw(
 
 /// instruments each function call that may escape exceptions with conditional
 /// GOTOS to the corresponding exception handlers
-bool remove_exceptionst::instrument_function_call(
+remove_exceptionst::instrumentation_resultt
+remove_exceptionst::instrument_function_call(
+  const irep_idt &function_identifier,
   goto_programt &goto_program,
   const goto_programt::targett &instr_it,
   const stack_catcht &stack_catch,
@@ -427,7 +444,8 @@ bool remove_exceptionst::instrument_function_call(
   goto_programt::targett next_it=instr_it;
   next_it++;
 
-  code_function_callt &function_call=to_code_function_call(instr_it->code);
+  const code_function_callt &function_call = instr_it->get_function_call();
+
   DATA_INVARIANT(
     function_call.function().id()==ID_symbol,
     "identified expected to be a symbol");
@@ -438,38 +456,43 @@ bool remove_exceptionst::instrument_function_call(
   {
     equal_exprt no_exception_currently_in_flight(
       get_inflight_exception_global(),
-      null_pointer_exprt(pointer_type(empty_typet())));
+      null_pointer_exprt(pointer_type(java_void_type())));
 
     if(symbol_table.lookup_ref(callee_id).type.get_bool(ID_C_must_not_throw))
     {
       // Function is annotated must-not-throw, but we can't prove that here.
       // Insert an ASSUME(@inflight_exception == null):
-      goto_programt::targett assume_null = goto_program.insert_after(instr_it);
-      assume_null->make_assumption(no_exception_currently_in_flight);
+      goto_program.insert_after(
+        instr_it,
+        goto_programt::make_assumption(no_exception_currently_in_flight));
+
+      return instrumentation_resultt::ADDED_CODE_WITHOUT_MAY_THROW;
     }
     else
     {
       add_exception_dispatch_sequence(
-        goto_program, instr_it, stack_catch, locals);
+        function_identifier, goto_program, instr_it, stack_catch, locals);
 
       // add a null check (so that instanceof can be applied)
-      goto_programt::targett t_null=goto_program.insert_after(instr_it);
-      t_null->make_goto(next_it);
-      t_null->source_location=instr_it->source_location;
-      t_null->function=instr_it->function;
-      t_null->guard=no_exception_currently_in_flight;
-    }
+      goto_program.insert_after(
+        instr_it,
+        goto_programt::make_goto(
+          next_it,
+          no_exception_currently_in_flight,
+          instr_it->source_location));
 
-    return true;
+      return instrumentation_resultt::ADDED_CODE_WITH_MAY_THROW;
+    }
   }
 
-  return false;
+  return instrumentation_resultt::DID_NOTHING;
 }
 
 /// instruments throws, function calls that may escape exceptions and exception
 /// handlers. Additionally, it re-computes the live-range of local variables in
 /// order to add DEAD instructions.
 void remove_exceptionst::instrument_exceptions(
+  const irep_idt &function_identifier,
   goto_programt &goto_program)
 {
   stack_catcht stack_catch; // stack of try-catch blocks
@@ -483,12 +506,13 @@ void remove_exceptionst::instrument_exceptions(
     function_or_callees_may_throw(goto_program);
 
   bool did_something = false;
+  bool added_goto_instruction = false;
 
   Forall_goto_program_instructions(instr_it, goto_program)
   {
     if(instr_it->is_decl())
     {
-      code_declt decl=to_code_decl(instr_it->code);
+      code_declt decl = instr_it->get_decl();
       locals.push_back(decl.symbol());
     }
     // Is it a handler push/pop or catch landing-pad?
@@ -560,20 +584,34 @@ void remove_exceptionst::instrument_exceptions(
           false,
           "CATCH opcode should be one of push-catch, pop-catch, landingpad");
       }
-      instr_it->make_skip();
+
+      instr_it->turn_into_skip();
       did_something = true;
     }
     else if(instr_it->type==THROW)
     {
-      did_something |=
-        instrument_throw(goto_program, instr_it, stack_catch, locals);
+      did_something = instrument_throw(
+        function_identifier, goto_program, instr_it, stack_catch, locals);
     }
     else if(instr_it->type==FUNCTION_CALL)
     {
-      did_something |=
-        instrument_function_call(goto_program, instr_it, stack_catch, locals);
+      instrumentation_resultt result =
+        instrument_function_call(
+          function_identifier, goto_program, instr_it, stack_catch, locals);
+      did_something = result != instrumentation_resultt::DID_NOTHING;
+      added_goto_instruction =
+        result == instrumentation_resultt::ADDED_CODE_WITH_MAY_THROW;
     }
   }
+
+  // INITIALIZE_FUNCTION should not contain any exception handling branches for
+  // two reasons: (1) with symex-driven lazy loading it means that code that
+  // references @inflight_exception might be generated before
+  // @inflight_exception is initialized; (2) symex can analyze
+  // INITIALIZE_FUNCTION much faster if it doesn't contain any branching.
+  INVARIANT(
+    function_identifier != INITIALIZE_FUNCTION || !added_goto_instruction,
+    INITIALIZE_FUNCTION " should not contain any exception handling branches");
 
   if(did_something)
     remove_skip(goto_program);
@@ -582,12 +620,13 @@ void remove_exceptionst::instrument_exceptions(
 void remove_exceptionst::operator()(goto_functionst &goto_functions)
 {
   Forall_goto_functions(it, goto_functions)
-    instrument_exceptions(it->second.body);
+    instrument_exceptions(it->first, it->second.body);
 }
 
-void remove_exceptionst::operator()(goto_programt &goto_program)
+void remove_exceptionst::
+operator()(const irep_idt &function_identifier, goto_programt &goto_program)
 {
-  instrument_exceptions(goto_program);
+  instrument_exceptions(function_identifier, goto_program);
 }
 
 /// removes throws/CATCH-POP/CATCH-PUSH
@@ -618,12 +657,14 @@ void remove_exceptions_using_instanceof(
 /// because we can't inspect other functions to determine whether they throw
 /// or not, and therefore must assume they do and always introduce post-call
 /// exception dispatch.
+/// \param function_identifier: name of the goto function being processed
 /// \param goto_program: program to remove exceptions from
 /// \param symbol_table: global symbol table. The `@inflight_exception` global
 ///   may be added if not already present. It will not be initialised; that is
 ///   the caller's responsibility.
 /// \param message_handler: logging output
 void remove_exceptions_using_instanceof(
+  const irep_idt &function_identifier,
   goto_programt &goto_program,
   symbol_table_baset &symbol_table,
   message_handlert &message_handler)
@@ -634,7 +675,7 @@ void remove_exceptions_using_instanceof(
   remove_exceptionst remove_exceptions(
     symbol_table, nullptr, any_function_may_throw, false, message_handler);
 
-  remove_exceptions(goto_program);
+  remove_exceptions(function_identifier, goto_program);
 }
 
 /// removes throws/CATCH-POP/CATCH-PUSH, replacing them with explicit exception
@@ -681,6 +722,7 @@ void remove_exceptions(
 /// because we can't inspect other functions to determine whether they throw
 /// or not, and therefore must assume they do and always introduce post-call
 /// exception dispatch.
+/// \param function_identifier: name of the goto function being processed
 /// \param goto_program: program to remove exceptions from
 /// \param symbol_table: global symbol table. The `@inflight_exception` global
 ///   may be added if not already present. It will not be initialised; that is
@@ -689,6 +731,7 @@ void remove_exceptions(
 ///   Only needed if type == REMOVE_ADDED_INSTANCEOF; otherwise may be null.
 /// \param message_handler: logging output
 void remove_exceptions(
+  const irep_idt &function_identifier,
   goto_programt &goto_program,
   symbol_table_baset &symbol_table,
   const class_hierarchyt &class_hierarchy,
@@ -704,7 +747,7 @@ void remove_exceptions(
     true,
     message_handler);
 
-  remove_exceptions(goto_program);
+  remove_exceptions(function_identifier, goto_program);
 }
 
 /// removes throws/CATCH-POP/CATCH-PUSH, replacing them with explicit exception

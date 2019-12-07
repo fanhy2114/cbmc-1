@@ -6,9 +6,11 @@ Author: Diffblue Ltd.
 
 \*******************************************************************/
 
-#include <goto-programs/goto_function.h>
-#include <testing-utils/catch.hpp>
+#include <testing-utils/use_catch.h>
+
 #include <util/arith_tools.h>
+
+#include <goto-programs/goto_function.h>
 
 SCENARIO(
   "Validation of well-formed symbol removing codes",
@@ -31,11 +33,7 @@ SCENARIO(
 
     goto_functiont goto_function;
     auto &instructions = goto_function.body.instructions;
-    instructions.emplace_back(goto_program_instruction_typet::DEAD);
-    code_deadt removal(var_a);
-    instructions.back().make_dead();
-    instructions.back().code = removal;
-    instructions.back().function = fun_name;
+    instructions.emplace_back(goto_programt::make_dead(var_a));
     symbol_table.insert(fun_symbol);
 
     WHEN("Removing known symbol")

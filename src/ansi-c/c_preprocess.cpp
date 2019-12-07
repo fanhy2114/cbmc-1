@@ -10,6 +10,7 @@ Author: Daniel Kroening, kroening@kroening.com
 
 #include <util/c_types.h>
 #include <util/config.h>
+#include <util/prefix.h>
 #include <util/run.h>
 #include <util/suffix.h>
 #include <util/tempfile.h>
@@ -199,9 +200,9 @@ static void error_parse_line(
     if(state==2)
     {
       saved_error_location.set_file(file);
-      saved_error_location.set_function("");
+      saved_error_location.set_function(irep_idt());
       saved_error_location.set_line(line_no);
-      saved_error_location.set_column("");
+      saved_error_location.set_column(irep_idt());
     }
   }
 
@@ -579,29 +580,51 @@ bool c_preprocess_gcc_clang(
     argv.push_back("-nostdinc");
 
   // Set the standard
-  if(has_suffix(file, ".cpp") || has_suffix(file, ".CPP") ||
-  #ifndef _WIN32
-     has_suffix(file, ".C") ||
-  #endif
-     has_suffix(file, ".c++") || has_suffix(file, ".C++") ||
-     has_suffix(file, ".cp") || has_suffix(file, ".CP"))
+  if(
+    has_suffix(file, ".cpp") || has_suffix(file, ".CPP") ||
+#ifndef _WIN32
+    has_suffix(file, ".C") ||
+#endif
+    has_suffix(file, ".c++") || has_suffix(file, ".C++") ||
+    has_suffix(file, ".cp") || has_suffix(file, ".CP") ||
+    has_suffix(file, ".cc") || has_suffix(file, ".cxx"))
   {
     switch(config.cpp.cpp_standard)
     {
     case configt::cppt::cpp_standardt::CPP98:
-      argv.push_back("-std=gnu++98");
+#if defined(__OpenBSD__)
+      if(preprocessor == configt::ansi_ct::preprocessort::CLANG)
+        argv.push_back("-std=c++98");
+      else
+#endif
+        argv.push_back("-std=gnu++98");
       break;
 
     case configt::cppt::cpp_standardt::CPP03:
-      argv.push_back("-std=gnu++03");
+#if defined(__OpenBSD__)
+      if(preprocessor == configt::ansi_ct::preprocessort::CLANG)
+        argv.push_back("-std=c++03");
+      else
+#endif
+        argv.push_back("-std=gnu++03");
       break;
 
     case configt::cppt::cpp_standardt::CPP11:
-      argv.push_back("-std=gnu++11");
+#if defined(__OpenBSD__)
+      if(preprocessor == configt::ansi_ct::preprocessort::CLANG)
+        argv.push_back("-std=c++11");
+      else
+#endif
+        argv.push_back("-std=gnu++11");
       break;
 
     case configt::cppt::cpp_standardt::CPP14:
-      argv.push_back("-std=gnu++14");
+#if defined(__OpenBSD__)
+      if(preprocessor == configt::ansi_ct::preprocessort::CLANG)
+        argv.push_back("-std=c++14");
+      else
+#endif
+        argv.push_back("-std=gnu++14");
       break;
     }
   }
@@ -610,15 +633,30 @@ bool c_preprocess_gcc_clang(
     switch(config.ansi_c.c_standard)
     {
     case configt::ansi_ct::c_standardt::C89:
-      argv.push_back("-std=gnu89");
+#if defined(__OpenBSD__)
+      if(preprocessor == configt::ansi_ct::preprocessort::CLANG)
+        argv.push_back("-std=c89");
+      else
+#endif
+        argv.push_back("-std=gnu89");
       break;
 
     case configt::ansi_ct::c_standardt::C99:
-      argv.push_back("-std=gnu99");
+#if defined(__OpenBSD__)
+      if(preprocessor == configt::ansi_ct::preprocessort::CLANG)
+        argv.push_back("-std=c99");
+      else
+#endif
+        argv.push_back("-std=gnu99");
       break;
 
     case configt::ansi_ct::c_standardt::C11:
-      argv.push_back("-std=gnu11");
+#if defined(__OpenBSD__)
+      if(preprocessor == configt::ansi_ct::preprocessort::CLANG)
+        argv.push_back("-std=c11");
+      else
+#endif
+        argv.push_back("-std=gnu11");
       break;
     }
   }
@@ -757,7 +795,7 @@ bool c_preprocess_none(
   if(!infile)
   {
     messaget message(message_handler);
-    message.error() << "failed to open `" << file << "'" << messaget::eom;
+    message.error() << "failed to open '" << file << "'" << messaget::eom;
     return true;
   }
 

@@ -34,9 +34,7 @@ exprt goto_symext::make_auto_object(const typet &type, statet &state)
   return symbol_exprt(symbol.name, symbol.type);
 }
 
-void goto_symext::initialize_auto_object(
-  const exprt &expr,
-  statet &state)
+void goto_symext::initialize_auto_object(const exprt &expr, statet &state)
 {
   const typet &type=ns.follow(expr.type());
 
@@ -77,34 +75,28 @@ void goto_symext::initialize_auto_object(
   }
 }
 
-void goto_symext::trigger_auto_object(
-  const exprt &expr,
-  statet &state)
+void goto_symext::trigger_auto_object(const exprt &expr, statet &state)
 {
-  if(expr.id()==ID_symbol &&
-     expr.get_bool(ID_C_SSA_symbol))
-  {
-    const ssa_exprt &ssa_expr=to_ssa_expr(expr);
-    const irep_idt &obj_identifier=ssa_expr.get_object_name();
-
-    if(obj_identifier!="goto_symex::\\guard")
+  expr.visit_pre([&state, this](const exprt &e) {
+    if(e.id() == ID_symbol && e.get_bool(ID_C_SSA_symbol))
     {
-      const symbolt &symbol=
-        ns.lookup(obj_identifier);
+      const ssa_exprt &ssa_expr = to_ssa_expr(e);
+      const irep_idt &obj_identifier = ssa_expr.get_object_name();
 
-      if(has_prefix(id2string(symbol.base_name), "auto_object"))
+      if(obj_identifier != statet::guard_identifier())
       {
-        // done already?
-        if(state.level2.current_names.find(ssa_expr.get_identifier())==
-           state.level2.current_names.end())
+        const symbolt &symbol = ns.lookup(obj_identifier);
+
+        if(has_prefix(id2string(symbol.base_name), "auto_object"))
         {
-          initialize_auto_object(expr, state);
+          // done already?
+          if(!state.get_level2().current_names.has_key(
+               ssa_expr.get_identifier()))
+          {
+            initialize_auto_object(e, state);
+          }
         }
       }
     }
-  }
-
-  // recursive call
-  forall_operands(it, expr)
-    trigger_auto_object(*it, state);
+  });
 }

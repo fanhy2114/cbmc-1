@@ -194,7 +194,7 @@ void cpp_typecheckt::typecheck_compound_type(
         to_struct_union_type(symbol.type).is_incomplete())
       {
         // a previously incomplete struct/union becomes complete
-        symbolt &writeable_symbol = *symbol_table.get_writeable(symbol_name);
+        symbolt &writeable_symbol = symbol_table.get_writeable_ref(symbol_name);
         writeable_symbol.type.swap(type);
         typecheck_compound_body(writeable_symbol);
       }
@@ -205,10 +205,10 @@ void cpp_typecheckt::typecheck_compound_type(
       else
       {
         error().source_location=type.source_location();
-        error() << "error: compound tag `" << base_name
+        error() << "error: compound tag '" << base_name
                 << "' declared previously\n"
-                << "location of previous definition: "
-                << symbol.location << eom;
+                << "location of previous definition: " << symbol.location
+                << eom;
         throw 0;
       }
     }
@@ -374,7 +374,7 @@ void cpp_typecheckt::typecheck_compound_declarator(
   if(is_cast_operator && is_static)
   {
     error().source_location=cpp_name.source_location();
-    error() << "cast operators cannot be static`" << eom;
+    error() << "cast operators cannot be static" << eom;
     throw 0;
   }
 
@@ -532,7 +532,7 @@ void cpp_typecheckt::typecheck_compound_declarator(
       if(value.is_not_nil() && value.id() == ID_constant)
       {
         mp_integer i;
-        to_integer(value, i);
+        to_integer(to_constant_expr(value), i);
         if(i!=0)
         {
           error().source_location = declarator.name().source_location();
@@ -639,7 +639,7 @@ void cpp_typecheckt::typecheck_compound_declarator(
           arg_symb.location=func_symb.location;
           arg_symb.type=arg.type();
 
-          arg.set(ID_C_identifier, arg_symb.name);
+          arg.set_identifier(arg_symb.name);
 
           // add the parameter to the symbol table
           const bool failed=!symbol_table.insert(std::move(arg_symb)).second;
@@ -648,36 +648,36 @@ void cpp_typecheckt::typecheck_compound_declarator(
 
         // do the body of the function
         typecast_exprt late_cast(
-          lookup(args[0].get(ID_C_identifier)).symbol_expr(),
+          lookup(args[0].get_identifier()).symbol_expr(),
           to_code_type(component.type()).parameters()[0].type());
 
-        side_effect_expr_function_callt expr_call;
-        expr_call.function() =
-          symbol_exprt(component.get_name(), component.type());
+        side_effect_expr_function_callt expr_call(
+          symbol_exprt(component.get_name(), component.type()),
+          {late_cast},
+          uninitialized_typet{},
+          source_locationt{});
         expr_call.arguments().reserve(args.size());
-        expr_call.arguments().push_back(late_cast);
 
         for(const auto &arg : args)
         {
           expr_call.arguments().push_back(
-            lookup(arg.get(ID_C_identifier)).symbol_expr());
+            lookup(arg.get_identifier()).symbol_expr());
         }
 
         if(code_type.return_type().id()!=ID_empty &&
            code_type.return_type().id()!=ID_destructor)
         {
           expr_call.type()=to_code_type(component.type()).return_type();
-          exprt already_typechecked(ID_already_typechecked);
-          already_typechecked.move_to_operands(expr_call);
 
-          func_symb.value = code_returnt(already_typechecked).make_block();
+          func_symb.value =
+            code_returnt(already_typechecked_exprt{std::move(expr_call)})
+              .make_block();
         }
         else
         {
-          exprt already_typechecked(ID_already_typechecked);
-          already_typechecked.move_to_operands(expr_call);
-
-          func_symb.value = code_expressiont(already_typechecked).make_block();
+          func_symb.value =
+            code_expressiont(already_typechecked_exprt{std::move(expr_call)})
+              .make_block();
         }
 
         // add this new function to the list of components
@@ -721,8 +721,7 @@ void cpp_typecheckt::typecheck_compound_declarator(
     if(symbol_table.move(static_symbol, new_symbol))
     {
       error().source_location=cpp_name.source_location();
-      error() << "redeclaration of static member `"
-              << static_symbol.base_name
+      error() << "redeclaration of static member '" << static_symbol.base_name
               << "'" << eom;
       throw 0;
     }
@@ -733,18 +732,10 @@ void cpp_typecheckt::typecheck_compound_declarator(
       {
         new_symbol->value.swap(value);
         c_typecheck_baset::do_initializer(*new_symbol);
-
-        // these are macros if they are PODs and come with a (constant) value
-        if(new_symbol->type.get_bool(ID_C_constant))
-        {
-          simplify(new_symbol->value, *this);
-          new_symbol->is_macro=true;
-        }
       }
       else
       {
-        symbol_exprt symexpr;
-        symexpr.set_identifier(new_symbol->name);
+        symbol_exprt symexpr = symbol_exprt::typeless(new_symbol->name);
 
         exprt::operandst ops;
         ops.push_back(value);
@@ -772,7 +763,18 @@ void cpp_typecheckt::check_fixed_size_array(typet &type)
     array_typet &array_type=to_array_type(type);
 
     if(array_type.size().is_not_nil())
+    {
+      if(array_type.size().id() == ID_symbol)
+      {
+        const symbol_exprt &s = to_symbol_expr(array_type.size());
+        const symbolt &symbol = lookup(s.get_identifier());
+
+        if(cpp_is_pod(symbol.type) && symbol.type.get_bool(ID_C_constant))
+          array_type.size() = symbol.value;
+      }
+
       make_constant_index(array_type.size());
+    }
 
     // recursive call for multi-dimensional arrays
     check_fixed_size_array(array_type.subtype());
@@ -833,8 +835,7 @@ void cpp_typecheckt::put_compound_into_scope(
       if(!id.is_class() && !id.is_enum())
       {
         error().source_location=compound.source_location();
-        error() << "`" << base_name
-                << "' already in compound scope" << eom;
+        error() << "'" << base_name << "' already in compound scope" << eom;
         throw 0;
       }
     }
@@ -861,13 +862,9 @@ void cpp_typecheckt::typecheck_friend_declaration(
 
   if(declaration.is_template())
   {
-    return; // TODO
-
-#if 0
     error().source_location=declaration.type().source_location();
     error() << "friend template not supported" << eom;
     throw 0;
-#endif
   }
 
   // we distinguish these whether there is a declarator
@@ -890,12 +887,10 @@ void cpp_typecheckt::typecheck_friend_declaration(
       throw 0;
     }
 
-    // typecheck ftype
-
-    // TODO
-    //    typecheck_type(ftype);
-    //    assert(ftype.id()==ID_symbol_type);
-    //    symbol.type.add("ID_C_friends").move_to_sub(ftype);
+    cpp_save_scopet saved_scope(cpp_scopes);
+    cpp_scopes.go_to_global_scope();
+    typecheck_type(ftype);
+    symbol.type.add(ID_C_friends).move_to_sub(ftype);
 
     return;
   }
@@ -903,39 +898,30 @@ void cpp_typecheckt::typecheck_friend_declaration(
   // It should be a friend function.
   // Do the declarators.
 
+#ifdef DEBUG
+  std::cout << "friend declaration: " << declaration.pretty() << '\n';
+#endif
+
   for(auto &sub_it : declaration.declarators())
   {
-    bool has_value = sub_it.value().is_not_nil();
+#ifdef DEBUG
+    std::cout << "decl: " << sub_it.pretty() << "\n with value "
+              << sub_it.value().pretty() << '\n';
+    std::cout << "  scope: " << cpp_scopes.current_scope().prefix << '\n';
+#endif
 
-    if(!has_value)
-    {
-      // If no value is found, then we jump to the
-      // global scope, and we convert the declarator
-      // as if it were declared there
-      cpp_save_scopet saved_scope(cpp_scopes);
-      cpp_scopes.go_to_global_scope();
-      cpp_declarator_convertert cpp_declarator_converter(*this);
-      const symbolt &conv_symb=cpp_declarator_converter.convert(
-          declaration.type(), declaration.storage_spec(),
-          declaration.member_spec(), sub_it);
-      exprt symb_expr=cpp_symbol_expr(conv_symb);
-      symbol.type.add(ID_C_friends).move_to_sub(symb_expr);
-    }
-    else
-    {
-      cpp_declarator_convertert cpp_declarator_converter(*this);
-      cpp_declarator_converter.is_friend=true;
-
+    if(sub_it.value().is_not_nil())
       declaration.member_spec().set_inline(true);
 
-      const symbolt &conv_symb=cpp_declarator_converter.convert(
-        declaration.type(), declaration.storage_spec(),
-        declaration.member_spec(), sub_it);
-
-      exprt symb_expr=cpp_symbol_expr(conv_symb);
-
-      symbol.type.add(ID_C_friends).move_to_sub(symb_expr);
-    }
+    cpp_declarator_convertert cpp_declarator_converter(*this);
+    cpp_declarator_converter.is_friend = true;
+    const symbolt &conv_symb = cpp_declarator_converter.convert(
+      declaration.type(),
+      declaration.storage_spec(),
+      declaration.member_spec(),
+      sub_it);
+    exprt symb_expr = cpp_symbol_expr(conv_symb);
+    symbol.type.add(ID_C_friends).move_to_sub(symb_expr);
   }
 }
 
@@ -1103,12 +1089,12 @@ void cpp_typecheckt::typecheck_compound_body(symbolt &symbol)
   {
     // it's public!
     exprt cpp_public("cpp-public");
-    body.move_to_operands(cpp_public);
+    body.add_to_operands(std::move(cpp_public));
 
     // build declaration
     cpp_declarationt ctor;
     default_ctor(symbol.type.source_location(), symbol.base_name, ctor);
-    body.move_to_operands(ctor);
+    body.add_to_operands(std::move(ctor));
   }
 
   // Reset the access type
@@ -1292,7 +1278,10 @@ void cpp_typecheckt::typecheck_member_function(
   }
 
   if(value.id() == ID_cpp_not_typechecked && value.has_operands())
-    move_member_initializers(initializers, type, value.op0());
+  {
+    move_member_initializers(
+      initializers, type, to_multi_ary_expr(value).op0());
+  }
   else
     move_member_initializers(initializers, type, value);
 
@@ -1308,7 +1297,7 @@ void cpp_typecheckt::typecheck_member_function(
   component.set(ID_prefix, id2string(identifier) + "::");
 
   if(value.is_not_nil())
-    type.set(ID_C_inlined, true);
+    to_code_type(type).set_inlined(true);
 
   symbol.name=identifier;
   symbol.base_name=component.get_base_name();
@@ -1323,15 +1312,18 @@ void cpp_typecheckt::typecheck_member_function(
   // move early, it must be visible before doing any value
   symbolt *new_symbol;
 
-  if(symbol_table.move(symbol, new_symbol))
+  const bool symbol_exists = symbol_table.move(symbol, new_symbol);
+  if(symbol_exists && new_symbol->is_weak)
+  {
+    // there might have been an earlier friend declaration
+    *new_symbol = std::move(symbol);
+  }
+  else if(symbol_exists)
   {
     error().source_location=symbol.location;
-    error() << "failed to insert new method symbol: "
-            << symbol.name << "\n"
-            << "name of previous symbol: "
-            << new_symbol->name << "\n"
-            << "location of previous symbol: "
-            << new_symbol->location << eom;
+    error() << "failed to insert new method symbol: " << symbol.name << '\n'
+            << "name of previous symbol: " << new_symbol->name << '\n'
+            << "location of previous symbol: " << new_symbol->location << eom;
 
     throw 0;
   }
@@ -1339,8 +1331,7 @@ void cpp_typecheckt::typecheck_member_function(
   // Is this in a class template?
   // If so, we defer typechecking until used.
   if(cpp_scopes.current_scope().get_parent().is_template_scope())
-  {
-  }
+    deferred_typechecking.insert(new_symbol->name);
   else // remember for later typechecking of body
     add_method_body(new_symbol);
 }
@@ -1350,17 +1341,6 @@ void cpp_typecheckt::add_this_to_method_type(
   code_typet &type,
   const typet &method_qualifier)
 {
-  code_typet::parameterst &parameters = type.parameters();
-
-  parameters.insert(
-    parameters.begin(), code_typet::parametert());
-
-  code_typet::parametert &parameter=parameters.front();
-
-  parameter.set_identifier(ID_this); // check? Not qualified
-  parameter.set_base_name(ID_this);
-  parameter.set_this();
-
   typet subtype;
 
   if(compound_symbol.type.id() == ID_union)
@@ -1374,7 +1354,15 @@ void cpp_typecheckt::add_this_to_method_type(
   if(has_volatile(method_qualifier))
     subtype.set(ID_C_volatile, true);
 
-  parameter.type()=pointer_type(subtype);
+  code_typet::parametert parameter(pointer_type(subtype));
+  parameter.set_identifier(ID_this);
+  parameter.set_base_name(ID_this);
+  parameter.set_this();
+  if(!cpp_scopes.current_scope().get_parent().is_template_scope())
+    convert_parameter(compound_symbol.mode, parameter);
+
+  code_typet::parameterst &parameters = type.parameters();
+  parameters.insert(parameters.begin(), parameter);
 }
 
 void cpp_typecheckt::add_anonymous_members_to_scope(
@@ -1395,7 +1383,7 @@ void cpp_typecheckt::add_anonymous_members_to_scope(
     if(comp.type().id()==ID_code)
     {
       error().source_location=struct_union_symbol.type.source_location();
-      error() << "anonymous struct/union member `"
+      error() << "anonymous struct/union member '"
               << struct_union_symbol.base_name
               << "' shall not have function members" << eom;
       throw 0;
@@ -1414,7 +1402,7 @@ void cpp_typecheckt::add_anonymous_members_to_scope(
       if(cpp_scopes.current_scope().contains(base_name))
       {
         error().source_location=comp.source_location();
-        error() << "`" << base_name << "' already in scope" << eom;
+        error() << "'" << base_name << "' already in scope" << eom;
         throw 0;
       }
 
@@ -1432,8 +1420,8 @@ void cpp_typecheckt::convert_anon_struct_union_member(
   const irep_idt &access,
   struct_typet::componentst &components)
 {
-  symbolt &struct_union_symbol=
-    *symbol_table.get_writeable(follow(declaration.type()).get(ID_name));
+  symbolt &struct_union_symbol =
+    symbol_table.get_writeable_ref(follow(declaration.type()).get(ID_name));
 
   if(declaration.storage_spec().is_static() ||
      declaration.storage_spec().is_mutable())
@@ -1517,7 +1505,7 @@ bool cpp_typecheckt::get_component(
         else
         {
           error().source_location=source_location;
-          error() << "error: member `" << component_name
+          error() << "error: member '" << component_name
                   << "' is not accessible (" << component.get(ID_access) << ")"
                   << eom;
           throw 0;
@@ -1553,7 +1541,7 @@ bool cpp_typecheckt::get_component(
           if(check_component_access(component, final_type))
           {
             error().source_location=source_location;
-            error() << "error: member `" << component_name
+            error() << "error: member '" << component_name
                     << "' is not accessible" << eom;
             throw 0;
           }
@@ -1699,14 +1687,15 @@ void cpp_typecheckt::make_ptr_typecast(
   assert(src_type.id()==  ID_pointer);
   assert(dest_type.id()== ID_pointer);
 
-  struct_typet src_struct =
-    to_struct_type(static_cast<const typet&>(follow(src_type.subtype())));
+  const struct_typet &src_struct =
+    to_struct_type(static_cast<const typet &>(follow(src_type.subtype())));
 
-  struct_typet dest_struct =
-    to_struct_type(static_cast<const typet&>(follow(dest_type.subtype())));
+  const struct_typet &dest_struct =
+    to_struct_type(static_cast<const typet &>(follow(dest_type.subtype())));
 
-  assert(subtype_typecast(src_struct, dest_struct) ||
-         subtype_typecast(dest_struct, src_struct));
+  PRECONDITION(
+    subtype_typecast(src_struct, dest_struct) ||
+    subtype_typecast(dest_struct, src_struct));
 
-  expr.make_typecast(dest_type);
+  expr = typecast_exprt(expr, dest_type);
 }

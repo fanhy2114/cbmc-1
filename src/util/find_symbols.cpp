@@ -8,14 +8,14 @@ Author: Daniel Kroening, kroening@kroening.com
 
 #include "find_symbols.h"
 
-#include "std_types.h"
+#include "expr_iterator.h"
+#include "range.h"
 #include "std_expr.h"
+#include "std_types.h"
 
 enum class kindt { F_TYPE, F_TYPE_NON_PTR, F_EXPR, F_BOTH };
 
-void find_symbols(
-  const exprt &src,
-  find_symbols_sett &dest)
+void find_symbols_or_nexts(const exprt &src, find_symbols_sett &dest)
 {
   find_symbols(src, dest, true, true);
 }
@@ -26,15 +26,12 @@ void find_symbols(
   bool current,
   bool next)
 {
-  if(src.id() == ID_symbol && current)
-    dest.insert(to_symbol_expr(src).get_identifier());
-  else if(src.id() == ID_next_symbol && next)
-    dest.insert(src.get(ID_identifier));
-  else
-  {
-    forall_operands(it, src)
-      find_symbols(*it, dest, current, next);
-  }
+  src.visit_pre([&dest, current, next](const exprt &e) {
+    if(e.id() == ID_symbol && current)
+      dest.insert(to_symbol_expr(e).get_identifier());
+    else if(e.id() == ID_next_symbol && next)
+      dest.insert(e.get(ID_identifier));
+  });
 }
 
 bool has_symbol(
@@ -68,26 +65,37 @@ void find_symbols(
   const exprt &src,
   std::set<exprt> &dest)
 {
-  if(src.id()==ID_symbol || src.id()==ID_next_symbol)
-    dest.insert(src);
-  else
-  {
-    forall_operands(it, src)
-      find_symbols(*it, dest);
-  }
+  src.visit_pre([&dest](const exprt &e) {
+    if(e.id() == ID_symbol || e.id() == ID_next_symbol)
+      dest.insert(e);
+  });
 }
 
 void find_symbols(
   const exprt &src,
   std::set<symbol_exprt> &dest)
 {
-  if(src.id()==ID_symbol)
-    dest.insert(to_symbol_expr(src));
-  else
-  {
-    forall_operands(it, src)
-      find_symbols(*it, dest);
-  }
+  src.visit_pre([&dest](const exprt &e) {
+    if(e.id() == ID_symbol)
+      dest.insert(to_symbol_expr(e));
+  });
+}
+
+std::set<symbol_exprt> find_symbols(const exprt &src)
+{
+  return make_range(src.depth_begin(), src.depth_end())
+    .filter([](const exprt &e) { return e.id() == ID_symbol; })
+    .map([](const exprt &e) { return to_symbol_expr(e); });
+}
+
+std::unordered_set<irep_idt> find_symbol_identifiers(const exprt &src)
+{
+  std::unordered_set<irep_idt> result;
+  src.visit_pre([&](const exprt &e) {
+    if(e.id() == ID_symbol)
+      result.insert(to_symbol_expr(e).get_identifier());
+  });
+  return result;
 }
 
 void find_symbols(kindt kind, const typet &src, find_symbols_sett &dest);
@@ -156,8 +164,6 @@ void find_symbols(kindt kind, const typet &src, find_symbols_sett &dest)
       //  dest.insert(identifier);
     }
   }
-  else if(src.id() == ID_symbol_type)
-    dest.insert(to_symbol_type(src).get_identifier());
   else if(src.id()==ID_array)
   {
     // do the size -- the subtype is already done

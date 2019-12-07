@@ -7,16 +7,17 @@ Author: Diffblue Ltd.
 
 \*******************************************************************/
 
-#include <testing-utils/catch.hpp>
-#include <util/expr.h>
-#include <util/std_code.h>
-#include <util/namespace.h>
-#include <java_bytecode/java_object_factory.h>
+#include <iostream>
 #include <java_bytecode/java_bytecode_language.h>
+#include <java_bytecode/java_object_factory.h>
 #include <java_bytecode/java_root_class.h>
 #include <langapi/language_util.h>
 #include <langapi/mode.h>
-#include <iostream>
+#include <testing-utils/message.h>
+#include <testing-utils/use_catch.h>
+#include <util/expr.h>
+#include <util/namespace.h>
+#include <util/std_code.h>
 
 SCENARIO(
   "Generate string object",
@@ -29,9 +30,12 @@ SCENARIO(
     register_language(new_java_bytecode_language);
 
     // Add java.lang.Object to symbol table
+    java_class_typet jlo_class_type;
+    jlo_class_type.set_tag("java.lang.Object");
+    jlo_class_type.set_name("java::java.lang.Object");
     symbolt jlo_sym;
     jlo_sym.name = "java::java.lang.Object";
-    jlo_sym.type = struct_typet();
+    jlo_sym.type = jlo_class_type;
     jlo_sym.is_type = true;
     java_root_class(jlo_sym);
     bool failed = symbol_table.add(jlo_sym);
@@ -61,7 +65,8 @@ SCENARIO(
         false,
         lifetimet::DYNAMIC,
         object_factory_parameters,
-        update_in_placet::NO_UPDATE_IN_PLACE);
+        update_in_placet::NO_UPDATE_IN_PLACE,
+        null_message_handler);
 
       THEN("Code is produced")
       {

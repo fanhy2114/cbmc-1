@@ -8,39 +8,19 @@ Author: Chris Smowton, chris.smowton@diffblue.com
 
 #include "java_string_literals.h"
 #include "java_root_class.h"
+#include "java_string_literal_expr.h"
 #include "java_types.h"
 #include "java_utils.h"
 
+#include <linking/static_lifetime_init.h>
 #include <util/arith_tools.h>
 #include <util/expr_initializer.h>
 #include <util/namespace.h>
+#include <util/string_utils.h>
 #include <util/unicode.h>
 
 #include <iomanip>
 #include <sstream>
-
-/// Replace non-alphanumeric characters with `_xx` escapes, where xx are hex
-/// digits. Underscores are replaced by `__`.
-/// \param to_escape: string to escape
-/// \return string with non-alphanumeric characters escaped
-static std::string escape_non_alnum(const std::string &to_escape)
-{
-  std::ostringstream escaped;
-  for(auto &ch : to_escape)
-  {
-    if(ch=='_')
-      escaped << "__";
-    else if(isalnum(ch))
-      escaped << ch;
-    else
-      escaped << '_'
-              << std::hex
-              << std::setfill('0')
-              << std::setw(2)
-              << (unsigned int)ch;
-  }
-  return escaped.str();
-}
 
 /// Convert UCS-2 or UTF-16 to an array expression.
 /// \par parameters: `in`: wide string to convert
@@ -49,27 +29,18 @@ static array_exprt utf16_to_array(const std::wstring &in)
 {
   const auto jchar=java_char_type();
   array_exprt ret(
-    array_typet(jchar, from_integer(in.length(), java_int_type())));
+    {}, array_typet(jchar, from_integer(in.length(), java_int_type())));
   for(const auto c : in)
     ret.copy_to_operands(from_integer(c, jchar));
   return ret;
 }
 
-/// Creates or gets an existing constant global symbol for a given string
-/// literal.
-/// \param string_expr: string literal expression to convert
-/// \param symbol_table: global symbol table. If not already present, constant
-///   global symbols will be added.
-/// \param string_refinement_enabled: if true, string refinement's string data
-///   structure will also be initialised and added to the symbol table.
-/// \return a symbol_expr corresponding to the new or existing literal symbol.
 symbol_exprt get_or_create_string_literal_symbol(
-  const exprt &string_expr,
+  const java_string_literal_exprt &string_expr,
   symbol_table_baset &symbol_table,
   bool string_refinement_enabled)
 {
-  PRECONDITION(string_expr.id() == ID_java_string_literal);
-  const irep_idt value = string_expr.get(ID_value);
+  const irep_idt value = string_expr.value();
   const struct_tag_typet string_type("java::java.lang.String");
 
   const std::string escaped_symbol_name = escape_non_alnum(id2string(value));
@@ -79,6 +50,13 @@ symbol_exprt get_or_create_string_literal_symbol(
   auto findit = symbol_table.symbols.find(escaped_symbol_name_with_prefix);
   if(findit != symbol_table.symbols.end())
     return findit->second.symbol_expr();
+
+#ifndef CPROVER_INVARIANT_DO_NOT_CHECK
+  const auto initialize_function = symbol_table.lookup(INITIALIZE_FUNCTION);
+  INVARIANT(
+    !initialize_function || initialize_function->value.is_nil(),
+    "Cannot create more string literals after making " INITIALIZE_FUNCTION);
+#endif
 
   // Create a new symbol:
   symbolt new_symbol;
@@ -90,6 +68,7 @@ symbol_exprt get_or_create_string_literal_symbol(
   new_symbol.mode = ID_java;
   new_symbol.is_type = false;
   new_symbol.is_lvalue = true;
+  new_symbol.is_state_var = true;
   new_symbol.is_static_lifetime = true;
 
   namespacet ns(symbol_table);
@@ -173,8 +152,8 @@ symbol_exprt get_or_create_string_literal_symbol(
     // _return_value global for its side-effects.
     exprt init_comma_expr(ID_comma);
     init_comma_expr.type() = literal_init.type();
-    init_comma_expr.copy_to_operands(return_symbol.symbol_expr());
-    init_comma_expr.move_to_operands(literal_init);
+    init_comma_expr.add_to_operands(
+      return_symbol.symbol_expr(), std::move(literal_init));
     new_symbol.value = init_comma_expr;
   }
   else if(jls_struct.components().size()>=1 &&
@@ -213,4 +192,15 @@ symbol_exprt get_or_create_string_literal_symbol(
     "in the symbol table, so adding it should succeed");
 
   return new_symbol.symbol_expr();
+}
+
+symbol_exprt get_or_create_string_literal_symbol(
+  const irep_idt &string_value,
+  symbol_table_baset &symbol_table,
+  bool string_refinement_enabled)
+{
+  return get_or_create_string_literal_symbol(
+    java_string_literal_exprt{string_value},
+    symbol_table,
+    string_refinement_enabled);
 }

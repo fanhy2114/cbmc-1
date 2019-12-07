@@ -10,12 +10,9 @@ Author: Daniel Kroening, kroening@kroening.com
 
 #include <util/arith_tools.h>
 
-bvt boolbvt::convert_update(const exprt &expr)
+bvt boolbvt::convert_update(const update_exprt &expr)
 {
   const exprt::operandst &ops=expr.operands();
-
-  if(ops.size()!=3)
-    throw "update takes at three operands";
 
   std::size_t width=boolbv_width(expr.type());
 
@@ -71,16 +68,21 @@ void boolbvt::convert_update_rec(
     if(designator.operands().size()!=1)
       throw "update: index designator takes one operand";
 
-    bvt index_bv=convert_bv(designator.op0());
+    bvt index_bv = convert_bv(to_index_designator(designator).index());
 
     const array_typet &array_type=to_array_type(type);
-
     const typet &subtype = array_type.subtype();
+    const exprt &size_expr = array_type.size();
 
     std::size_t element_size=boolbv_width(subtype);
 
+    DATA_INVARIANT(
+      size_expr.id() == ID_constant,
+      "array in update expression should be constant-sized");
+
     // iterate over array
-    const std::size_t size = numeric_cast_v<std::size_t>(array_type.size());
+    const std::size_t size =
+      numeric_cast_v<std::size_t>(to_constant_expr(size_expr));
 
     bvt tmp_bv=bv;
 

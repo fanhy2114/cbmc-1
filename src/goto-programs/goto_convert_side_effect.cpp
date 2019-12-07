@@ -15,6 +15,7 @@ Author: Daniel Kroening, kroening@kroening.com
 #include <util/cprover_prefix.h>
 #include <util/expr_util.h>
 #include <util/fresh_symbol.h>
+#include <util/mathematical_types.h>
 #include <util/std_expr.h>
 #include <util/symbol.h>
 
@@ -43,10 +44,14 @@ void goto_convertt::remove_assignment(
 
   if(statement==ID_assign)
   {
-    exprt tmp=expr;
-    tmp.id(ID_code);
-    // just interpret as code
-    convert_assign(to_code_assign(to_code(tmp)), dest, mode);
+    auto &old_assignment = to_side_effect_expr_assign(expr);
+    exprt new_lhs = skip_typecast(old_assignment.lhs());
+    exprt new_rhs =
+      typecast_exprt::conditional_cast(old_assignment.rhs(), new_lhs.type());
+    code_assignt new_assignment(std::move(new_lhs), std::move(new_rhs));
+    new_assignment.add_source_location() = expr.source_location();
+
+    convert_assign(new_assignment, dest, mode);
   }
   else if(statement==ID_assign_plus ||
           statement==ID_assign_minus ||
@@ -96,35 +101,23 @@ void goto_convertt::remove_assignment(
 
     exprt rhs;
 
-    const typet &op0_type = expr.op0().type();
+    const typet &op0_type = to_binary_expr(expr).op0().type();
 
-    if(op0_type.id()==ID_c_bool)
-    {
-      // C/C++ Booleans get very special treatment.
-      binary_exprt tmp(expr.op0(), new_id, expr.op1(), expr.op1().type());
-      tmp.op0().make_typecast(expr.op1().type());
-      rhs=typecast_exprt(is_not_zero(tmp, ns), expr.op0().type());
-    }
-    else if(op0_type.id() == ID_c_enum_tag)
-    {
-      // We convert c_enums to their underlying type, do the
-      // operation, and then convert back
-      const auto &enum_type = ns.follow_tag(to_c_enum_tag_type(op0_type));
-      auto underlying_type = enum_type.subtype();
-      auto op0 = typecast_exprt(expr.op0(), underlying_type);
-      auto op1 = typecast_exprt(expr.op1(), underlying_type);
-      binary_exprt tmp(op0, new_id, op1, underlying_type);
-      rhs = typecast_exprt(tmp, expr.op0().type());
-    }
-    else
-    {
-      rhs.id(new_id);
-      rhs.copy_to_operands(expr.op0(), expr.op1());
-      rhs.type()=expr.op0().type();
-      rhs.add_source_location()=expr.source_location();
-    }
+    PRECONDITION(
+      op0_type.id() != ID_c_enum_tag && op0_type.id() != ID_c_enum &&
+      op0_type.id() != ID_c_bool && op0_type.id() != ID_bool);
 
-    code_assignt assignment(expr.op0(), rhs);
+    rhs.id(new_id);
+    rhs.copy_to_operands(
+      to_binary_expr(expr).op0(), to_binary_expr(expr).op1());
+    rhs.type() = to_binary_expr(expr).op0().type();
+    rhs.add_source_location() = expr.source_location();
+
+    exprt new_lhs = skip_typecast(to_binary_expr(expr).op0());
+    rhs = typecast_exprt::conditional_cast(rhs, new_lhs.type());
+    rhs.add_source_location() = expr.source_location();
+
+    code_assignt assignment(new_lhs, rhs);
     assignment.add_source_location()=expr.source_location();
 
     convert(assignment, dest, mode);
@@ -136,7 +129,7 @@ void goto_convertt::remove_assignment(
   if(result_is_used)
   {
     exprt lhs;
-    lhs.swap(expr.op0());
+    lhs.swap(to_binary_expr(expr).op0());
     expr.swap(lhs);
   }
   else
@@ -168,52 +161,39 @@ void goto_convertt::remove_pre(
   else
     rhs.id(ID_minus);
 
-  const typet &op_type = expr.op0().type();
+  const auto &op = to_unary_expr(expr).op();
+  const typet &op_type = op.type();
 
-  if(op_type.id()==ID_bool)
-  {
-    rhs.copy_to_operands(expr.op0(), from_integer(1, signed_int_type()));
-    rhs.op0().make_typecast(signed_int_type());
-    rhs.type()=signed_int_type();
-    rhs=is_not_zero(rhs, ns);
-  }
-  else if(op_type.id()==ID_c_bool)
-  {
-    rhs.copy_to_operands(expr.op0(), from_integer(1, signed_int_type()));
-    rhs.op0().make_typecast(signed_int_type());
-    rhs.type()=signed_int_type();
-    rhs=is_not_zero(rhs, ns);
-    rhs.make_typecast(op_type);
-  }
-  else if(op_type.id()==ID_c_enum ||
-          op_type.id()==ID_c_enum_tag)
-  {
-    rhs.copy_to_operands(expr.op0(), from_integer(1, signed_int_type()));
-    rhs.op0().make_typecast(signed_int_type());
-    rhs.type()=signed_int_type();
-    rhs.make_typecast(op_type);
-  }
+  PRECONDITION(
+    op_type.id() != ID_c_enum_tag && op_type.id() != ID_c_enum &&
+    op_type.id() != ID_c_bool && op_type.id() != ID_bool);
+
+  typet constant_type;
+
+  if(op_type.id() == ID_pointer)
+    constant_type = index_type();
+  else if(is_number(op_type))
+    constant_type = op_type;
   else
   {
-    typet constant_type;
-
-    if(op_type.id()==ID_pointer)
-      constant_type=index_type();
-    else if(is_number(op_type) || op_type.id()==ID_c_bool)
-      constant_type=op_type;
-    else
-    {
-      UNREACHABLE;
-    }
-
-    exprt constant=from_integer(1, constant_type);
-
-    rhs.copy_to_operands(expr.op0());
-    rhs.move_to_operands(constant);
-    rhs.type()=expr.op0().type();
+    UNREACHABLE;
   }
 
-  code_assignt assignment(expr.op0(), rhs);
+  exprt constant;
+
+  if(constant_type.id() == ID_complex)
+  {
+    exprt real = from_integer(1, constant_type.subtype());
+    exprt imag = from_integer(0, constant_type.subtype());
+    constant = complex_exprt(real, imag, to_complex_type(constant_type));
+  }
+  else
+    constant = from_integer(1, constant_type);
+
+  rhs.add_to_operands(op, std::move(constant));
+  rhs.type() = op.type();
+
+  code_assignt assignment(op, rhs);
   assignment.add_source_location()=expr.find_source_location();
 
   convert(assignment, dest, mode);
@@ -221,7 +201,7 @@ void goto_convertt::remove_pre(
   if(result_is_used)
   {
     // revert to argument of pre-inc/pre-dec
-    exprt tmp=expr.op0();
+    exprt tmp = op;
     expr.swap(tmp);
   }
   else
@@ -257,61 +237,39 @@ void goto_convertt::remove_post(
   else
     rhs.id(ID_minus);
 
-  const typet &op_type = expr.op0().type();
+  const auto &op = to_unary_expr(expr).op();
+  const typet &op_type = op.type();
 
-  if(op_type.id()==ID_bool)
-  {
-    rhs.copy_to_operands(expr.op0(), from_integer(1, signed_int_type()));
-    rhs.op0().make_typecast(signed_int_type());
-    rhs.type()=signed_int_type();
-    rhs=is_not_zero(rhs, ns);
-  }
-  else if(op_type.id()==ID_c_bool)
-  {
-    rhs.copy_to_operands(expr.op0(), from_integer(1, signed_int_type()));
-    rhs.op0().make_typecast(signed_int_type());
-    rhs.type()=signed_int_type();
-    rhs=is_not_zero(rhs, ns);
-    rhs.make_typecast(op_type);
-  }
-  else if(op_type.id()==ID_c_enum ||
-          op_type.id()==ID_c_enum_tag)
-  {
-    rhs.copy_to_operands(expr.op0(), from_integer(1, signed_int_type()));
-    rhs.op0().make_typecast(signed_int_type());
-    rhs.type()=signed_int_type();
-    rhs.make_typecast(op_type);
-  }
+  PRECONDITION(
+    op_type.id() != ID_c_enum_tag && op_type.id() != ID_c_enum &&
+    op_type.id() != ID_c_bool && op_type.id() != ID_bool);
+
+  typet constant_type;
+
+  if(op_type.id() == ID_pointer)
+    constant_type = index_type();
+  else if(is_number(op_type))
+    constant_type = op_type;
   else
   {
-    typet constant_type;
-
-    if(op_type.id()==ID_pointer)
-      constant_type=index_type();
-    else if(is_number(op_type) || op_type.id()==ID_c_bool)
-      constant_type=op_type;
-    else
-    {
-      UNREACHABLE;
-    }
-
-    exprt constant;
-
-    if(constant_type.id()==ID_complex)
-    {
-      exprt real=from_integer(1, constant_type.subtype());
-      exprt imag=from_integer(0, constant_type.subtype());
-      constant=complex_exprt(real, imag, to_complex_type(constant_type));
-    }
-    else
-      constant=from_integer(1, constant_type);
-
-    rhs.copy_to_operands(expr.op0());
-    rhs.move_to_operands(constant);
-    rhs.type()=expr.op0().type();
+    UNREACHABLE;
   }
 
-  code_assignt assignment(expr.op0(), rhs);
+  exprt constant;
+
+  if(constant_type.id() == ID_complex)
+  {
+    exprt real = from_integer(1, constant_type.subtype());
+    exprt imag = from_integer(0, constant_type.subtype());
+    constant = complex_exprt(real, imag, to_complex_type(constant_type));
+  }
+  else
+    constant = from_integer(1, constant_type);
+
+  rhs.add_to_operands(op, std::move(constant));
+  rhs.type() = op.type();
+
+  code_assignt assignment(op, rhs);
   assignment.add_source_location()=expr.find_source_location();
 
   convert(assignment, tmp2, mode);
@@ -320,7 +278,7 @@ void goto_convertt::remove_post(
 
   if(result_is_used)
   {
-    exprt tmp=expr.op0();
+    exprt tmp = op;
     make_temp_symbol(tmp, "post", dest, mode);
     expr.swap(tmp);
   }
@@ -332,19 +290,14 @@ void goto_convertt::remove_post(
 }
 
 void goto_convertt::remove_function_call(
-  side_effect_exprt &expr,
+  side_effect_expr_function_callt &expr,
   goto_programt &dest,
   const irep_idt &mode,
   bool result_is_used)
 {
-  INVARIANT_WITH_DIAGNOSTICS(
-    expr.operands().size() == 2,
-    "function_call expects two operands",
-    expr.find_source_location());
-
   if(!result_is_used)
   {
-    code_function_callt call(expr.op0(), expr.op1().operands());
+    code_function_callt call(expr.function(), expr.arguments());
     call.add_source_location()=expr.source_location();
     convert_function_call(call, dest, mode);
     expr.make_nil();
@@ -352,18 +305,13 @@ void goto_convertt::remove_function_call(
   }
 
   // get name of function, if available
-
-  INVARIANT_WITH_DIAGNOSTICS(
-    expr.id() == ID_side_effect && expr.get(ID_statement) == ID_function_call,
-    "expects function call",
-    expr.find_source_location());
-
   std::string new_base_name = "return_value";
   irep_idt new_symbol_mode = mode;
 
-  if(expr.op0().id()==ID_symbol)
+  if(expr.function().id() == ID_symbol)
   {
-    const irep_idt &identifier = to_symbol_expr(expr.op0()).get_identifier();
+    const irep_idt &identifier =
+      to_symbol_expr(expr.function()).get_identifier();
     const symbolt &symbol = ns.lookup(identifier);
 
     new_base_name+='_';
@@ -388,7 +336,7 @@ void goto_convertt::remove_function_call(
   {
     goto_programt tmp_program2;
     code_function_callt call(
-      new_symbol.symbol_expr(), expr.op0(), expr.op1().operands());
+      new_symbol.symbol_expr(), expr.function(), expr.arguments());
     call.add_source_location()=new_symbol.location;
     convert_function_call(call, dest, mode);
   }
@@ -442,7 +390,7 @@ void goto_convertt::remove_cpp_delete(
 
   codet tmp(expr.get_statement());
   tmp.add_source_location()=expr.source_location();
-  tmp.copy_to_operands(expr.op0());
+  tmp.copy_to_operands(to_unary_expr(expr).op());
   tmp.set(ID_destructor, expr.find(ID_destructor));
 
   convert_cpp_delete(tmp, dest);
@@ -456,8 +404,6 @@ void goto_convertt::remove_malloc(
   const irep_idt &mode,
   bool result_is_used)
 {
-  codet call;
-
   if(result_is_used)
   {
     const symbolt &new_symbol = get_fresh_aux_symbol(
@@ -472,18 +418,17 @@ void goto_convertt::remove_malloc(
     decl.add_source_location()=new_symbol.location;
     convert_decl(decl, dest, mode);
 
-    call=code_assignt(new_symbol.symbol_expr(), expr);
+    code_assignt call(new_symbol.symbol_expr(), expr);
     call.add_source_location()=expr.source_location();
 
     static_cast<exprt &>(expr)=new_symbol.symbol_expr();
+
+    convert(call, dest, mode);
   }
   else
   {
-    call=codet(ID_expression);
-    call.move_to_operands(expr);
+    convert(code_expressiont(std::move(expr)), dest, mode);
   }
-
-  convert(call, dest, mode);
 }
 
 void goto_convertt::remove_temporary_object(
@@ -501,7 +446,8 @@ void goto_convertt::remove_temporary_object(
 
   if(expr.operands().size()==1)
   {
-    const code_assignt assignment(new_symbol.symbol_expr(), expr.op0());
+    const code_assignt assignment(
+      new_symbol.symbol_expr(), to_unary_expr(expr).op());
 
     convert(assignment, dest, mode);
   }
@@ -532,17 +478,7 @@ void goto_convertt::remove_statement_expression(
   // The expression is copied into a temporary before the
   // scope is destroyed.
 
-  INVARIANT_WITH_DIAGNOSTICS(
-    expr.operands().size() == 1,
-    "statement_expression takes one operand",
-    expr.find_source_location());
-
-  INVARIANT_WITH_DIAGNOSTICS(
-    expr.op0().id() == ID_code,
-    "statement_expression takes code as operand",
-    expr.find_source_location());
-
-  codet &code=to_code(expr.op0());
+  codet &code = to_side_effect_expr_statement_expression(expr).statement();
 
   if(!result_is_used)
   {
@@ -609,7 +545,8 @@ void goto_convertt::remove_side_effect(
   const irep_idt &statement=expr.get_statement();
 
   if(statement==ID_function_call)
-    remove_function_call(expr, dest, mode, result_is_used);
+    remove_function_call(
+      to_side_effect_expr_function_call(expr), dest, mode, result_is_used);
   else if(statement==ID_assign ||
           statement==ID_assign_plus ||
           statement==ID_assign_minus ||
@@ -651,13 +588,12 @@ void goto_convertt::remove_side_effect(
   }
   else if(statement==ID_throw)
   {
-    goto_programt::targett t=dest.add_instruction(THROW);
-    t->code = code_expressiont(
-      side_effect_expr_throwt(
-        expr.find(ID_exception_list), expr.type(), expr.source_location()));
-    t->code.op0().operands().swap(expr.operands());
-    t->code.add_source_location()=expr.source_location();
-    t->source_location=expr.source_location();
+    codet code = code_expressiont(side_effect_expr_throwt(
+      expr.find(ID_exception_list), expr.type(), expr.source_location()));
+    code.op0().operands().swap(expr.operands());
+    code.add_source_location() = expr.source_location();
+    dest.add(goto_programt::instructiont(
+      std::move(code), expr.source_location(), THROW, nil_exprt(), {}));
 
     // the result can't be used, these are void
     expr.make_nil();

@@ -6,9 +6,11 @@ Author: Diffblue Ltd.
 
 \*******************************************************************/
 
-#include <goto-programs/goto_function.h>
-#include <testing-utils/catch.hpp>
+#include <testing-utils/use_catch.h>
+
 #include <util/arith_tools.h>
+
+#include <goto-programs/goto_function.h>
 
 SCENARIO(
   "Validation of well-formed function call codes",
@@ -40,7 +42,6 @@ SCENARIO(
     goto_functiont goto_function;
     auto &instructions = goto_function.body.instructions;
     instructions.emplace_back(goto_program_instruction_typet::FUNCTION_CALL);
-    instructions.back().function = fun_symbol_name;
 
     var_symbol.type = type1;
     var_symbol2.type = type2;
@@ -52,7 +53,7 @@ SCENARIO(
     WHEN("Return type matches")
     {
       code_function_callt function_call(var_a, fun_foo, {});
-      instructions.back().make_function_call(function_call);
+      instructions.back() = goto_programt::make_function_call(function_call);
       REQUIRE(instructions.back().code.get_statement() == ID_function_call);
 
       THEN("The consistency check succeeds")
@@ -65,7 +66,7 @@ SCENARIO(
     WHEN("Return type differs from function type")
     {
       code_function_callt function_call(var_b, fun_foo, {});
-      instructions.back().make_function_call(function_call);
+      instructions.back() = goto_programt::make_function_call(function_call);
 
       THEN("The consistency check fails")
       {

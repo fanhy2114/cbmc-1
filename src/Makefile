@@ -8,6 +8,7 @@ DIRS = analyses \
        goto-cc \
        goto-checker \
        goto-diff \
+       goto-harness \
        goto-instrument \
        goto-programs \
        goto-symex \
@@ -16,8 +17,11 @@ DIRS = analyses \
        json-symtab-language \
        langapi \
        linking \
+       memory-analyzer \
        pointer-analysis \
        solvers \
+       statement-list \
+       symtab2gb \
        util \
        xmllang \
        # Empty last line
@@ -27,7 +31,21 @@ all: cbmc.dir \
      goto-cc.dir \
      goto-diff.dir \
      goto-instrument.dir \
+     goto-harness.dir \
+     symtab2gb.dir \
      # Empty last line
+
+ifeq ($(OS),Windows_NT)
+  detected_OS := Windows
+else
+  detected_OS := $(shell sh -c 'uname 2>/dev/null || echo Unknown')
+endif
+
+ifeq ($(detected_OS),Linux)
+  all: memory-analyzer.dir
+else ifeq ($(WITH_MEMORY_ANALYZER),1)
+  all: memory-analyzer.dir
+endif
 
 ###############################################################################
 
@@ -43,9 +61,12 @@ cpp.dir: ansi-c.dir linking.dir
 
 languages: util.dir langapi.dir \
            cpp.dir ansi-c.dir xmllang.dir assembler.dir \
-           jsil.dir json.dir json-symtab-language.dir
+           jsil.dir json.dir json-symtab-language.dir statement-list.dir
 
 solvers.dir: util.dir
+
+goto-harness.dir: util.dir goto-programs.dir langapi.dir linking.dir \
+                  json.dir json-symtab-language.dir
 
 goto-instrument.dir: languages goto-programs.dir pointer-analysis.dir \
                      goto-symex.dir linking.dir analyses.dir solvers.dir
@@ -57,13 +78,18 @@ cbmc.dir: languages solvers.dir goto-symex.dir analyses.dir \
           goto-instrument.dir goto-checker.dir
 
 goto-analyzer.dir: languages analyses.dir goto-programs.dir linking.dir \
-                   goto-instrument.dir
+                   goto-instrument.dir goto-checker.dir
 
 goto-diff.dir: languages goto-programs.dir pointer-analysis.dir \
                linking.dir analyses.dir goto-instrument.dir \
                solvers.dir goto-symex.dir
 
 goto-cc.dir: languages goto-programs.dir linking.dir
+
+memory-analyzer.dir: util.dir goto-programs.dir ansi-c.dir
+
+symtab2gb.dir: util.dir goto-programs.dir langapi.dir linking.dir \
+               json.dir json-symtab-language.dir
 
 # building for a particular directory
 
@@ -104,6 +130,16 @@ minisat2-download:
 	@mv minisat2-2.2.1 ../minisat-2.2.1
 	@(cd ../minisat-2.2.1; patch -p1 < ../scripts/minisat-2.2.1-patch)
 	@rm minisat2_2.2.1.orig.tar.gz
+
+cudd-download:
+	@echo "Downloading Cudd 3.0.0"
+	@$(DOWNLOADER) https://sourceforge.net/projects/cudd-mirror/files/cudd-3.0.0.tar.gz/download cudd-3.0.0.tar.gz
+	@$(TAR) xfz cudd-3.0.0.tar.gz
+	@$(RM) -r ../cudd-3.0.0
+	@mv cudd-3.0.0 ../
+	@$(RM) cudd-3.0.0.tar.gz
+	@echo "Compiling Cudd 3.0.0"
+	@(cd ../cudd-3.0.0; ./configure; $(MAKE))
 
 glucose-download:
 	@echo "Downloading glucose-syrup"

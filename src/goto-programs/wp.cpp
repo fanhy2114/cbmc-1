@@ -15,7 +15,6 @@ Author: Daniel Kroening, kroening@kroening.com
 
 #include <util/std_expr.h>
 #include <util/std_code.h>
-#include <util/base_type.h>
 
 #include <util/invariant.h>
 
@@ -66,20 +65,24 @@ aliasingt aliasing(
   const namespacet &ns)
 {
   // deal with some dereferencing
-  if(e1.id()==ID_dereference &&
-     e1.operands().size()==1 &&
-     e1.op0().id()==ID_address_of &&
-     e1.op0().operands().size()==1)
-    return aliasing(e1.op0().op0(), e2, ns);
+  if(
+    e1.id() == ID_dereference &&
+    to_dereference_expr(e1).pointer().id() == ID_address_of)
+  {
+    return aliasing(
+      to_address_of_expr(to_dereference_expr(e1).pointer()).object(), e2, ns);
+  }
 
-  if(e2.id()==ID_dereference &&
-     e2.operands().size()==1 &&
-     e2.op0().id()==ID_address_of &&
-     e2.op0().operands().size()==1)
-    return aliasing(e1, e2.op0().op0(), ns);
+  if(
+    e2.id() == ID_dereference &&
+    to_dereference_expr(e2).pointer().id() == ID_address_of)
+  {
+    return aliasing(
+      e1, to_address_of_expr(to_dereference_expr(e2).pointer()).object(), ns);
+  }
 
   // fairly radical. Ignores struct prefixes and the like.
-  if(!base_type_eq(e1.type(), e2.type(), ns))
+  if(e1.type() != e2.type())
     return aliasingt::A_MUSTNOT;
 
   // syntactically the same?

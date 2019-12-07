@@ -16,7 +16,12 @@ jobs:
       install:
       script: |
         clang-format-7 --version
-        git-clang-format-7 --binary clang-format-7 "${TRAVIS_BRANCH}"
+        # build a pathspec that excludes the files in .clang-format-ignore
+        while read file ; do EXCLUDES+="':(top,exclude)$file' " ; done < .clang-format-ignore
+        MERGE_BASE=$(git merge-base ${TRAVIS_COMMIT_RANGE%...*} ${TRAVIS_COMMIT_RANGE#*...})
+        echo "Checking for formatting errors introduced since $MERGE_BASE"
+        # use eval so that quotes (as inserted into $EXCLUDES above) are not interpreted as parts of file names
+        eval git-clang-format-7 --binary clang-format-7 $MERGE_BASE -- $EXCLUDES
         git diff > formatted.diff
         if [[ -s formatted.diff ]] ; then
           echo 'Formatting error! The following diff shows the required changes'
@@ -45,7 +50,7 @@ jobs:
     - stage: Linter + Doxygen + non-debug Ubuntu/gcc-5 test
       env:
         NAME: "DOXYGEN-CHECK"
-        DOXYGEN_VERSION: "1.8.14"
+        DOXYGEN_VERSION: "1.8.16"
       addons:
         apt:
           sources:
@@ -84,6 +89,7 @@ jobs:
     # Ubuntu Linux with glibc using g++-5
     - stage: Linter + Doxygen + non-debug Ubuntu/gcc-5 test
       os: linux
+      dist: trusty
       sudo: false
       compiler: gcc
       cache: ccache
@@ -97,6 +103,7 @@ jobs:
             - libubsan0
             - parallel
             - jq
+            - gdb
       before_install:
         - mkdir bin
         - ln -s /usr/bin/gcc-5 bin/gcc
@@ -104,7 +111,7 @@ jobs:
       # env: COMPILER=g++-5 SAN_FLAGS="-fsanitize=undefined -fno-sanitize-recover -fno-omit-frame-pointer"
       env:
         - COMPILER="ccache /usr/bin/g++-5"
-        - EXTRA_CXXFLAGS="-D_GLIBCXX_DEBUG"
+        - WITH_MEMORY_ANALYZER=1
 
     # OS X using clang++
     - stage: Test different OS/CXX/Flags
@@ -113,13 +120,16 @@ jobs:
       compiler: clang
       cache: ccache
       before_install:
-        - HOMEBREW_NO_AUTO_UPDATE=1 brew install ccache parallel
+        - HOMEBREW_NO_AUTO_UPDATE=1 brew install ccache parallel gdb
         - export PATH=$PATH:/usr/local/opt/ccache/libexec
-      env: COMPILER="ccache clang++"
+      env:
+        - COMPILER="ccache clang++"
+        - WITH_MEMORY_ANALYZER=0
 
     # Ubuntu Linux with glibc using g++-5, debug mode
     - stage: Test different OS/CXX/Flags
       os: linux
+      dist: trusty
       sudo: false
       compiler: gcc
       cache: ccache
@@ -132,6 +142,7 @@ jobs:
             - g++-5
             - libubsan0
             - jq
+            - gdb
       before_install:
         - mkdir bin
         - ln -s /usr/bin/gcc-5 bin/gcc
@@ -140,41 +151,13 @@ jobs:
       env:
         - COMPILER="ccache /usr/bin/g++-5"
         - EXTRA_CXXFLAGS="-DDEBUG"
+        - WITH_MEMORY_ANALYZER=1
       script: echo "Not running any tests for a debug build."
-
-    # Ubuntu Linux with glibc using clang++-7, no-debug mode
-    - stage: Test different OS/CXX/Flags
-      os: linux
-      sudo: false
-      compiler: clang
-      cache: ccache
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-            - llvm-toolchain-trusty-7
-          packages:
-            - libwww-perl
-            - g++-5
-            - clang-7
-            - libstdc++-5-dev
-            - libubsan0
-            - parallel
-            - jq
-      before_install:
-        - mkdir bin
-        - ln -s /usr/bin/gcc-5 bin/gcc
-        - ln -s /usr/bin/c++-5 bin/g++
-        - export CCACHE_CPP2=yes
-      # env: COMPILER=clang++-7 SAN_FLAGS="-fsanitize=undefined -fno-sanitize-recover=undefined,integer -fno-omit-frame-pointer"
-      env:
-        - COMPILER="ccache /usr/bin/clang++-7"
-        - EXTRA_CXXFLAGS="-Qunused-arguments -fcolor-diagnostics -DNDEBUG"
-        - CCACHE_CPP2=yes
 
     # Ubuntu Linux with glibc using clang++-7, debug mode, disable USE_DSTRING
     - stage: Test different OS/CXX/Flags
       os: linux
+      dist: trusty
       sudo: false
       compiler: clang
       cache: ccache
@@ -190,6 +173,7 @@ jobs:
             - libstdc++-5-dev
             - libubsan0
             - jq
+            - gdb
       before_install:
         - mkdir bin
         - ln -s /usr/bin/gcc-5 bin/gcc
@@ -200,38 +184,13 @@ jobs:
         - COMPILER="ccache /usr/bin/clang++-7"
         - EXTRA_CXXFLAGS="-Qunused-arguments -fcolor-diagnostics -DDEBUG -DUSE_STD_STRING"
         - CCACHE_CPP2=yes
+        - WITH_MEMORY_ANALYZER=1
       script: echo "Not running any tests for a debug build."
 
-    # cmake build using g++-5
+    # cmake build using g++-7, enable NAMED_SUB_IS_FORWARD_LIST
     - stage: Test different OS/CXX/Flags
       os: linux
-      sudo: false
-      compiler: gcc
-      cache: ccache
-      env:
-        - BUILD_SYSTEM=cmake
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-          packages:
-            - g++-5
-            - jq
-      before_install:
-        - mkdir bin
-        - ln -s /usr/bin/gcc-5 bin/gcc
-        - ln -s /usr/bin/g++-5 bin/g++
-      install:
-        - ccache -z
-        - ccache --max-size=1G
-        - cmake -H. -Bbuild '-DCMAKE_BUILD_TYPE=Release'  '-DCMAKE_CXX_COMPILER=/usr/bin/g++-5'
-        - git submodule update --init --recursive
-        - cmake --build build -- -j4
-      script: (cd build; ctest -V -L CORE -j2)
-
-    # cmake build using g++-7
-    - stage: Test different OS/CXX/Flags
-      os: linux
+      dist: trusty
       sudo: false
       compiler: gcc
       cache: ccache
@@ -244,6 +203,7 @@ jobs:
           packages:
             - g++-7
             - jq
+            - gdb
       before_install:
         - mkdir bin
         - ln -s /usr/bin/gcc-7 bin/gcc
@@ -251,7 +211,36 @@ jobs:
       install:
         - ccache -z
         - ccache --max-size=1G
-        - cmake -H. -Bbuild '-DCMAKE_BUILD_TYPE=Release'  '-DCMAKE_CXX_COMPILER=/usr/bin/g++-7'
+        - cmake -H. -Bbuild '-DCMAKE_BUILD_TYPE=Release' '-DCMAKE_CXX_COMPILER=/usr/bin/g++-7' '-DCMAKE_CXX_FLAGS=-DNAMED_SUB_IS_FORWARD_LIST' '-DWITH_MEMORY_ANALYZER=On'
+        - git submodule update --init --recursive
+        - cmake --build build -- -j4
+      script: (cd build; bin/unit "[core][irept]")
+
+    # cmake build using g++-7, enable CMAKE_USE_CUDD and BDD_GUARDS
+    - stage: Test different OS/CXX/Flags
+      os: linux
+      dist: trusty
+      sudo: false
+      compiler: gcc
+      cache: ccache
+      env:
+        - BUILD_SYSTEM=cmake
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-7
+            - jq
+            - gdb
+      before_install:
+        - mkdir bin
+        - ln -s /usr/bin/gcc-7 bin/gcc
+        - ln -s /usr/bin/g++-7 bin/g++
+      install:
+        - ccache -z
+        - ccache --max-size=1G
+        - cmake -H. -Bbuild '-DCMAKE_BUILD_TYPE=Release'  '-DCMAKE_CXX_COMPILER=/usr/bin/g++-7' '-DCMAKE_USE_CUDD=true' -DCMAKE_CXX_FLAGS="-DBDD_GUARDS" '-DWITH_MEMORY_ANALYZER=On'
         - git submodule update --init --recursive
         - cmake --build build -- -j4
       script: (cd build; ctest -V -L CORE -j2)
@@ -259,6 +248,7 @@ jobs:
     # cmake build using clang++-6
     - stage: Test different OS/CXX/Flags
       os: linux
+      dist: trusty
       sudo: false
       compiler: clang
       cache: ccache
@@ -277,6 +267,7 @@ jobs:
             - libubsan0
             - parallel
             - jq
+            - gdb
       before_install:
         - mkdir bin
         # Use gcc/g++ 5 for tests, as Clang doesn't work yet
@@ -286,7 +277,7 @@ jobs:
       install:
         - ccache -z
         - ccache --max-size=1G
-        - cmake -H. -Bbuild '-DCMAKE_BUILD_TYPE=Release' '-DCMAKE_CXX_COMPILER=/usr/bin/clang++-7' '-DCMAKE_CXX_FLAGS=-Qunused-arguments'
+        - cmake -H. -Bbuild '-DCMAKE_BUILD_TYPE=Release' '-DCMAKE_CXX_COMPILER=/usr/bin/clang++-7' '-DCMAKE_CXX_FLAGS=-Qunused-arguments' '-DWITH_MEMORY_ANALYZER=On'
         - git submodule update --init --recursive
         - cmake --build build -- -j4
       script: (cd build; ctest -V -L CORE -j2)
@@ -298,7 +289,7 @@ jobs:
       compiler: clang
       cache: ccache
       before_install:
-        - HOMEBREW_NO_AUTO_UPDATE=1 brew install ccache
+        - HOMEBREW_NO_AUTO_UPDATE=1 brew install ccache gdb
         - export PATH=$PATH:/usr/local/opt/ccache/libexec
       env:
         - BUILD_SYSTEM=cmake
@@ -316,6 +307,7 @@ jobs:
     - stage: Test different OS/CXX/Flags
       if: type = cron
       os: linux
+      dist: trusty
       sudo: false
       compiler: gcc
       cache: ccache
@@ -343,6 +335,7 @@ jobs:
       env:
         - NAME="COVERITY_SCAN"
         - COMPILER="ccache g++"
+        - WITH_MEMORY_ANALYZER=1
       script: echo "This is coverity build. No need for tests."
 
 install:
@@ -358,7 +351,8 @@ install:
 script:
   - if [ -e bin/gcc ] ; then export PATH=$PWD/bin:$PATH ; fi ;
   - env UBSAN_OPTIONS=print_stacktrace=1 make -C regression test-parallel "CXX=${COMPILER} ${EXTRA_CXXFLAGS}" -j2 JOBS=2
-  - scripts/delete_failing_smt2_solver_tests ; env PATH=$PATH:`pwd`/src/solvers UBSAN_OPTIONS=print_stacktrace=1 make -C regression/cbmc test-cprover-smt2
+  - UBSAN_OPTIONS=print_stacktrace=1 make -C regression/cbmc test-paths-lifo
+  - env PATH=$PATH:`pwd`/src/solvers UBSAN_OPTIONS=print_stacktrace=1 make -C regression/cbmc test-cprover-smt2
   - make -C unit "CXX=${COMPILER} ${EXTRA_CXXFLAGS}" -j2
   - make -C unit test
   - env UBSAN_OPTIONS=print_stacktrace=1 make -C jbmc/regression test-parallel "CXX=${COMPILER} ${EXTRA_CXXFLAGS}" -j2 JOBS=2

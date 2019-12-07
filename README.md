@@ -2,6 +2,7 @@
 ![Build Status][codebuild_img]
 ![Build Status][codebuild_windows_img]
 [![Build Status][coverity_img]][coverity]
+[![Build Status][codecov_img]][codecov]
 
 [CProver Wiki](http://www.cprover.org/wiki)
 
@@ -45,13 +46,19 @@ Contributing to the code base
 5. Push your changes to your branch
 6. Create a Pull Request targeting the `develop` branch
 
+New contributors can look through the [mini
+projects](https://github.com/diffblue/cbmc/blob/develop/MINI-PROJECTS.md)
+page for small, focussed feature ideas.
+
 License
 =======
 4-clause BSD license, see `LICENSE` file.
 
 [travis]: https://travis-ci.org/diffblue/cbmc
 [travis_img]: https://travis-ci.org/diffblue/cbmc.svg?branch=master
-[codebuild_img]: https://codebuild.us-east-1.amazonaws.com/badges?uuid=eyJlbmNyeXB0ZWREYXRhIjoieVl4UDBKaVU2NEZIeE9GKzhMVWJUQ1RORXRZeGFEdm9LZnhvbWt4Q3oxb29uOTdWZDhZUkUvK2Z0eTBndU5pWkcyUXFZb1pDRVpBNXVob3R0R2tYZkdFPSIsIml2UGFyYW1ldGVyU3BlYyI6IkZ0TzR2a21XbHFkWnlYMkwiLCJtYXRlcmlhbFNldFNlcmlhbCI6MX0%3D&branch=develop
+[codebuild_img]: https://codebuild.us-east-1.amazonaws.com/badges?uuid=eyJlbmNyeXB0ZWREYXRhIjoiajhxcmNGUEgyV0xZa2ZFaVd3czJmbm1DdEt3QVdJRVdZaGJuMTUwOHFrZUM3eERwS1g4VEQ3Ymw3bmFncldVQXArajlYL1pXbGZNVTdXdndzUHU4Ly9JPSIsIml2UGFyYW1ldGVyU3BlYyI6IkVUUEdWVEt0SUFONlhyNVAiLCJtYXRlcmlhbFNldFNlcmlhbCI6MX0%3D&branch=develop
 [codebuild_windows_img]: https://codebuild.us-east-1.amazonaws.com/badges?uuid=eyJlbmNyeXB0ZWREYXRhIjoiTFQ4Q0lCSEc1Rk5NcmlzaFZDdU44Vk8zY0c1VCtIVWMwWnJMRitmVFI5bE94Q3dhekVPMWRobFU2Q0xTTlpDSWZUQ3J1eksrWW1rSll1OExXdll2bExZPSIsIml2UGFyYW1ldGVyU3BlYyI6InpqcloyaEdxbjBiQUtvNysiLCJtYXRlcmlhbFNldFNlcmlhbCI6MX0%3D&branch=develop
 [coverity]: https://scan.coverity.com/projects/diffblue-cbmc
 [coverity_img]: https://scan.coverity.com/projects/13552/badge.svg
+[codecov]: https://codecov.io/gh/diffblue/cbmc
+[codecov_img]: https://codecov.io/gh/diffblue/cbmc/branch/develop/graphs/badge.svg

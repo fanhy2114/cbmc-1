@@ -6,9 +6,11 @@ Author: Diffblue Ltd.
 
 \*******************************************************************/
 
-#include <goto-programs/goto_function.h>
-#include <testing-utils/catch.hpp>
+#include <testing-utils/use_catch.h>
+
 #include <util/arith_tools.h>
+
+#include <goto-programs/goto_function.h>
 
 SCENARIO(
   "Validation of consistent program/table pair",
@@ -31,9 +33,13 @@ SCENARIO(
 
     goto_functiont goto_function;
     auto &instructions = goto_function.body.instructions;
-    instructions.emplace_back(goto_program_instruction_typet::ASSERT);
-    instructions.back().make_assertion(x_le_10);
-    instructions.back().function = function_symbol.name;
+    instructions.emplace_back(goto_programt::make_assertion(x_le_10));
+
+    // required as goto_function.validate checks (if a function has a body) that
+    // the last instruction of a function body marks the function's end.
+    goto_programt::instructiont end_function_instruction;
+    end_function_instruction.make_end_function();
+    instructions.push_back(end_function_instruction);
 
     symbol_table.insert(function_symbol);
     WHEN("Symbol table has the right symbol")

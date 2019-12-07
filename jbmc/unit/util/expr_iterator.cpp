@@ -2,9 +2,9 @@
 
 /// \file Tests for depth_iteratort and friends
 
-#include <testing-utils/catch.hpp>
-#include <util/expr.h>
+#include <testing-utils/use_catch.h>
 #include <util/expr_iterator.h>
+#include <util/std_expr.h>
 
 TEST_CASE("Depth iterator over empty exprt")
 {
@@ -176,8 +176,8 @@ SCENARIO("depth_iterator_mutate_root", "[core][utils][depth_iterator]")
     exprt test_root;
     // This is the expression we might mutate when we find it
     exprt test_operand(ID_1);
-    test_root.move_to_operands(test_operand);
-    test_expr.move_to_operands(test_root);
+    test_root.add_to_operands(std::move(test_operand));
+    test_expr.add_to_operands(std::move(test_root));
     WHEN("Iteration occurs without mutation")
     {
       // Create shared copies
@@ -190,10 +190,12 @@ SCENARIO("depth_iterator_mutate_root", "[core][utils][depth_iterator]")
       // Create iterator on first operand of expr
       // We don't want to copy-on-write expr, so we get its first operand
       // using a const reference to it
-      const exprt &root = static_cast<const exprt &>(expr).op0();
+      const exprt &root = to_unary_expr(static_cast<const exprt &>(expr)).op();
       // This function gets a mutable version of root but in so doing it
       // copy-on-writes expr
-      auto get_non_const_root = [&expr]() -> exprt & { return expr.op0(); };
+      auto get_non_const_root = [&expr]() -> exprt & {
+        return to_unary_expr(expr).op();
+      };
       // Create the iterator over root
       depth_iteratort it = root.depth_begin(get_non_const_root);
       for(; it != root.depth_cend(); ++it)
@@ -218,10 +220,12 @@ SCENARIO("depth_iterator_mutate_root", "[core][utils][depth_iterator]")
       // Create iterator on first operand of expr
       // We don't want to copy-on-write expr, so we get its first operand
       // using a const reference to it
-      const exprt &root = static_cast<const exprt &>(expr).op0();
+      const exprt &root = to_unary_expr(static_cast<const exprt &>(expr)).op();
       // This function gets a mutable version of root but in so doing it
       // copy-on-writes expr
-      auto get_non_const_root = [&expr]() -> exprt & { return expr.op0(); };
+      auto get_non_const_root = [&expr]() -> exprt & {
+        return to_unary_expr(expr).op();
+      };
       // Create the iterator over root
       depth_iteratort it = root.depth_begin(get_non_const_root);
       for(; it != root.depth_cend(); ++it)

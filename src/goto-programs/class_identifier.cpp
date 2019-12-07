@@ -38,7 +38,7 @@ static exprt build_class_identifier(
       first_member_name,
       components.front().type());
 
-    if(first_member_name=="@class_identifier")
+    if(first_member_name == JAVA_CLASS_IDENTIFIER_FIELD_NAME)
     {
       // found it
       return std::move(member_expr);
@@ -67,7 +67,7 @@ exprt get_class_identifier_field(
   const auto &points_to=this_expr.type().subtype();
   if(points_to==empty_typet())
     this_expr=typecast_exprt(this_expr, pointer_type(suggested_type));
-  const dereference_exprt deref(this_expr, this_expr.type().subtype());
+  const dereference_exprt deref{this_expr};
   return build_class_identifier(deref, ns);
 }
 
@@ -92,7 +92,7 @@ void set_class_identifier(
     return;
   PRECONDITION(!expr.operands().empty());
 
-  if(components.front().get_name()=="@class_identifier")
+  if(components.front().get_name() == JAVA_CLASS_IDENTIFIER_FIELD_NAME)
   {
     INVARIANT(
       expr.op0().id()==ID_constant, "@class_identifier must be a constant");

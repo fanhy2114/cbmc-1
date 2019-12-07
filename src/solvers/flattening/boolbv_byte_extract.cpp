@@ -12,14 +12,12 @@ Author: Daniel Kroening, kroening@kroening.com
 
 #include <util/arith_tools.h>
 #include <util/byte_operators.h>
+#include <util/expr_util.h>
 #include <util/pointer_offset_size.h>
 #include <util/std_expr.h>
-#include <util/throw_with_nested.h>
 
 #include <solvers/lowering/expr_lowering.h>
-#include <solvers/lowering/flatten_byte_extract_exceptions.h>
 
-#include "bv_conversion_exceptions.h"
 #include "bv_endianness_map.h"
 
 bvt map_bv(const bv_endianness_mapt &map, const bvt &src)
@@ -40,18 +38,11 @@ bvt map_bv(const bv_endianness_mapt &map, const bvt &src)
 
 bvt boolbvt::convert_byte_extract(const byte_extract_exprt &expr)
 {
-  // if we extract from an unbounded array, call the flattening code
+  // array logic does not handle byte operators, thus lower when operating on
+  // unbounded arrays
   if(is_unbounded_array(expr.op().type()))
   {
-    try
-    {
-      return convert_bv(lower_byte_extract(expr, ns));
-    }
-    catch(const flatten_byte_extract_exceptiont &)
-    {
-      util_throw_with_nested(
-        bitvector_conversion_exceptiont("Can't convert byte_extraction", expr));
-    }
+    return convert_bv(lower_byte_extract(expr, ns));
   }
 
   const std::size_t width = boolbv_width(expr.type());
@@ -91,8 +82,10 @@ bvt boolbvt::convert_byte_extract(const byte_extract_exprt &expr)
     object_descriptor_exprt o;
     o.build(expr.op(), ns);
     CHECK_RETURN(o.offset().id() != ID_unknown);
-    if(o.offset().type() != expr.offset().type())
-      o.offset().make_typecast(expr.offset().type());
+
+    o.offset() =
+      typecast_exprt::conditional_cast(o.offset(), expr.offset().type());
+
     byte_extract_exprt be(
       expr.id(),
       o.root_object(),

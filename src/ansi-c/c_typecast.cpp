@@ -16,10 +16,10 @@ Author: Daniel Kroening, kroening@kroening.com
 #include <util/c_types.h>
 #include <util/config.h>
 #include <util/expr_util.h>
-#include <util/std_expr.h>
-#include <util/base_type.h>
-#include <util/symbol.h>
+#include <util/mathematical_types.h>
 #include <util/simplify_expr.h>
+#include <util/std_expr.h>
+#include <util/symbol.h>
 
 #include "c_qualifiers.h"
 
@@ -55,14 +55,14 @@ bool c_implicit_typecast_arithmetic(
   return !c_typecast.errors.empty();
 }
 
-bool is_void_pointer(const typet &type)
+bool has_a_void_pointer(const typet &type)
 {
   if(type.id()==ID_pointer)
   {
     if(type.subtype().id()==ID_empty)
       return true;
 
-    return is_void_pointer(type.subtype());
+    return has_a_void_pointer(type.subtype());
   }
   else
     return false;
@@ -212,11 +212,16 @@ bool check_c_implicit_typecast(
       const irept &dest_subtype=dest_type.subtype();
       const irept &src_subtype =src_type.subtype();
 
-      if(src_subtype==dest_subtype)
+      if(src_subtype == dest_subtype)
+      {
         return false;
-      else if(is_void_pointer(src_type) || // from void to anything
-              is_void_pointer(dest_type))  // to void from anything
+      }
+      else if(
+        has_a_void_pointer(src_type) || // from void to anything
+        has_a_void_pointer(dest_type))  // to void from anything
+      {
         return false;
+      }
     }
 
     if(dest_type.id()==ID_array &&
@@ -417,8 +422,13 @@ void c_typecastt::implicit_typecast_arithmetic(
   case RATIONAL:   new_type=rational_typet(); break;
   case REAL:       new_type=real_typet(); break;
   case INTEGER:    new_type=integer_typet(); break;
-  case COMPLEX: return; // do nothing
-  default: return;
+  case COMPLEX:
+  case OTHER:
+  case VOIDPTR:
+  case FIXEDBV:
+  case LARGE_UNSIGNED_INT:
+  case LARGE_SIGNED_INT:
+    return; // do nothing
   }
 
   if(new_type != expr.type())
@@ -539,8 +549,7 @@ void c_typecastt::implicit_typecast_followed(
       const typet &src_sub = src_type.subtype();
       const typet &dest_sub = dest_type.subtype();
 
-      if(is_void_pointer(src_type) ||
-         is_void_pointer(dest_type))
+      if(has_a_void_pointer(src_type) || has_a_void_pointer(dest_type))
       {
         // from/to void is always good
       }
@@ -550,7 +559,7 @@ void c_typecastt::implicit_typecast_followed(
         // very generous:
         // between any two function pointers it's ok
       }
-      else if(base_type_eq(src_sub, dest_sub, ns))
+      else if(src_sub == dest_sub)
       {
         // ok
       }
@@ -564,9 +573,9 @@ void c_typecastt::implicit_typecast_followed(
         // Also generous: between any to scalar types it's ok.
         // We should probably check the size.
       }
-      else if(src_sub.id()==ID_array &&
-              dest_sub.id()==ID_array &&
-              base_type_eq(src_sub.subtype(), dest_sub.subtype(), ns))
+      else if(
+        src_sub.id() == ID_array && dest_sub.id() == ID_array &&
+        src_sub.subtype() == dest_sub.subtype())
       {
         // we ignore the size of the top-level array
         // in the case of pointers to arrays
@@ -734,8 +743,7 @@ void c_typecastt::do_typecast(exprt &expr, const typet &dest_type)
 
     if(dest_type.get(ID_C_c_type)==ID_bool)
     {
-      expr=is_not_zero(expr, ns);
-      expr.make_typecast(dest_type);
+      expr = typecast_exprt(is_not_zero(expr, ns), dest_type);
     }
     else if(dest_type.id()==ID_bool)
     {
@@ -743,7 +751,7 @@ void c_typecastt::do_typecast(exprt &expr, const typet &dest_type)
     }
     else
     {
-      expr.make_typecast(dest_type);
+      expr = typecast_exprt(expr, dest_type);
     }
   }
 }

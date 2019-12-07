@@ -8,8 +8,7 @@ Author: Diffblue Ltd.
 
 #include "require_type.h"
 
-#include <testing-utils/catch.hpp>
-#include <util/base_type.h>
+#include <testing-utils/use_catch.h>
 #include <util/namespace.h>
 #include <util/symbol_table.h>
 
@@ -26,18 +25,35 @@ pointer_typet require_type::require_pointer(
   const pointer_typet &pointer = to_pointer_type(type);
 
   if(subtype)
-  {
-    namespacet ns{symbol_tablet{}};
-    base_type_eq(pointer.subtype(), subtype.value(), ns);
-  }
+    REQUIRE(pointer.subtype() == subtype.value());
+
   return pointer;
+}
+
+/// Checks that a class has a component with a specific name
+/// \param java_class_type: The class that should have the component
+/// \param component_name: The name of the component
+/// \return The component with the specified name
+java_class_typet::componentt require_type::require_component(
+  const java_class_typet &java_class_type,
+  const irep_idt &component_name)
+{
+  const auto &component = std::find_if(
+    java_class_type.components().begin(),
+    java_class_type.components().end(),
+    [&component_name](const java_class_typet::componentt &component) {
+      return component.get_name() == component_name;
+    });
+
+  REQUIRE(component != java_class_type.components().end());
+  return *component;
 }
 
 /// Checks a struct like type has a component with a specific name
 /// \param struct_type: The structure that should have the component
 /// \param component_name: The name of the component
 /// \return The component with the specified name
-struct_union_typet::componentt require_type::require_component(
+struct_typet::componentt require_type::require_component(
   const struct_typet &struct_type,
   const irep_idt &component_name)
 {
@@ -131,7 +147,7 @@ bool require_java_generic_type_argument_expectation(
   {
   case require_type::type_argument_kindt::Var:
   {
-    REQUIRE(is_java_generic_parameter((type_argument)));
+    REQUIRE(is_java_generic_parameter(type_argument));
     java_generic_parametert parameter =
       to_java_generic_parameter(type_argument);
     REQUIRE(parameter.type_variable().get_identifier() == expected.description);
@@ -140,7 +156,9 @@ bool require_java_generic_type_argument_expectation(
   case require_type::type_argument_kindt::Inst:
   {
     REQUIRE(!is_java_generic_parameter(type_argument));
-    REQUIRE(type_argument.subtype() == struct_tag_typet(expected.description));
+    REQUIRE(
+      to_struct_tag_type(type_argument.subtype()).get_identifier() ==
+      expected.description);
     return true;
   }
   }
@@ -374,18 +392,13 @@ require_type::require_java_implicitly_generic_class(
     &implicit_generic_type_vars =
       java_implicitly_generic_class_type.implicit_generic_types();
   REQUIRE(implicit_generic_type_vars.size() == implicit_type_variables.size());
-  REQUIRE(
-    std::equal(
-      implicit_type_variables.begin(),
-      implicit_type_variables.end(),
-      implicit_generic_type_vars.begin(),
-      [](
-        const irep_idt &type_var_name,
-        const java_generic_parametert &param) { //NOLINT
-        REQUIRE(is_java_generic_parameter(param));
-        return param.type_variable().get_identifier() == type_var_name;
-      }));
-
+  auto param = implicit_generic_type_vars.begin();
+  auto type_var_name = implicit_type_variables.begin();
+  for(; param != implicit_generic_type_vars.end(); ++param, ++type_var_name)
+  {
+    REQUIRE(is_java_generic_parameter(*param));
+    REQUIRE(param->type_variable().get_identifier() == *type_var_name);
+  }
   return java_implicitly_generic_class_type;
 }
 
@@ -452,11 +465,19 @@ require_type::require_struct_tag(const typet &type, const irep_idt &identifier)
 {
   REQUIRE(type.id() == ID_struct_tag);
   const struct_tag_typet &result = to_struct_tag_type(type);
-  if(identifier != "")
+  if(!identifier.empty())
   {
     REQUIRE(result.get_identifier() == identifier);
   }
   return result;
+}
+
+pointer_typet
+require_type::require_pointer_to_tag(const typet &type, const irep_idt &tag)
+{
+  const auto pointer_type = require_type::require_pointer(type, {});
+  require_type::require_struct_tag(pointer_type.subtype(), tag);
+  return pointer_type;
 }
 
 /// Verify a given type is a java generic symbol type

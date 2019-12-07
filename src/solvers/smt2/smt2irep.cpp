@@ -22,41 +22,33 @@ public:
   {
   }
 
-  inline irept operator()()
-  {
-    parse();
-    return result;
-  }
-
-  bool parse();
+  optionalt<irept> operator()();
 
 protected:
   messaget log;
-  irept result;
 };
 
-bool smt2irept::parse()
+optionalt<irept> smt2irept::operator()()
 {
   try
   {
     std::stack<irept> stack;
-    result.clear();
 
     while(true)
     {
       switch(next_token())
       {
       case END_OF_FILE:
-        throw error("unexpected end of file");
+        if(stack.empty())
+          return {};
+        else
+          throw error("unexpected end of file");
 
       case STRING_LITERAL:
       case NUMERAL:
       case SYMBOL:
         if(stack.empty())
-        {
-          result = irept(buffer);
-          return false; // all done!
-        }
+          return irept(buffer); // all done!
         else
           stack.top().get_sub().push_back(irept(buffer));
         break;
@@ -76,16 +68,14 @@ bool smt2irept::parse()
           stack.pop();
 
           if(stack.empty())
-          {
-            result = tmp;
-            return false; // all done!
-          }
+            return tmp; // all done!
 
           stack.top().get_sub().push_back(tmp);
           break;
         }
 
-      default:
+      case NONE:
+      case KEYWORD:
         throw error("unexpected token");
       }
     }
@@ -94,11 +84,11 @@ bool smt2irept::parse()
   {
     log.error().source_location.set_line(e.get_line_no());
     log.error() << e.what() << messaget::eom;
-    return true;
+    return {};
   }
 }
 
-irept smt2irep(std::istream &in, message_handlert &message_handler)
+optionalt<irept> smt2irep(std::istream &in, message_handlert &message_handler)
 {
   return smt2irept(in, message_handler)();
 }

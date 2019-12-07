@@ -15,13 +15,14 @@ Author: Daniel Kroening, kroening@kroening.com
 #include <util/std_types.h>
 #include <util/namespace.h>
 
+#include "java_types.h"
+
 /// dereference pointer expression
 /// \return dereferenced pointer
 static exprt clean_deref(const exprt &ptr)
 {
-  return ptr.id()==ID_address_of
-             ? ptr.op0()
-             : dereference_exprt(ptr, ptr.type().subtype());
+  return ptr.id() == ID_address_of ? to_address_of_expr(ptr).object()
+                                   : dereference_exprt{ptr};
 }
 
 /// \par parameters: pointer
@@ -71,7 +72,7 @@ static const exprt &look_through_casts(const exprt &in)
   if(in.id()==ID_typecast)
   {
     assert(in.type().id()==ID_pointer);
-    return look_through_casts(in.op0());
+    return look_through_casts(to_typecast_expr(in).op());
   }
   else
     return in;
@@ -94,8 +95,9 @@ exprt make_clean_pointer_cast(
   if(ptr.type()==target_type)
     return ptr;
 
-  if(ptr.type().subtype()==empty_typet() ||
-     target_type.subtype()==empty_typet())
+  if(
+    ptr.type().subtype() == java_void_type() ||
+    target_type.subtype() == java_void_type())
     return typecast_exprt(ptr, target_type);
 
   const typet &target_base=ns.follow(target_type.subtype());
@@ -106,8 +108,8 @@ exprt make_clean_pointer_cast(
     assert(
       bare_ptr.type().id()==ID_pointer &&
       "Non-pointer in make_clean_pointer_cast?");
-    if(bare_ptr.type().subtype()==empty_typet())
-      bare_ptr=bare_ptr.op0();
+    if(bare_ptr.type().subtype() == java_void_type())
+      bare_ptr = to_typecast_expr(bare_ptr).op();
   }
 
   assert(
@@ -118,8 +120,12 @@ exprt make_clean_pointer_cast(
     return bare_ptr;
 
   exprt superclass_ptr=bare_ptr;
+  // Looking at base types discards generic qualifiers (because those are
+  // recorded on the pointer, not the pointee), so it may still be necessary
+  // to use a cast to reintroduce the qualifier (for example, the base might
+  // be recorded as a List, when we're looking for a List<E>)
   if(find_superclass_with_type(superclass_ptr, target_base, ns))
-    return superclass_ptr;
+    return typecast_exprt::conditional_cast(superclass_ptr, target_type);
 
   return typecast_exprt(bare_ptr, target_type);
 }

@@ -8,25 +8,24 @@ Author: Daniel Kroening, kroening@kroening.com
 
 #include "java_object_factory.h"
 
+#include <util/array_element_from_pointer.h>
 #include <util/expr_initializer.h>
-#include <util/fresh_symbol.h>
-#include <util/nondet_bool.h>
 #include <util/nondet.h>
+#include <util/nondet_bool.h>
 #include <util/pointer_offset_size.h>
+#include <util/prefix.h>
 
 #include <goto-programs/class_identifier.h>
 #include <goto-programs/goto_functions.h>
+#include <util/interval_constraint.h>
 
 #include "generic_parameter_specialization_map_keys.h"
 #include "java_root_class.h"
 #include "java_string_literals.h"
+#include "java_utils.h"
 
 class java_object_factoryt
 {
-  /// The source location for new statements emitted during the operation of the
-  /// methods in this class.
-  const source_locationt &loc;
-
   const java_object_factory_parameterst object_factory_parameters;
 
   /// This is employed in conjunction with the depth above. Every time the
@@ -48,9 +47,6 @@ class java_object_factoryt
   /// The symbol table.
   symbol_table_baset &symbol_table;
 
-  /// A namespace built from exclusively one symbol table - the one above.
-  namespacet ns;
-
   /// Resolves pointer types potentially using some heuristics, for example
   /// to replace pointers to interface types with pointers to concrete
   /// implementations.
@@ -58,9 +54,8 @@ class java_object_factoryt
 
   allocate_objectst allocate_objects;
 
-  code_assignt get_null_assignment(
-    const exprt &expr,
-    const pointer_typet &ptr_type);
+  /// Log for reporting warnings and errors in object creation
+  messaget log;
 
   void gen_pointer_target_init(
     code_blockt &assignments,
@@ -70,40 +65,25 @@ class java_object_factoryt
     size_t depth,
     update_in_placet update_in_place,
     const source_locationt &location);
-
-  void allocate_nondet_length_array(
-    code_blockt &assignments,
-    const exprt &lhs,
-    const exprt &max_length_expr,
-    const typet &element_type,
-    const source_locationt &location);
-
 public:
   java_object_factoryt(
     const source_locationt &loc,
     const java_object_factory_parameterst _object_factory_parameters,
     symbol_table_baset &_symbol_table,
-    const select_pointer_typet &pointer_type_selector)
-    : loc(loc),
-      object_factory_parameters(_object_factory_parameters),
+    const select_pointer_typet &pointer_type_selector,
+    message_handlert &log)
+    : object_factory_parameters(_object_factory_parameters),
       symbol_table(_symbol_table),
-      ns(_symbol_table),
       pointer_type_selector(pointer_type_selector),
       allocate_objects(
         ID_java,
         loc,
         object_factory_parameters.function_id,
-        symbol_table)
+        symbol_table),
+      log(log)
   {}
 
-  void gen_nondet_array_init(
-    code_blockt &assignments,
-    const exprt &expr,
-    size_t depth,
-    update_in_placet,
-    const source_locationt &location);
-
-  void gen_nondet_enum_init(
+  bool gen_nondet_enum_init(
     code_blockt &assignments,
     const exprt &expr,
     const java_class_typet &java_class_type,
@@ -113,7 +93,6 @@ public:
     code_blockt &assignments,
     const exprt &expr,
     bool is_sub,
-    irep_idt class_identifier,
     bool skip_classid,
     lifetimet lifetime,
     const optionalt<typet> &override_type,
@@ -139,7 +118,6 @@ private:
     code_blockt &assignments,
     const exprt &expr,
     bool is_sub,
-    irep_idt class_identifier,
     bool skip_classid,
     lifetimet lifetime,
     const struct_typet &struct_type,
@@ -154,46 +132,13 @@ private:
     size_t depth,
     const source_locationt &location);
 
-  const symbol_exprt gen_nondet_int_init(
-    code_blockt &assignments,
-    const std::string &basename_prefix,
-    const exprt &min_length_expr,
-    const exprt &max_length_expr,
-    const source_locationt &location);
-
-  void gen_method_call_if_present(
-    code_blockt &assignments,
-    const exprt &instance_expr,
-    const irep_idt &method_name);
-
-  void array_primitive_init_code(
-    code_blockt &assignments,
-    const exprt &init_array_expr,
-    const typet &element_type,
-    const exprt &max_length_expr,
-    const source_locationt &location);
-
-  void array_loop_init_code(
-    code_blockt &assignments,
-    const exprt &init_array_expr,
-    const exprt &length_expr,
-    const typet &element_type,
-    const exprt &max_length_expr,
-    size_t depth,
+  code_blockt assign_element(
+    const exprt &element,
     update_in_placet update_in_place,
+    const typet &element_type,
+    size_t depth,
     const source_locationt &location);
 };
-
-/// Returns a codet that assigns \p expr, of type \p ptr_type, a NULL value.
-code_assignt java_object_factoryt::get_null_assignment(
-  const exprt &expr,
-  const pointer_typet &ptr_type)
-{
-  null_pointer_exprt null_pointer_expr(ptr_type);
-  code_assignt code(expr, null_pointer_expr);
-  code.add_source_location()=loc;
-  return code;
-}
 
 /// Initializes the pointer-typed lvalue expression `expr` to point to an object
 /// of type `target_type`, recursively nondet-initializing the members of that
@@ -249,20 +194,34 @@ void java_object_factoryt::gen_pointer_target_init(
   PRECONDITION(expr.type().id() == ID_pointer);
   PRECONDITION(update_in_place != update_in_placet::MAY_UPDATE_IN_PLACE);
 
-  if(target_type.id() == ID_struct)
+  const namespacet ns(symbol_table);
+  const typet &followed_target_type = ns.follow(target_type);
+  PRECONDITION(followed_target_type.id() == ID_struct);
+
+  const auto &target_class_type = to_java_class_type(followed_target_type);
+  if(has_prefix(id2string(target_class_type.get_tag()), "java::array["))
   {
-    const auto &target_class_type = to_java_class_type(target_type);
-    if(has_prefix(id2string(target_class_type.get_tag()), "java::array["))
-    {
-      gen_nondet_array_init(
-        assignments, expr, depth + 1, update_in_place, location);
+    assignments.append(gen_nondet_array_init(
+      expr,
+      update_in_place,
+      location,
+      [this, update_in_place, depth, location](
+        const exprt &element, const typet &element_type) -> code_blockt {
+        return assign_element(
+          element, update_in_place, element_type, depth + 1, location);
+      },
+      [this](const typet &type, std::string basename_prefix) -> symbol_exprt {
+        return allocate_objects.allocate_automatic_local_object(
+          type, basename_prefix);
+      },
+      symbol_table,
+      object_factory_parameters.max_nondet_array_length));
+    return;
+  }
+  if(target_class_type.get_base("java::java.lang.Enum"))
+  {
+    if(gen_nondet_enum_init(assignments, expr, target_class_type, location))
       return;
-    }
-    if(target_class_type.get_base("java::java.lang.Enum"))
-    {
-      gen_nondet_enum_init(assignments, expr, target_class_type, location);
-      return;
-    }
   }
 
   // obtain a target pointer to initialize; if in MUST_UPDATE_IN_PLACE mode we
@@ -280,7 +239,7 @@ void java_object_factoryt::gen_pointer_target_init(
   else
   {
     if(expr.id() == ID_address_of)
-      init_expr = expr.op0();
+      init_expr = to_address_of_expr(expr).object();
     else
     {
       init_expr = dereference_exprt(expr);
@@ -291,7 +250,6 @@ void java_object_factoryt::gen_pointer_target_init(
     assignments,
     init_expr,
     false, // is_sub
-    "",    // class_identifier
     false, // skip_classid
     lifetime,
     {}, // no override type
@@ -321,7 +279,7 @@ public:
   /// Removes erase_entry (if set) from the controlled set.
   ~recursion_set_entryt()
   {
-    if(erase_entry!=irep_idt())
+    if(!erase_entry.empty())
       recursion_set.erase(erase_entry);
   }
 
@@ -334,10 +292,8 @@ public:
   /// \return true if added to the set (and therefore owned by this object)
   bool insert_entry(const irep_idt &entry)
   {
-    INVARIANT(
-      erase_entry==irep_idt(),
-      "insert_entry should only be called once");
-    INVARIANT(entry!=irep_idt(), "entry should be a struct tag");
+    INVARIANT(erase_entry.empty(), "insert_entry should only be called once");
+    INVARIANT(!entry.empty(), "entry should be a struct tag");
     bool ret=recursion_set.insert(entry).second;
     if(ret)
     {
@@ -348,17 +304,18 @@ public:
   }
 };
 
-/// Get max value for an integer type
-/// \param type:
-///   Type to find maximum value for
-/// \return Maximum integer value
-static mp_integer max_value(const typet &type)
+/// Interval that represents the printable character range
+/// range U+0020-U+007E, i.e. ' ' to '~'
+const integer_intervalt printable_char_range(' ', '~');
+
+/// Converts and \ref integer_intervalt to a a string of the for [lower]-[upper]
+static irep_idt integer_interval_to_string(const integer_intervalt &interval)
 {
-  if(type.id() == ID_signedbv)
-    return to_signedbv_type(type).largest();
-  else if(type.id() == ID_unsignedbv)
-    return to_unsignedbv_type(type).largest();
-  UNREACHABLE;
+  std::string result;
+  result += numeric_cast_v<char>(interval.lower);
+  result += "-";
+  result += numeric_cast_v<char>(interval.upper);
+  return result;
 }
 
 /// Initialise length and data fields for a nondeterministic String structure.
@@ -375,6 +332,8 @@ static mp_integer max_value(const typet &type)
 /// \param symbol_table: the symbol table
 /// \param printable: if true, the nondet string must consist of printable
 ///   characters only
+/// \param allocate_objects: manages memory allocation and keeps track of the
+///   newly created symbols
 ///
 /// The code produced is of the form:
 /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -406,23 +365,13 @@ void initialize_nondet_string_fields(
   const source_locationt &loc,
   const irep_idt &function_id,
   symbol_table_baset &symbol_table,
-  bool printable)
+  bool printable,
+  allocate_objectst &allocate_objects)
 {
-  PRECONDITION(
-    java_string_library_preprocesst
-      ::implements_java_char_sequence(struct_expr.type()));
-
   namespacet ns(symbol_table);
-
   const struct_typet &struct_type =
     to_struct_type(ns.follow(struct_expr.type()));
-
-  // In case the type for String was not added to the symbol table,
-  // (typically when string refinement is not activated), `struct_type`
-  // just contains the standard Object fields (or may have some other model
-  // entirely), and in particular has no length and data fields.
-  PRECONDITION(
-    struct_type.has_component("length") && struct_type.has_component("data"));
+  PRECONDITION(is_java_string_type(struct_type));
 
   // We allow type StringBuffer and StringBuilder to be initialized
   // in the same way has String, because they have the same structure and
@@ -442,16 +391,10 @@ void initialize_nondet_string_fields(
 
   /// \todo Refactor with make_nondet_string_expr
   // length_expr = nondet(int);
-  const symbolt length_sym = get_fresh_aux_symbol(
-    java_int_type(),
-    id2string(function_id),
-    "tmp_object_factory",
-    loc,
-    ID_java,
-    symbol_table);
-  const symbol_exprt length_expr = length_sym.symbol_expr();
+  const symbol_exprt length_expr =
+    allocate_objects.allocate_automatic_local_object(
+      java_int_type(), "tmp_object_factory");
   const side_effect_expr_nondett nondet_length(length_expr.type(), loc);
-  code.add(code_declt(length_expr));
   code.add(code_assignt(length_expr, nondet_length));
 
   // assume (length_expr >= min_nondet_string_length);
@@ -460,7 +403,9 @@ void initialize_nondet_string_fields(
   code.add(code_assumet(binary_relation_exprt(length_expr, ID_ge, min_length)));
 
   // assume (length_expr <= max_input_length)
-  if(max_nondet_string_length <= max_value(length_expr.type()))
+  if(
+    max_nondet_string_length <=
+    to_integer_bitvector_type(length_expr.type()).largest())
   {
     exprt max_length =
       from_integer(max_nondet_string_length, length_expr.type());
@@ -476,10 +421,10 @@ void initialize_nondet_string_fields(
     index_exprt(data_expr, from_integer(0, java_int_type())));
 
   add_pointer_to_array_association(
-    array_pointer, data_expr, symbol_table, loc, code);
+    array_pointer, data_expr, symbol_table, loc, function_id, code);
 
   add_array_to_length_association(
-    data_expr, length_expr, symbol_table, loc, code);
+    data_expr, length_expr, symbol_table, loc, function_id, code);
 
   struct_expr.operands()[struct_type.component_number("data")] = array_pointer;
 
@@ -487,7 +432,13 @@ void initialize_nondet_string_fields(
   if(printable)
   {
     add_character_set_constraint(
-      array_pointer, length_expr, " -~", symbol_table, loc, code);
+      array_pointer,
+      length_expr,
+      integer_interval_to_string(printable_char_range),
+      symbol_table,
+      loc,
+      function_id,
+      code);
   }
 }
 
@@ -525,6 +476,10 @@ void java_object_factoryt::gen_nondet_pointer_init(
   const source_locationt &location)
 {
   PRECONDITION(expr.type().id()==ID_pointer);
+  const namespacet ns(symbol_table);
+  const typet &subtype = pointer_type.subtype();
+  const typet &followed_subtype = ns.follow(subtype);
+  PRECONDITION(followed_subtype.id() == ID_struct);
   const pointer_typet &replacement_pointer_type =
     pointer_type_selector.convert_pointer_type(
       pointer_type, generic_parameter_specialization_map, ns);
@@ -532,15 +487,15 @@ void java_object_factoryt::gen_nondet_pointer_init(
   // If we are changing the pointer, we generate code for creating a pointer
   // to the substituted type instead
   // TODO if we are comparing array types we need to compare their element
-  // types. this is for now done by implementing equality function especially
-  // for java types, technical debt TG-2707
+  //   types. this is for now done by implementing equality function especially
+  //   for java types, technical debt TG-2707
   if(!equal_java_types(replacement_pointer_type, pointer_type))
   {
     // update generic_parameter_specialization_map for the new pointer
     generic_parameter_specialization_map_keyst
       generic_parameter_specialization_map_keys(
         generic_parameter_specialization_map);
-    generic_parameter_specialization_map_keys.insert_pairs_for_pointer(
+    generic_parameter_specialization_map_keys.insert(
       replacement_pointer_type, ns.follow(replacement_pointer_type.subtype()));
 
     const symbol_exprt real_pointer_symbol = gen_nondet_subtype_pointer_init(
@@ -558,41 +513,34 @@ void java_object_factoryt::gen_nondet_pointer_init(
   // if one is set below.
   recursion_set_entryt recursion_set_entry(recursion_set);
 
-  // If the pointed value is struct-typed, then we need to prevent the
-  // possibility of this code to loop infinitely when initializing a data
-  // structure with recursive types or unbounded depth.  We implement two
-  // mechanisms here. We keep a set of 'types seen', and detect when we perform
-  // a 2nd visit to the same type.  We also detect the depth in the chain of
-  // (recursive) calls to the methods of this class. The depth counter is
-  // incremented only when a pointer is deferenced, including pointers to
-  // arrays.
+  // We need to prevent the possibility of this code to loop infinitely when
+  // initializing a data structure with recursive types or unbounded depth.  We
+  // implement two mechanisms here. We keep a set of 'types seen', and
+  // detect when we perform a 2nd visit to the same type.  We also detect the
+  // depth in the chain of (recursive) calls to the methods of this class.
+  // The depth counter is incremented only when a pointer is deferenced,
+  // including pointers to arrays.
   //
   // When we visit for 2nd time a type AND the maximum depth is exceeded, we set
   // the pointer to NULL instead of recursively initializing the struct to which
   // it points.
-  const typet &subtype=ns.follow(pointer_type.subtype());
-  if(subtype.id()==ID_struct)
+  const struct_typet &struct_type = to_struct_type(followed_subtype);
+  const irep_idt &struct_tag = struct_type.get_tag();
+
+  // If this is a recursive type of some kind AND the depth is exceeded, set
+  // the pointer to null.
+  if(
+    !recursion_set_entry.insert_entry(struct_tag) &&
+    depth >= object_factory_parameters.max_nondet_tree_depth)
   {
-    const struct_typet &struct_type=to_struct_type(subtype);
-    const irep_idt &struct_tag=struct_type.get_tag();
-
-    // If this is a recursive type of some kind AND the depth is exceeded, set
-    // the pointer to null.
-    if(!recursion_set_entry.insert_entry(struct_tag) &&
-      depth>=object_factory_parameters.max_nondet_tree_depth)
+    if(update_in_place == update_in_placet::NO_UPDATE_IN_PLACE)
     {
-      if(update_in_place==update_in_placet::NO_UPDATE_IN_PLACE)
-      {
-        assignments.add(get_null_assignment(expr, pointer_type));
-      }
-      // Otherwise leave it as it is.
-      return;
+      assignments.add(
+        code_assignt{expr, null_pointer_exprt{pointer_type}, location});
     }
+    // Otherwise leave it as it is.
+    return;
   }
-
-  // If this is a void* we *must* initialise with null:
-  // (This can currently happen for some cases of #exception_value)
-  bool must_be_null = subtype == empty_typet();
 
   // If we may be about to initialize a non-null enum type, always run the
   // clinit_wrapper of its class first.
@@ -609,13 +557,16 @@ void java_object_factoryt::gen_nondet_pointer_init(
   // decide to do this for all types, we should do it here.
   // Note also that this logic is mirrored in
   // ci_lazy_methodst::initialize_instantiated_classes.
-  if(const auto class_type = type_try_dynamic_cast<java_class_typet>(subtype))
+  if(
+    const auto class_type =
+      type_try_dynamic_cast<java_class_typet>(followed_subtype))
   {
-    if(class_type->get_base("java::java.lang.Enum") && !must_be_null)
+    if(class_type->get_base("java::java.lang.Enum"))
     {
       const irep_idt &class_name = class_type->get_name();
       const irep_idt class_clinit = clinit_wrapper_name(class_name);
-      gen_method_call_if_present(assignments, expr, class_clinit);
+      if(const auto clinit_func = symbol_table.lookup(class_clinit))
+        assignments.add(code_function_callt{clinit_func->symbol_expr()});
     }
   }
 
@@ -660,17 +611,12 @@ void java_object_factoryt::gen_nondet_pointer_init(
     update_in_placet::NO_UPDATE_IN_PLACE,
     location);
 
-  auto set_null_inst=get_null_assignment(expr, pointer_type);
+  const code_assignt set_null_inst{
+    expr, null_pointer_exprt{pointer_type}, location};
 
   const bool allow_null = depth > object_factory_parameters.min_null_tree_depth;
 
-  if(must_be_null)
-  {
-    // Add the following code to assignments:
-    // <expr> = nullptr;
-    new_object_assignments.add(set_null_inst);
-  }
-  else if(!allow_null)
+  if(!allow_null)
   {
     // Add the following code to assignments:
     // <expr> = <aoe>;
@@ -745,20 +691,15 @@ symbol_exprt java_object_factoryt::gen_nondet_subtype_pointer_init(
   size_t depth,
   const source_locationt &location)
 {
-  symbolt new_symbol = get_fresh_aux_symbol(
-    replacement_pointer,
-    id2string(object_factory_parameters.function_id),
-    "tmp_object_factory",
-    loc,
-    ID_java,
-    symbol_table);
+  const symbol_exprt new_symbol_expr =
+    allocate_objects.allocate_automatic_local_object(
+      replacement_pointer, "tmp_object_factory");
 
   // Generate a new object into this new symbol
   gen_nondet_init(
     assignments,
-    new_symbol.symbol_expr(),
+    new_symbol_expr,
     false, // is_sub
-    "",    // class_identifier
     false, // skip_classid
     lifetime,
     {}, // no override_type
@@ -766,7 +707,7 @@ symbol_exprt java_object_factoryt::gen_nondet_subtype_pointer_init(
     update_in_placet::NO_UPDATE_IN_PLACE,
     location);
 
-  return new_symbol.symbol_expr();
+  return new_symbol_expr;
 }
 
 /// Creates an alternate_casest vector in which each item contains an
@@ -787,10 +728,8 @@ alternate_casest get_string_input_values_code(
   alternate_casest cases;
   for(const auto &val : string_input_values)
   {
-    exprt name_literal(ID_java_string_literal);
-    name_literal.set(ID_value, val);
     const symbol_exprt s =
-      get_or_create_string_literal_symbol(name_literal, symbol_table, true);
+      get_or_create_string_literal_symbol(val, symbol_table, true);
     cases.push_back(code_assignt(expr, s));
   }
   return cases;
@@ -806,8 +745,6 @@ alternate_casest get_string_input_values_code(
 /// \param expr: Struct-typed lvalue expression to initialize
 /// \param is_sub: If true, `expr` is a substructure of a larger object, which
 ///   in Java necessarily means a base class
-/// \param class_identifier: Name of the parent class. Used to initialize the
-///   `@class_identifier` among others
 /// \param skip_classid: If true, skip initializing `@class_identifier`
 /// \param lifetime: Lifetime of the allocated objects (AUTOMATIC_LOCAL,
 ///   STATIC_GLOBAL, or DYNAMIC)
@@ -823,7 +760,6 @@ void java_object_factoryt::gen_nondet_struct_init(
   code_blockt &assignments,
   const exprt &expr,
   bool is_sub,
-  irep_idt class_identifier,
   bool skip_classid,
   lifetimet lifetime,
   const struct_typet &struct_type,
@@ -831,8 +767,8 @@ void java_object_factoryt::gen_nondet_struct_init(
   const update_in_placet &update_in_place,
   const source_locationt &location)
 {
+  const namespacet ns(symbol_table);
   PRECONDITION(ns.follow(expr.type()).id()==ID_struct);
-  PRECONDITION(struct_type.id()==ID_struct);
 
   typedef struct_typet::componentst componentst;
   const irep_idt &struct_tag=struct_type.get_tag();
@@ -845,76 +781,65 @@ void java_object_factoryt::gen_nondet_struct_init(
   // * Not if the object has already been initialised by our caller, in which
   //   case they will set `skip_classid`
   // * Not if we're re-initializing an existing object (i.e. update_in_place)
+  // * Always if it has a string type. Strings should not be partially updated,
+  //   and the `length` and `data` components of string types need to be
+  //   generated differently from object fields in the general case, see
+  //   \ref java_object_factoryt::initialize_nondet_string_fields.
 
-  bool skip_special_string_fields = false;
+  const bool has_string_input_values =
+    !object_factory_parameters.string_input_values.empty();
 
-  if(!is_sub &&
-     !skip_classid &&
-     update_in_place != update_in_placet::MUST_UPDATE_IN_PLACE)
+  if(
+    is_java_string_type(struct_type) && has_string_input_values &&
+    !skip_classid)
+  { // We're dealing with a string and we should set fixed input values.
+    // We create a switch statement where each case is an assignment
+    // of one of the fixed input strings to the input variable in question
+    const alternate_casest cases = get_string_input_values_code(
+      expr, object_factory_parameters.string_input_values, symbol_table);
+    assignments.add(generate_nondet_switch(
+      id2string(object_factory_parameters.function_id),
+      cases,
+      java_int_type(),
+      ID_java,
+      location,
+      symbol_table));
+  }
+  else if(
+    (!is_sub && !skip_classid &&
+     update_in_place != update_in_placet::MUST_UPDATE_IN_PLACE) ||
+    is_java_string_type(struct_type))
   {
-    class_identifier = struct_tag;
+    // Add an initial all-zero write. Most of the fields of this will be
+    // overwritten, but it helps to have a whole-structure write that analysis
+    // passes can easily recognise leaves no uninitialised state behind.
 
-    const bool is_char_sequence =
-      java_string_library_preprocesst
-        ::implements_java_char_sequence(struct_type);
-    const bool has_length_and_data =
-      struct_type.has_component("length") && struct_type.has_component("data");
-    const bool has_string_input_values =
-      !object_factory_parameters.string_input_values.empty();
+    // This code mirrors the `remove_java_new` pass:
+    auto initial_object = zero_initializer(expr.type(), source_locationt(), ns);
+    CHECK_RETURN(initial_object.has_value());
+    set_class_identifier(
+      to_struct_expr(*initial_object),
+      ns,
+      struct_tag_typet("java::" + id2string(struct_tag)));
 
-    if(is_char_sequence && has_length_and_data && has_string_input_values)
-    { // We're dealing with a string and we should set fixed input values.
-      skip_special_string_fields = true;
-
-      // We create a switch statement where each case is an assignment
-      // of one of the fixed input strings to the input variable in question
-
-      const alternate_casest cases =
-        get_string_input_values_code(
-          expr,
-          object_factory_parameters.string_input_values,
-          symbol_table);
-      assignments.add(generate_nondet_switch(
-        id2string(object_factory_parameters.function_id),
-        cases,
-        java_int_type(),
-        ID_java,
-        loc,
-        symbol_table));
+    // If the initialised type is a special-cased String type (one with length
+    // and data fields introduced by string-library preprocessing), initialise
+    // those fields with nondet values
+    if(is_java_string_type(struct_type))
+    { // We're dealing with a string
+      initialize_nondet_string_fields(
+        to_struct_expr(*initial_object),
+        assignments,
+        object_factory_parameters.min_nondet_string_length,
+        object_factory_parameters.max_nondet_string_length,
+        location,
+        object_factory_parameters.function_id,
+        symbol_table,
+        object_factory_parameters.string_printable,
+        allocate_objects);
     }
-    else
-    {
-      // Add an initial all-zero write. Most of the fields of this will be
-      // overwritten, but it helps to have a whole-structure write that analysis
-      // passes can easily recognise leaves no uninitialised state behind.
 
-      // This code mirrors the `remove_java_new` pass:
-      auto initial_object =
-        zero_initializer(struct_type, source_locationt(), ns);
-      CHECK_RETURN(initial_object.has_value());
-      const irep_idt qualified_clsid = "java::" + id2string(class_identifier);
-      set_class_identifier(
-        to_struct_expr(*initial_object), ns, struct_tag_typet(qualified_clsid));
-
-      // If the initialised type is a special-cased String type (one with length
-      // and data fields introduced by string-library preprocessing), initialise
-      // those fields with nondet values
-      if(is_char_sequence && has_length_and_data)
-      { // We're dealing with a string
-        skip_special_string_fields = true;
-        initialize_nondet_string_fields(
-          to_struct_expr(*initial_object),
-          assignments,
-          object_factory_parameters.min_nondet_string_length,
-          object_factory_parameters.max_nondet_string_length,
-          loc,
-          object_factory_parameters.function_id,
-          symbol_table,
-          object_factory_parameters.string_printable);
-      }
-
-      assignments.add(code_assignt(expr, *initial_object));
-    }
+    assignments.add(code_assignt(expr, *initial_object));
   }
 
   for(const auto &component : components)
@@ -924,7 +849,7 @@ void java_object_factoryt::gen_nondet_struct_init(
 
     member_exprt me(expr, name, component_type);
 
-    if(name=="@class_identifier")
+    if(name == JAVA_CLASS_IDENTIFIER_FIELD_NAME)
     {
       continue;
     }
@@ -937,10 +862,11 @@ void java_object_factoryt::gen_nondet_struct_init(
       if(update_in_place == update_in_placet::MUST_UPDATE_IN_PLACE)
         continue;
       code_assignt code(me, from_integer(0, me.type()));
-      code.add_source_location() = loc;
+      code.add_source_location() = location;
       assignments.add(code);
     }
-    else if(skip_special_string_fields && (name == "length" || name == "data"))
+    else if(
+      is_java_string_type(struct_type) && (name == "length" || name == "data"))
     {
       // In this case these were set up above.
       continue;
@@ -962,7 +888,6 @@ void java_object_factoryt::gen_nondet_struct_init(
         assignments,
         me,
         _is_sub,
-        class_identifier,
         false, // skip_classid
         lifetime,
         {}, // no override_type
@@ -972,21 +897,71 @@ void java_object_factoryt::gen_nondet_struct_init(
     }
   }
 
-  // If <class_identifier>.cproverNondetInitialize() can be found in the
-  // symbol table, we add a call:
+  // If cproverNondetInitialize() can be found in the symbol table as a method
+  // on this class or any parent, we add a call:
   // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   // expr.cproverNondetInitialize();
   // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-  const irep_idt init_method_name =
-    "java::" + id2string(struct_tag) + ".cproverNondetInitialize:()V";
-  gen_method_call_if_present(assignments, expr, init_method_name);
+  resolve_inherited_componentt resolve_inherited_component{symbol_table};
+  optionalt<resolve_inherited_componentt::inherited_componentt>
+    cprover_nondet_initialize = resolve_inherited_component(
+      "java::" + id2string(struct_tag), "cproverNondetInitialize:()V", true);
+
+  if(cprover_nondet_initialize)
+  {
+    const symbolt &cprover_nondet_initialize_symbol =
+      ns.lookup(cprover_nondet_initialize->get_full_component_identifier());
+    assignments.add(
+      code_function_callt{cprover_nondet_initialize_symbol.symbol_expr(),
+                          {address_of_exprt{expr}}});
+  }
+}
+
+/// Generate code block that verifies that an expression of type float or
+/// double has integral value. For example, for a float expression floatVal we
+/// generate:
+/// int assume_integral_tmp;
+/// assume_integral_tmp = NONDET(int);
+/// ASSUME FLOAT_TYPECAST(assume_integral_tmp, float, __CPROVER_rounding_mode)
+///   == floatVal
+/// \param expr The expression we want to make an assumption on
+/// \param type The type of the expression
+/// \param location Source location associated with the expression
+/// \param allocate_local_symbol A function to generate a new local symbol
+///   and add it to the symbol table
+/// \return Code block constructing the auxiliary nondet integer and an
+///   assume statement that the integer is equal to the value of the expression
+static code_blockt assume_expr_integral(
+  const exprt &expr,
+  const typet &type,
+  const source_locationt &location,
+  const allocate_local_symbolt &allocate_local_symbol)
+{
+  PRECONDITION(type == java_float_type() || type == java_double_type());
+
+  code_blockt assignments;
+
+  const auto &aux_int =
+    allocate_local_symbol(java_int_type(), "assume_integral_tmp");
+  assignments.add(code_declt(aux_int), location);
+  exprt nondet_rhs = side_effect_expr_nondett(java_int_type(), location);
+  code_assignt aux_assign(aux_int, nondet_rhs);
+  aux_assign.add_source_location() = location;
+  assignments.add(aux_assign);
+  assignments.add(
+    code_assumet(equal_exprt(typecast_exprt(aux_int, type), expr)));
+
+  return assignments;
 }
 
 /// Initializes a primitive-typed or reference-typed object tree rooted at
 /// `expr`, allocating child objects as necessary and nondet-initializing their
 /// members, or if MUST_UPDATE_IN_PLACE is set, re-initializing
 /// already-allocated objects.
+///
+/// Extra constraints might be added to initialized objects, based on options
+/// recorded in `object_factory_parameters`.
 ///
 /// \param assignments:
 ///   A code block where the initializing assignments will be appended to.
@@ -995,9 +970,6 @@ void java_object_factoryt::gen_nondet_struct_init(
 /// \param is_sub:
 ///   If true, `expr` is a substructure of a larger object, which in Java
 ///   necessarily means a base class.
-/// \param class_identifier:
-///   Name of the parent class. Used to initialize the `@class_identifier` among
-///   others.
 /// \param skip_classid:
 ///   If true, skip initializing `@class_identifier`.
 /// \param lifetime:
@@ -1022,7 +994,6 @@ void java_object_factoryt::gen_nondet_init(
   code_blockt &assignments,
   const exprt &expr,
   bool is_sub,
-  irep_idt class_identifier,
   bool skip_classid,
   lifetimet lifetime,
   const optionalt<typet> &override_type,
@@ -1030,8 +1001,9 @@ void java_object_factoryt::gen_nondet_init(
   update_in_placet update_in_place,
   const source_locationt &location)
 {
-  const typet &type = override_type.has_value() ? ns.follow(*override_type)
-                                                : ns.follow(expr.type());
+  const typet &type = override_type.has_value() ? *override_type : expr.type();
+  const namespacet ns(symbol_table);
+  const typet &followed_type = ns.follow(type);
 
   if(type.id()==ID_pointer)
   {
@@ -1043,7 +1015,7 @@ void java_object_factoryt::gen_nondet_init(
     generic_parameter_specialization_map_keyst
       generic_parameter_specialization_map_keys(
         generic_parameter_specialization_map);
-    generic_parameter_specialization_map_keys.insert_pairs_for_pointer(
+    generic_parameter_specialization_map_keys.insert(
       pointer_type, ns.follow(pointer_type.subtype()));
 
     gen_nondet_pointer_init(
@@ -1055,9 +1027,9 @@ void java_object_factoryt::gen_nondet_init(
       update_in_place,
       location);
   }
-  else if(type.id()==ID_struct)
+  else if(followed_type.id() == ID_struct)
   {
-    const struct_typet struct_type=to_struct_type(type);
+    const struct_typet struct_type = to_struct_type(followed_type);
 
     // If we are about to initialize a generic class (as a superclass object
     // for a different object), add its concrete types to the map and delete
@@ -1070,7 +1042,7 @@ void java_object_factoryt::gen_nondet_init(
       const typet &symbol =
         override_type.has_value() ? *override_type : expr.type();
       PRECONDITION(symbol.id() == ID_struct_tag);
-      generic_parameter_specialization_map_keys.insert_pairs_for_symbol(
+      generic_parameter_specialization_map_keys.insert(
         to_struct_tag_type(symbol), struct_type);
     }
 
@@ -1078,7 +1050,6 @@ void java_object_factoryt::gen_nondet_init(
       assignments,
       expr,
       is_sub,
-      class_identifier,
       skip_classid,
       lifetime,
       struct_type,
@@ -1090,12 +1061,49 @@ void java_object_factoryt::gen_nondet_init(
   {
     // types different from pointer or structure:
     // bool, int, float, byte, char, ...
-    exprt rhs = type.id() == ID_c_bool ? get_nondet_bool(type, loc)
-                                       : side_effect_expr_nondett(type, loc);
+    exprt rhs = type.id() == ID_c_bool
+                  ? get_nondet_bool(type, location)
+                  : side_effect_expr_nondett(type, location);
     code_assignt assign(expr, rhs);
-    assign.add_source_location()=loc;
+    assign.add_source_location() = location;
 
     assignments.add(assign);
+    if(type == java_char_type() && object_factory_parameters.string_printable)
+    {
+      assignments.add(
+        code_assumet(interval_constraint(expr, printable_char_range)));
+    }
+    // add assumes to obey numerical restrictions
+    if(type != java_boolean_type() && type != java_char_type())
+    {
+      const auto &interval = object_factory_parameters.assume_inputs_interval;
+      if(auto singleton = interval.as_singleton())
+      {
+        assignments.add(
+          code_assignt{expr, from_integer(*singleton, expr.type())});
+      }
+      else
+      {
+        exprt within_bounds = interval.make_contains_expr(expr);
+        if(!within_bounds.is_true())
+          assignments.add(code_assumet(std::move(within_bounds)));
+      }
+
+      if(
+        object_factory_parameters.assume_inputs_integral &&
+        (type == java_float_type() || type == java_double_type()))
+      {
+        assignments.add(assume_expr_integral(
+          expr,
+          type,
+          location,
+          [this](
+            const typet &type, std::string basename_prefix) -> symbol_exprt {
+            return allocate_objects.allocate_automatic_local_object(
+              type, basename_prefix);
+          }));
+      }
+    }
   }
 }
 
@@ -1107,53 +1115,6 @@ void java_object_factoryt::add_created_symbol(const symbolt *symbol_ptr)
 void java_object_factoryt::declare_created_symbols(code_blockt &init_code)
 {
   allocate_objects.declare_created_symbols(init_code);
-}
-
-/// Nondeterministically initializes an int i in the range min <= i <= max,
-/// where min is the integer represented by `min_value_expr` and max is the
-/// integer represented by `max_value_expr`.
-/// \param [out] assignments: A code block that the initializing assignments
-///   will be appended to.
-/// \param basename_prefix: Used for naming the newly created symbol.
-/// \param min_value_expr: Represents the minimum value for the integer.
-/// \param max_value_expr: Represents the maximum value for the integer.
-/// \param location: Source location associated with nondet-initialization.
-/// \return A symbol expression for the resulting integer.
-const symbol_exprt java_object_factoryt::gen_nondet_int_init(
-  code_blockt &assignments,
-  const std::string &basename_prefix,
-  const exprt &min_value_expr,
-  const exprt &max_value_expr,
-  const source_locationt &location)
-{
-  PRECONDITION(min_value_expr.type() == max_value_expr.type());
-
-  const symbol_exprt &int_symbol_expr =
-    allocate_objects.allocate_automatic_local_object(
-      min_value_expr.type(), basename_prefix);
-
-  // Nondet-initialize it
-  gen_nondet_init(
-    assignments,
-    int_symbol_expr,
-    false, // is_sub
-    irep_idt(),
-    false,                      // skip_classid
-    lifetimet::AUTOMATIC_LOCAL, // immaterial, type is primitive
-    {},                         // no override type
-    0,                          // depth is immaterial, always non-null
-    update_in_placet::NO_UPDATE_IN_PLACE,
-    location);
-
-  // Insert assumptions to bound its value
-  const auto min_assume_expr =
-    binary_relation_exprt(int_symbol_expr, ID_ge, min_value_expr);
-  const auto max_assume_expr =
-    binary_relation_exprt(int_symbol_expr, ID_le, max_value_expr);
-  assignments.add(code_assumet(min_assume_expr));
-  assignments.add(code_assumet(max_assume_expr));
-
-  return int_symbol_expr;
 }
 
 /// Allocates a fresh array and emits an assignment writing to \p lhs the
@@ -1168,42 +1129,34 @@ const symbol_exprt java_object_factoryt::gen_nondet_int_init(
 /// \param element_type:
 ///   Actual element type of the array (the array for all reference types will
 ///   have void* type, but this will be annotated as the true member type).
+/// \param allocate_local_symbol:
+///   A function to generate a new local symbol and add it to the symbol table
 /// \param location:
 ///   Source location associated with nondet-initialization.
 /// \return Appends instructions to `assignments`
-void java_object_factoryt::allocate_nondet_length_array(
+static void allocate_nondet_length_array(
   code_blockt &assignments,
   const exprt &lhs,
   const exprt &max_length_expr,
   const typet &element_type,
+  const allocate_local_symbolt &allocate_local_symbol,
   const source_locationt &location)
 {
-  const auto &length_sym_expr = gen_nondet_int_init(
-    assignments,
-    "nondet_array_length",
+  const auto &length_sym_expr = generate_nondet_int(
     from_integer(0, java_int_type()),
     max_length_expr,
-    location);
+    "nondet_array_length",
+    location,
+    allocate_local_symbol,
+    assignments);
 
-  side_effect_exprt java_new_array(ID_java_new_array, lhs.type(), loc);
+  side_effect_exprt java_new_array(ID_java_new_array, lhs.type(), location);
   java_new_array.copy_to_operands(length_sym_expr);
   java_new_array.set(ID_length_upper_bound, max_length_expr);
   java_new_array.type().subtype().set(ID_element_type, element_type);
   code_assignt assign(lhs, java_new_array);
-  assign.add_source_location() = loc;
+  assign.add_source_location() = location;
   assignments.add(assign);
-}
-
-/// Create code allocating object of size `size` and assigning it to `lhs`
-/// \param lhs : pointer which will be allocated
-/// \param size : size of the object
-/// \return code allocation object and assigning `lhs`
-codet make_allocate_code(const symbol_exprt &lhs, const exprt &size)
-{
-  side_effect_exprt alloc(ID_allocate, lhs.type(), lhs.source_location());
-  alloc.add_to_operands(size);
-  alloc.add_to_operands(false_exprt());
-  return code_assignt(lhs, alloc);
 }
 
 /// Create code to nondeterministically initialize arrays of primitive type.
@@ -1221,19 +1174,21 @@ codet make_allocate_code(const symbol_exprt &lhs, const exprt &size)
 /// \param element_type: type of array elements
 /// \param max_length_expr : the (constant) size to which initialise the array
 /// \param location: Source location associated with nondet-initialization.
-void java_object_factoryt::array_primitive_init_code(
+/// \param allocate_local_symbol:
+///   A function to generate a new local symbol and add it to the symbol table
+static void array_primitive_init_code(
   code_blockt &assignments,
   const exprt &init_array_expr,
   const typet &element_type,
   const exprt &max_length_expr,
-  const source_locationt &location)
+  const source_locationt &location,
+  const allocate_local_symbolt &allocate_local_symbol)
 {
   const array_typet array_type(element_type, max_length_expr);
 
   // TYPE (*array_data_init)[max_length_expr];
   const symbol_exprt &tmp_finite_array_pointer =
-    allocate_objects.allocate_automatic_local_object(
-      pointer_type(array_type), "array_data_init");
+    allocate_local_symbol(pointer_type(array_type), "array_data_init");
 
   // array_data_init = ALLOCATE(TYPE [max_length_expr], max_length_expr, false);
   assignments.add(
@@ -1243,9 +1198,8 @@ void java_object_factoryt::array_primitive_init_code(
   assignments.statements().back().add_source_location() = location;
 
   // *array_data_init = NONDET(TYPE [max_length_expr]);
-  side_effect_expr_nondett nondet_data(array_type, loc);
-  const dereference_exprt data_pointer_deref(
-    tmp_finite_array_pointer, array_type);
+  side_effect_expr_nondett nondet_data(array_type, location);
+  const dereference_exprt data_pointer_deref{tmp_finite_array_pointer};
   assignments.add(code_assignt(data_pointer_deref, std::move(nondet_data)));
   assignments.statements().back().add_source_location() = location;
 
@@ -1254,6 +1208,74 @@ void java_object_factoryt::array_primitive_init_code(
     index_exprt(data_pointer_deref, from_integer(0, java_int_type())));
   assignments.add(code_assignt(init_array_expr, std::move(tmp_nondet_pointer)));
   assignments.statements().back().add_source_location() = location;
+}
+
+/// Generate codet for assigning an individual element inside the array.
+/// \param element: The lhs expression that will be assigned the new element.
+/// \param update_in_place: Should the code allow for the object to updated in
+/// place.
+/// \param element_type: The type of the element to create.
+/// \param depth: The depth in the object tree.
+/// \param location: Source location to use for synthesized code
+/// \return Synthesized code using the object factory to create an element of
+/// the type and assign it into \p element.
+code_blockt java_object_factoryt::assign_element(
+  const exprt &element,
+  const update_in_placet update_in_place,
+  const typet &element_type,
+  const size_t depth,
+  const source_locationt &location)
+{
+  code_blockt assignments;
+  bool new_item_is_primitive = element.type().id() != ID_pointer;
+
+  // Use a temporary to initialise a new, or update an existing, non-primitive.
+  // This makes it clearer that in a sequence like
+  // `new_array_item->x = y; new_array_item->z = w;` that all the
+  // `new_array_item` references must alias, cf. the harder-to-analyse
+  // `some_expr[idx]->x = y; some_expr[idx]->z = w;`
+  exprt init_expr;
+  if(new_item_is_primitive)
+  {
+    init_expr = element;
+  }
+  else
+  {
+    init_expr = allocate_objects.allocate_automatic_local_object(
+      element.type(), "new_array_item");
+
+    // If we're updating an existing array item, read the existing object that
+    // we (may) alter:
+    if(update_in_place != update_in_placet::NO_UPDATE_IN_PLACE)
+      assignments.add(code_assignt(init_expr, element));
+  }
+
+  // MUST_UPDATE_IN_PLACE only applies to this object.
+  // If this is a pointer to another object, offer the chance
+  // to leave it alone by setting MAY_UPDATE_IN_PLACE instead.
+  update_in_placet child_update_in_place =
+    update_in_place == update_in_placet::MUST_UPDATE_IN_PLACE
+      ? update_in_placet::MAY_UPDATE_IN_PLACE
+      : update_in_place;
+  gen_nondet_init(
+    assignments,
+    init_expr,
+    false, // is_sub
+    false, // skip_classid
+    // These are variable in number, so use dynamic allocator:
+    lifetimet::DYNAMIC,
+    element_type, // override
+    depth,
+    child_update_in_place,
+    location);
+
+  if(!new_item_is_primitive)
+  {
+    // We used a temporary variable to update or initialise an array item;
+    // now write it into the array:
+    assignments.add(code_assignt(element, init_expr));
+  }
+  return assignments;
 }
 
 /// Create code to nondeterministically initialize each element of an array in a
@@ -1283,129 +1305,99 @@ void java_object_factoryt::array_primitive_init_code(
 /// \param length_expr : array length
 /// \param element_type: type of array elements
 /// \param max_length_expr : max length, as specified by max-nondet-array-length
-/// \param depth: Number of times that a pointer has been dereferenced from the
-///   root of the object tree that we are initializing.
 /// \param update_in_place:
 ///   NO_UPDATE_IN_PLACE: initialize `expr` from scratch
 ///   MAY_UPDATE_IN_PLACE: generate a runtime nondet branch between the NO_
 ///   and MUST_ cases.
 ///   MUST_UPDATE_IN_PLACE: reinitialize an existing object
 /// \param location: Source location associated with nondet-initialization.
-void java_object_factoryt::array_loop_init_code(
+/// \param element_generator:
+///   A function for generating the body of the loop which creates and assigns
+///   the element at the position.
+/// \param allocate_local_symbol:
+///   A function to generate a new local symbol and add it to the symbol table
+/// \param symbol_table:
+///   The symbol table.
+static void array_loop_init_code(
   code_blockt &assignments,
   const exprt &init_array_expr,
   const exprt &length_expr,
   const typet &element_type,
   const exprt &max_length_expr,
-  size_t depth,
   update_in_placet update_in_place,
-  const source_locationt &location)
+  const source_locationt &location,
+  const array_element_generatort &element_generator,
+  const allocate_local_symbolt &allocate_local_symbol,
+  const symbol_tablet &symbol_table)
 {
   const symbol_exprt &array_init_symexpr =
-    allocate_objects.allocate_automatic_local_object(
-      init_array_expr.type(), "array_data_init");
+    allocate_local_symbol(init_array_expr.type(), "array_data_init");
 
   code_assignt data_assign(array_init_symexpr, init_array_expr);
-  data_assign.add_source_location()=loc;
+  data_assign.add_source_location() = location;
   assignments.add(data_assign);
 
   const symbol_exprt &counter_expr =
-    allocate_objects.allocate_automatic_local_object(
-      length_expr.type(), "array_init_iter");
+    allocate_local_symbol(length_expr.type(), "array_init_iter");
 
-  const symbolt &counter =
-    symbol_table.lookup_ref(counter_expr.get_identifier());
-
-  exprt java_zero=from_integer(0, java_int_type());
-  assignments.add(code_assignt(counter_expr, java_zero));
-
-  std::string head_name = id2string(counter.base_name) + "_header";
-  code_labelt init_head_label(head_name, code_skipt());
-  code_gotot goto_head(head_name);
-
-  assignments.add(std::move(init_head_label));
-
-  std::string done_name = id2string(counter.base_name) + "_done";
-  code_labelt init_done_label(done_name, code_skipt());
-  code_gotot goto_done(done_name);
-
-  code_ifthenelset done_test(equal_exprt(counter_expr, length_expr), goto_done);
-
-  assignments.add(std::move(done_test));
-
-  if(update_in_place!=update_in_placet::MUST_UPDATE_IN_PLACE)
+  code_blockt loop_body;
+  if(update_in_place != update_in_placet::MUST_UPDATE_IN_PLACE)
   {
     // Add a redundant if(counter == max_length) break
     // that is easier for the unwinder to understand.
     code_ifthenelset max_test(
-      equal_exprt(counter_expr, max_length_expr), std::move(goto_done));
+      equal_exprt(counter_expr, max_length_expr), code_breakt{});
 
-    assignments.add(std::move(max_test));
+    loop_body.add(std::move(max_test));
   }
 
-  const dereference_exprt arraycellref(
-    plus_exprt(array_init_symexpr, counter_expr, array_init_symexpr.type()),
-    array_init_symexpr.type().subtype());
+  const dereference_exprt element_at_counter =
+    array_element_from_pointer(array_init_symexpr, counter_expr);
 
-  // MUST_UPDATE_IN_PLACE only applies to this object.
-  // If this is a pointer to another object, offer the chance
-  // to leave it alone by setting MAY_UPDATE_IN_PLACE instead.
-  update_in_placet child_update_in_place=
-    update_in_place==update_in_placet::MUST_UPDATE_IN_PLACE ?
-    update_in_placet::MAY_UPDATE_IN_PLACE :
-    update_in_place;
-  gen_nondet_init(
-    assignments,
-    arraycellref,
-    false,      // is_sub
-    irep_idt(), // class_identifier
-    false,      // skip_classid
-    // These are variable in number, so use dynamic allocator:
-    lifetimet::DYNAMIC,
-    element_type, // override
-    depth,
-    child_update_in_place,
-    location);
+  loop_body.append(element_generator(element_at_counter, element_type));
 
-  exprt java_one=from_integer(1, java_int_type());
-  code_assignt incr(counter_expr, plus_exprt(counter_expr, java_one));
-
-  assignments.add(std::move(incr));
-  assignments.add(std::move(goto_head));
-  assignments.add(std::move(init_done_label));
+  assignments.add(code_fort::from_index_bounds(
+    from_integer(0, java_int_type()),
+    length_expr,
+    counter_expr,
+    std::move(loop_body),
+    location));
 }
 
-/// Create code to initialize a Java array whose size will be at most
-/// `max_nondet_array_length`. The code is emitted to \p assignments does as
-/// follows:
-/// 1. non-deterministically choose a length for the array
-/// 2. assume that such length is >=0 and <= max_length
-/// 3. loop through all elements of the array and initialize them
-void java_object_factoryt::gen_nondet_array_init(
-  code_blockt &assignments,
+code_blockt gen_nondet_array_init(
   const exprt &expr,
-  size_t depth,
   update_in_placet update_in_place,
-  const source_locationt &location)
+  const source_locationt &location,
+  const array_element_generatort &element_generator,
+  const allocate_local_symbolt &allocate_local_symbol,
+  const symbol_tablet &symbol_table,
+  const size_t max_nondet_array_length)
 {
   PRECONDITION(expr.type().id() == ID_pointer);
   PRECONDITION(expr.type().subtype().id() == ID_struct_tag);
   PRECONDITION(update_in_place != update_in_placet::MAY_UPDATE_IN_PLACE);
 
+  code_blockt statements;
+
+  const namespacet ns(symbol_table);
   const typet &type = ns.follow(expr.type().subtype());
   const struct_typet &struct_type = to_struct_type(type);
   const typet &element_type =
     static_cast<const typet &>(expr.type().subtype().find(ID_element_type));
 
-  auto max_length_expr = from_integer(
-    object_factory_parameters.max_nondet_array_length, java_int_type());
+  auto max_length_expr = from_integer(max_nondet_array_length, java_int_type());
 
   // In NO_UPDATE_IN_PLACE mode we allocate a new array and recursively
   // initialize its elements
   if(update_in_place == update_in_placet::NO_UPDATE_IN_PLACE)
   {
     allocate_nondet_length_array(
-      assignments, expr, max_length_expr, element_type, location);
+      statements,
+      expr,
+      max_length_expr,
+      element_type,
+      allocate_local_symbol,
+      location);
   }
 
   // Otherwise we're updating the array in place, and use the
@@ -1415,7 +1407,7 @@ void java_object_factoryt::gen_nondet_array_init(
     is_valid_java_array(struct_type),
     "Java struct array does not conform to expectations");
 
-  dereference_exprt deref_expr(expr, expr.type().subtype());
+  dereference_exprt deref_expr(expr);
   const auto &comps = struct_type.components();
   const member_exprt length_expr(deref_expr, "length", comps[1].type());
   exprt init_array_expr = member_exprt(deref_expr, "data", comps[2].type());
@@ -1426,31 +1418,35 @@ void java_object_factoryt::gen_nondet_array_init(
 
   if(element_type.id() == ID_pointer || element_type.id() == ID_c_bool)
   {
-    // For arrays of non-primitive types, nondeterministically initialize each
+    // For arrays of non-primitive type, nondeterministically initialize each
     // element of the array
     array_loop_init_code(
-      assignments,
+      statements,
       init_array_expr,
       length_expr,
       element_type,
       max_length_expr,
-      depth,
       update_in_place,
-      location);
+      location,
+      element_generator,
+      allocate_local_symbol,
+      symbol_table);
   }
   else
   {
-    // Arrays of primitive types can be initialized with a single instruction
-    // We don't do this for arrays of Booleans, because Bools are represented
-    // as bytes, so each cell must be initialized in a particular way (see
-    // gen_nondet_init).
+    // Arrays of primitive type can be initialized with a single instruction.
+    // We don't do this for arrays of primitive booleans, because booleans are
+    // represented as unsigned bytes, so each cell must be initialized as
+    // 0 or 1 (see gen_nondet_init).
     array_primitive_init_code(
-      assignments,
+      statements,
       init_array_expr,
       element_type,
       max_length_expr,
-      location);
+      location,
+      allocate_local_symbol);
   }
+  return statements;
 }
 
 /// We nondet-initialize enums to be equal to one of the constants defined
@@ -1458,9 +1454,15 @@ void java_object_factoryt::gen_nondet_array_init(
 ///     int i = nondet(int);
 ///     assume(0 < = i < $VALUES.length);
 ///     expr = $VALUES[i];
-/// where $VALUES is a variable generated by the Java compiler that stores
-/// the array that is returned by Enum.values().
-void java_object_factoryt::gen_nondet_enum_init(
+/// where $VALUES is a variable generated by the Java compiler and which gives
+/// the possible values of a particular enum subtype (this is the same array
+/// that is returned by Enum.values()).
+/// This may fail if the $VALUES static field is not present. Ensuring that
+/// field is in the symbol table when this method may be applicable is the
+/// driver program's responsibility: for example, \ref ci_lazy_methods.cpp makes
+/// some effort to retain this field when a stub method might refer to it.
+/// \return true on success
+bool java_object_factoryt::gen_nondet_enum_init(
   code_blockt &assignments,
   const exprt &expr,
   const java_class_typet &java_class_type,
@@ -1468,10 +1470,16 @@ void java_object_factoryt::gen_nondet_enum_init(
 {
   const irep_idt &class_name = java_class_type.get_name();
   const irep_idt values_name = id2string(class_name) + ".$VALUES";
-  INVARIANT(
-    ns.get_symbol_table().has_symbol(values_name),
-    "The $VALUES array (populated by clinit_wrapper) should be in the "
-    "symbol table");
+  if(!symbol_table.has_symbol(values_name))
+  {
+    log.warning() << values_name
+                  << " is missing, so the corresponding Enum "
+                     "type will nondet initialised"
+                  << messaget::eom;
+    return false;
+  }
+
+  const namespacet ns(symbol_table);
   const symbolt &values = ns.lookup(values_name);
 
   // Access members (length and data) of $VALUES array
@@ -1483,19 +1491,36 @@ void java_object_factoryt::gen_nondet_enum_init(
   const member_exprt enum_array_expr =
     member_exprt(deref_expr, "data", comps[2].type());
 
-  const symbol_exprt &index_expr = gen_nondet_int_init(
-    assignments,
-    "enum_index_init",
+  const symbol_exprt &index_expr = generate_nondet_int(
     from_integer(0, java_int_type()),
     minus_exprt(length_expr, from_integer(1, java_int_type())),
-    location);
+    "enum_index_init",
+    location,
+    allocate_objects,
+    assignments);
 
-  // Generate statement using pointer arithmetic to access array element:
-  // expr = (expr.type())*(enum_array_expr + index_expr);
-  plus_exprt plus(enum_array_expr, index_expr);
-  const dereference_exprt arraycellref(plus);
-  code_assignt enum_assign(expr, typecast_exprt(arraycellref, expr.type()));
+  const dereference_exprt element_at_index =
+    array_element_from_pointer(enum_array_expr, index_expr);
+  code_assignt enum_assign(expr, typecast_exprt(element_at_index, expr.type()));
   assignments.add(enum_assign);
+
+  return true;
+}
+
+static void assert_type_consistency(const code_blockt &assignments)
+{
+  // In future we'll be able to use codet::validate for this;
+  // at present that only verifies `lhs.type base_type_eq right.type`,
+  // whereas we want to check exact equality.
+  for(const auto &code : assignments.statements())
+  {
+    if(code.get_statement() != ID_assign)
+      continue;
+    const auto &assignment = to_code_assign(code);
+    INVARIANT(
+      assignment.lhs().type() == assignment.rhs().type(),
+      "object factory should produce type-consistent assignments");
+  }
 }
 
 /// Similar to `gen_nondet_init` below, but instead of allocating and
@@ -1517,7 +1542,8 @@ exprt object_factory(
   java_object_factory_parameterst parameters,
   lifetimet lifetime,
   const source_locationt &loc,
-  const select_pointer_typet &pointer_type_selector)
+  const select_pointer_typet &pointer_type_selector,
+  message_handlert &log)
 {
   irep_idt identifier=id2string(goto_functionst::entry_point())+
     "::"+id2string(base_name);
@@ -1538,16 +1564,12 @@ exprt object_factory(
   CHECK_RETURN(!moving_symbol_failed);
 
   java_object_factoryt state(
-    loc,
-    parameters,
-    symbol_table,
-    pointer_type_selector);
+    loc, parameters, symbol_table, pointer_type_selector, log);
   code_blockt assignments;
   state.gen_nondet_init(
     assignments,
     object,
     false, // is_sub
-    "",    // class_identifier
     false, // skip_classid
     lifetime,
     {}, // no override_type
@@ -1558,6 +1580,7 @@ exprt object_factory(
   state.add_created_symbol(main_symbol_ptr);
   state.declare_created_symbols(init_code);
 
+  assert_type_consistency(assignments);
   init_code.append(assignments);
   return object;
 }
@@ -1593,6 +1616,7 @@ exprt object_factory(
 ///   MAY_UPDATE_IN_PLACE: generate a runtime nondet branch between the NO_
 ///   and MUST_ cases.
 ///   MUST_UPDATE_IN_PLACE: reinitialize an existing object
+/// \param log: used to report object construction warnings and failures
 /// \return `init_code` gets an instruction sequence to initialize or
 ///   reinitialize `expr` and child objects it refers to. `symbol_table` is
 ///   modified with any new symbols created. This includes any necessary
@@ -1606,19 +1630,16 @@ void gen_nondet_init(
   lifetimet lifetime,
   const java_object_factory_parameterst &object_factory_parameters,
   const select_pointer_typet &pointer_type_selector,
-  update_in_placet update_in_place)
+  update_in_placet update_in_place,
+  message_handlert &log)
 {
   java_object_factoryt state(
-    loc,
-    object_factory_parameters,
-    symbol_table,
-    pointer_type_selector);
+    loc, object_factory_parameters, symbol_table, pointer_type_selector, log);
   code_blockt assignments;
   state.gen_nondet_init(
     assignments,
     expr,
     false, // is_sub
-    "",    // class_identifier
     skip_classid,
     lifetime,
     {}, // no override_type
@@ -1628,6 +1649,7 @@ void gen_nondet_init(
 
   state.declare_created_symbols(init_code);
 
+  assert_type_consistency(assignments);
   init_code.append(assignments);
 }
 
@@ -1639,7 +1661,8 @@ exprt object_factory(
   symbol_tablet &symbol_table,
   const java_object_factory_parameterst &object_factory_parameters,
   lifetimet lifetime,
-  const source_locationt &location)
+  const source_locationt &location,
+  message_handlert &log)
 {
   select_pointer_typet pointer_type_selector;
   return object_factory(
@@ -1650,7 +1673,8 @@ exprt object_factory(
     object_factory_parameters,
     lifetime,
     location,
-    pointer_type_selector);
+    pointer_type_selector,
+    log);
 }
 
 /// Call gen_nondet_init() above with a default (identity) pointer_type_selector
@@ -1662,7 +1686,8 @@ void gen_nondet_init(
   bool skip_classid,
   lifetimet lifetime,
   const java_object_factory_parameterst &object_factory_parameters,
-  update_in_placet update_in_place)
+  update_in_placet update_in_place,
+  message_handlert &log)
 {
   select_pointer_typet pointer_type_selector;
   gen_nondet_init(
@@ -1674,26 +1699,6 @@ void gen_nondet_init(
     lifetime,
     object_factory_parameters,
     pointer_type_selector,
-    update_in_place);
-}
-
-/// Adds a call for the given method to the end of `assignments` if the method
-/// exists in the symbol table. Does nothing if the method does not exist.
-/// \param assignments: A code block that the method call will be appended to.
-/// \param instance_expr: The instance to call the method on. This argument is
-///   ignored if the method is static.
-/// \param method_name: The name of the method to be called.
-void java_object_factoryt::gen_method_call_if_present(
-  code_blockt &assignments,
-  const exprt &instance_expr,
-  const irep_idt &method_name)
-{
-  if(const auto func = symbol_table.lookup(method_name))
-  {
-    const java_method_typet &type = to_java_method_type(func->type);
-    code_function_callt fun_call(func->symbol_expr());
-    if(type.has_this())
-      fun_call.arguments().push_back(address_of_exprt(instance_expr));
-    assignments.add(fun_call);
-  }
+    update_in_place,
+    log);
 }

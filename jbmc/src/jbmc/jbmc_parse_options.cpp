@@ -19,33 +19,38 @@ Author: Daniel Kroening, kroening@kroening.com
 #include <util/config.h>
 #include <util/exit_codes.h>
 #include <util/invariant.h>
+#include <util/make_unique.h>
 #include <util/unicode.h>
-#include <util/xml.h>
 #include <util/version.h>
+#include <util/xml.h>
 
 #include <langapi/language.h>
 
 #include <ansi-c/ansi_c_language.h>
 
+#include <goto-checker/all_properties_verifier.h>
+#include <goto-checker/all_properties_verifier_with_fault_localization.h>
+#include <goto-checker/all_properties_verifier_with_trace_storage.h>
+#include <goto-checker/stop_on_fail_verifier.h>
+#include <goto-checker/stop_on_fail_verifier_with_fault_localization.h>
+
 #include <goto-programs/adjust_float_expressions.h>
-#include <goto-programs/lazy_goto_model.h>
-#include <goto-programs/instrument_preconditions.h>
 #include <goto-programs/goto_convert_functions.h>
 #include <goto-programs/goto_inline.h>
+#include <goto-programs/instrument_preconditions.h>
 #include <goto-programs/loop_ids.h>
-#include <goto-programs/remove_virtual_functions.h>
 #include <goto-programs/remove_returns.h>
-#include <goto-programs/remove_asm.h>
-#include <goto-programs/remove_unused_functions.h>
 #include <goto-programs/remove_skip.h>
+#include <goto-programs/remove_unused_functions.h>
+#include <goto-programs/remove_virtual_functions.h>
 #include <goto-programs/set_properties.h>
 #include <goto-programs/show_goto_functions.h>
-#include <goto-programs/show_symbol_table.h>
 #include <goto-programs/show_properties.h>
+#include <goto-programs/show_symbol_table.h>
 
 #include <goto-instrument/full_slicer.h>
-#include <goto-instrument/reachability_slicer.h>
 #include <goto-instrument/nondet_static.h>
+#include <goto-instrument/reachability_slicer.h>
 
 #include <goto-symex/path_storage.h>
 
@@ -55,11 +60,14 @@ Author: Daniel Kroening, kroening@kroening.com
 
 #include <langapi/mode.h>
 
-#include <cbmc/bmc.h> // will go away
-
 #include <java_bytecode/convert_java_nondet.h>
 #include <java_bytecode/java_bytecode_language.h>
 #include <java_bytecode/java_enum_static_init_unwind_handler.h>
+#include <java_bytecode/java_multi_path_symex_checker.h>
+#include <java_bytecode/java_multi_path_symex_only_checker.h>
+#include <java_bytecode/java_single_path_symex_checker.h>
+#include <java_bytecode/java_single_path_symex_only_checker.h>
+#include <java_bytecode/lazy_goto_model.h>
 #include <java_bytecode/remove_exceptions.h>
 #include <java_bytecode/remove_instanceof.h>
 #include <java_bytecode/remove_java_new.h>
@@ -67,20 +75,28 @@ Author: Daniel Kroening, kroening@kroening.com
 #include <java_bytecode/simple_method_stubbing.h>
 
 jbmc_parse_optionst::jbmc_parse_optionst(int argc, const char **argv)
-  : parse_options_baset(JBMC_OPTIONS, argc, argv),
-    messaget(ui_message_handler),
-    ui_message_handler(cmdline, std::string("JBMC ") + CBMC_VERSION)
+  : parse_options_baset(
+      JBMC_OPTIONS,
+      argc,
+      argv,
+      std::string("JBMC ") + CBMC_VERSION)
 {
+  json_interface(cmdline, ui_message_handler);
+  xml_interface(cmdline, ui_message_handler);
 }
 
 ::jbmc_parse_optionst::jbmc_parse_optionst(
   int argc,
   const char **argv,
   const std::string &extra_options)
-  : parse_options_baset(JBMC_OPTIONS + extra_options, argc, argv),
-    messaget(ui_message_handler),
-    ui_message_handler(cmdline, std::string("JBMC ") + CBMC_VERSION)
+  : parse_options_baset(
+      JBMC_OPTIONS + extra_options,
+      argc,
+      argv,
+      std::string("JBMC ") + CBMC_VERSION)
 {
+  json_interface(cmdline, ui_message_handler);
+  xml_interface(cmdline, ui_message_handler);
 }
 
 void jbmc_parse_optionst::set_default_options(optionst &options)
@@ -94,8 +110,10 @@ void jbmc_parse_optionst::set_default_options(optionst &options)
   options.set_option("propagation", true);
   options.set_option("refine-strings", true);
   options.set_option("sat-preprocessor", true);
+  options.set_option("simple-slice", true);
   options.set_option("simplify", true);
   options.set_option("simplify-if", true);
+  options.set_option("show-goto-symex-steps", false);
 
   // Other default
   options.set_option("arrays-uf", "auto");
@@ -117,9 +135,28 @@ void jbmc_parse_optionst::get_command_line_options(optionst &options)
   parse_java_language_options(cmdline, options);
   parse_java_object_factory_options(cmdline, options);
 
+  if(cmdline.isset("max-field-sensitivity-array-size"))
+  {
+    options.set_option(
+      "max-field-sensitivity-array-size",
+      cmdline.get_value("max-field-sensitivity-array-size"));
+  }
+
+  if(cmdline.isset("no-array-field-sensitivity"))
+  {
+    if(cmdline.isset("max-field-sensitivity-array-size"))
+    {
+      log.error()
+        << "--no-array-field-sensitivity and --max-field-sensitivity-array-size"
+        << " must not be given together" << messaget::eom;
+      exit(CPROVER_EXIT_USAGE_ERROR);
+    }
+    options.set_option("no-array-field-sensitivity", true);
+  }
+
   if(cmdline.isset("show-symex-strategies"))
   {
-    status() << show_path_strategies() << eom;
+    log.status() << show_path_strategies() << messaget::eom;
     exit(CPROVER_EXIT_SUCCESS);
   }
 
@@ -143,17 +180,34 @@ void jbmc_parse_optionst::get_command_line_options(optionst &options)
     options.set_option("stop-on-fail", true);
 
   if(
-    cmdline.isset("trace") || cmdline.isset("stack-trace") ||
-    cmdline.isset("stop-on-fail"))
+    cmdline.isset("trace") || cmdline.isset("compact-trace") ||
+    cmdline.isset("stack-trace") || cmdline.isset("stop-on-fail") ||
+    (ui_message_handler.get_ui() != ui_message_handlert::uit::PLAIN &&
+     !cmdline.isset("cover")))
+  {
     options.set_option("trace", true);
+  }
+
+  if(cmdline.isset("validate-trace"))
+  {
+    options.set_option("validate-trace", true);
+    options.set_option("trace", true);
+  }
 
   if(cmdline.isset("localize-faults"))
     options.set_option("localize-faults", true);
-  if(cmdline.isset("localize-faults-method"))
+
+  if(cmdline.isset("symex-complexity-limit"))
   {
     options.set_option(
-      "localize-faults-method",
-      cmdline.get_value("localize-faults-method"));
+      "symex-complexity-limit", cmdline.get_value("symex-complexity-limit"));
+  }
+
+  if(cmdline.isset("symex-complexity-failed-child-loops-limit"))
+  {
+    options.set_option(
+      "symex-complexity-failed-child-loops-limit",
+      cmdline.get_value("symex-complexity-failed-child-loops-limit"));
   }
 
   if(cmdline.isset("unwind"))
@@ -164,9 +218,6 @@ void jbmc_parse_optionst::get_command_line_options(optionst &options)
 
   if(cmdline.isset("debug-level"))
     options.set_option("debug-level", cmdline.get_value("debug-level"));
-
-  if(cmdline.isset("slice-by-trace"))
-    options.set_option("slice-by-trace", cmdline.get_value("slice-by-trace"));
 
   if(cmdline.isset("unwindset"))
     options.set_option("unwindset", cmdline.get_value("unwindset"));
@@ -207,8 +258,8 @@ void jbmc_parse_optionst::get_command_line_options(optionst &options)
   if(options.get_bool_option("partial-loops") &&
      options.get_bool_option("unwinding-assertions"))
   {
-    error() << "--partial-loops and --unwinding-assertions "
-            << "must not be given together" << eom;
+    log.error() << "--partial-loops and --unwinding-assertions "
+                << "must not be given together" << messaget::eom;
     exit(1); // should contemplate EX_USAGE from sysexits.h
   }
 
@@ -251,34 +302,27 @@ void jbmc_parse_optionst::get_command_line_options(optionst &options)
   if(cmdline.isset("no-refine-strings"))
     options.set_option("refine-strings", false);
 
-  if(cmdline.isset("string-printable"))
+  if(cmdline.isset("string-printable") && cmdline.isset("no-refine-strings"))
   {
-    if(cmdline.isset("no-refine-strings"))
-    {
-      warning() << "--string-printable ignored due to --no-refine-strings"
-                << eom;
-    }
-    options.set_option("string-printable", true);
+    throw invalid_command_line_argument_exceptiont(
+      "cannot use --string-printable with --no-refine-strings",
+      "--string-printable");
   }
 
-  if(cmdline.isset("string-input-value"))
+  if(cmdline.isset("string-input-value") && cmdline.isset("no-refine-strings"))
   {
-    if(cmdline.isset("no-refine-strings"))
-    {
-      warning() << "--string-input-value ignored due to --no-refine-strings"
-                << eom;
-    }
-    options.set_option(
-      "string-input-value",
-      cmdline.get_values("string-input-value"));
+    throw invalid_command_line_argument_exceptiont(
+      "cannot use --string-input-value with --no-refine-strings",
+      "--string-input-value");
   }
 
   if(
     cmdline.isset("no-refine-strings") &&
     cmdline.isset("max-nondet-string-length"))
   {
-    warning() << "--max-nondet-string-length ignored due to "
-              << "--no-refine-strings" << eom;
+    throw invalid_command_line_argument_exceptiont(
+      "cannot use --max-nondet-string-length with --no-refine-strings",
+      "--max-nondet-string-length");
   }
 
   if(cmdline.isset("max-node-refinement"))
@@ -290,7 +334,7 @@ void jbmc_parse_optionst::get_command_line_options(optionst &options)
 
   if(cmdline.isset("smt1"))
   {
-    error() << "--smt1 is no longer supported" << eom;
+    log.error() << "--smt1 is no longer supported" << messaget::eom;
     exit(CPROVER_EXIT_USAGE_ERROR);
   }
 
@@ -410,6 +454,9 @@ void jbmc_parse_optionst::get_command_line_options(optionst &options)
   // code.
   if(cmdline.isset("java-threading"))
     options.set_option("allow-pointer-unsoundness", true);
+
+  if(cmdline.isset("show-goto-symex-steps"))
+    options.set_option("show-goto-symex-steps", true);
 }
 
 /// invoke main modules
@@ -418,10 +465,10 @@ int jbmc_parse_optionst::doit()
   if(cmdline.isset("version"))
   {
     std::cout << CBMC_VERSION << '\n';
-    return 0; // should contemplate EX_OK from sysexits.h
+    return CPROVER_EXIT_SUCCESS;
   }
 
-  eval_verbosity(
+  messaget::eval_verbosity(
     cmdline.get_value("verbosity"), messaget::M_STATISTICS, ui_message_handler);
 
   //
@@ -429,116 +476,88 @@ int jbmc_parse_optionst::doit()
   //
 
   optionst options;
-  try
-  {
-    get_command_line_options(options);
-  }
-
-  catch(const char *error_msg)
-  {
-    error() << error_msg << eom;
-    return 6; // should contemplate EX_SOFTWARE from sysexits.h
-  }
-
-  catch(const std::string &error_msg)
-  {
-    error() << error_msg << eom;
-    return 6; // should contemplate EX_SOFTWARE from sysexits.h
-  }
+  get_command_line_options(options);
 
   //
   // Print a banner
   //
-  status() << "JBMC version " << CBMC_VERSION << " " << sizeof(void *) * 8
-           << "-bit " << config.this_architecture() << " "
-           << config.this_operating_system() << eom;
+  log.status() << "JBMC version " << CBMC_VERSION << " " << sizeof(void *) * 8
+               << "-bit " << config.this_architecture() << " "
+               << config.this_operating_system() << messaget::eom;
 
   // output the options
   switch(ui_message_handler.get_ui())
   {
     case ui_message_handlert::uit::PLAIN:
-      conditional_output(debug(), [&options](messaget::mstreamt &debug_stream) {
-        debug_stream << "\nOptions: \n";
-        options.output(debug_stream);
-        debug_stream << messaget::eom;
-      });
+      log.conditional_output(
+        log.debug(), [&options](messaget::mstreamt &debug_stream) {
+          debug_stream << "\nOptions: \n";
+          options.output(debug_stream);
+          debug_stream << messaget::eom;
+        });
       break;
     case ui_message_handlert::uit::JSON_UI:
     {
-      json_objectt json_options({{"options", options.to_json()}});
-      debug() << json_options;
+      json_objectt json_options{{"options", options.to_json()}};
+      log.debug() << json_options;
       break;
     }
     case ui_message_handlert::uit::XML_UI:
-      debug() << options.to_xml();
+      log.debug() << options.to_xml();
       break;
   }
 
   register_language(new_ansi_c_language);
   register_language(new_java_bytecode_language);
 
+  if(!((cmdline.isset("jar") && cmdline.args.empty()) ||
+       (cmdline.isset("gb") && cmdline.args.empty()) ||
+       (!cmdline.isset("jar") && !cmdline.isset("gb") &&
+        (cmdline.args.size() == 1))))
+  {
+    log.error() << "Please give exactly one class name, "
+                << "and/or use -jar jarfile or --gb goto-binary"
+                << messaget::eom;
+    return CPROVER_EXIT_USAGE_ERROR;
+  }
+
+  if((cmdline.args.size() == 1) && !cmdline.isset("show-parse-tree"))
+  {
+    std::string main_class = cmdline.args[0];
+    // `java` accepts slashes and dots as package separators
+    std::replace(main_class.begin(), main_class.end(), '/', '.');
+    config.java.main_class = main_class;
+    cmdline.args.pop_back();
+  }
+
+  if(cmdline.isset("jar"))
+  {
+    cmdline.args.push_back(cmdline.get_value("jar"));
+  }
+
+  if(cmdline.isset("gb"))
+  {
+    cmdline.args.push_back(cmdline.get_value("gb"));
+  }
+
+  // Shows the parse tree of the main class
   if(cmdline.isset("show-parse-tree"))
   {
-    if(cmdline.args.size()!=1)
-    {
-      error() << "Please give exactly one source file" << eom;
-      return 6;
-    }
-
-    std::string filename=cmdline.args[0];
-
-    #ifdef _MSC_VER
-    std::ifstream infile(widen(filename));
-    #else
-    std::ifstream infile(filename);
-    #endif
-
-    if(!infile)
-    {
-      error() << "failed to open input file `"
-              << filename << "'" << eom;
-      return 6;
-    }
-
-    std::unique_ptr<languaget> language=
-      get_language_from_filename(filename);
-
-    if(language==nullptr)
-    {
-      error() << "failed to figure out type of file `"
-              <<  filename << "'" << eom;
-      return 6;
-    }
-
+    std::unique_ptr<languaget> language = get_language_from_mode(ID_java);
+    CHECK_RETURN(language != nullptr);
     language->set_language_options(options);
-    language->set_message_handler(get_message_handler());
+    language->set_message_handler(ui_message_handler);
 
-    status() << "Parsing " << filename << eom;
+    log.status() << "Parsing ..." << messaget::eom;
 
-    if(language->parse(infile, filename))
+    if(static_cast<java_bytecode_languaget *>(language.get())->parse())
     {
-      error() << "PARSING ERROR" << eom;
-      return 6;
+      log.error() << "PARSING ERROR" << messaget::eom;
+      return CPROVER_EXIT_PARSE_ERROR;
     }
 
     language->show_parse(std::cout);
-    return 0;
-  }
-
-  std::function<void(bmct &, const symbol_tablet &)> configure_bmc = nullptr;
-  if(options.get_bool_option("java-unwind-enum-static"))
-  {
-    configure_bmc = [](bmct &bmc, const symbol_tablet &symbol_table) {
-      bmc.add_loop_unwind_handler(
-        [&symbol_table](
-          const goto_symex_statet::call_stackt &context,
-          unsigned loop_number,
-          unsigned unwind,
-          unsigned &max_unwind) {
-          return java_enum_static_init_unwind_handler(
-            context, loop_number, unwind, max_unwind, symbol_table);
-        });
-    };
+    return CPROVER_EXIT_SUCCESS;
   }
 
   object_factory_params.set(options);
@@ -546,211 +565,199 @@ int jbmc_parse_optionst::doit()
   stub_objects_are_not_null =
     options.get_bool_option("java-assume-inputs-non-null");
 
-  if(!cmdline.isset("symex-driven-lazy-loading"))
+  std::unique_ptr<abstract_goto_modelt> goto_model_ptr;
+  int get_goto_program_ret = get_goto_program(goto_model_ptr, options);
+  if(get_goto_program_ret != -1)
+    return get_goto_program_ret;
+
+  if(
+    options.get_bool_option("program-only") ||
+    options.get_bool_option("show-vcc") ||
+    (options.get_bool_option("symex-driven-lazy-loading") &&
+     (cmdline.isset("show-symbol-table") || cmdline.isset("list-symbols") ||
+      cmdline.isset("show-goto-functions") ||
+      cmdline.isset("list-goto-functions") ||
+      cmdline.isset("show-properties") || cmdline.isset("show-loops"))))
   {
-    std::unique_ptr<goto_modelt> goto_model_ptr;
-    int get_goto_program_ret=get_goto_program(goto_model_ptr, options);
-    if(get_goto_program_ret!=-1)
-      return get_goto_program_ret;
-
-    goto_modelt &goto_model = *goto_model_ptr;
-
-    if(cmdline.isset("show-properties"))
+    if(options.get_bool_option("paths"))
     {
-      show_properties(
-        goto_model, get_message_handler(), ui_message_handler.get_ui());
-      return 0; // should contemplate EX_OK from sysexits.h
+      all_properties_verifiert<java_single_path_symex_only_checkert> verifier(
+        options, ui_message_handler, *goto_model_ptr);
+      (void)verifier();
+    }
+    else
+    {
+      all_properties_verifiert<java_multi_path_symex_only_checkert> verifier(
+        options, ui_message_handler, *goto_model_ptr);
+      (void)verifier();
     }
 
-    if(set_properties(goto_model))
-      return 7; // should contemplate EX_USAGE from sysexits.h
-
-    if(cmdline.isset("validate-goto-model"))
+    if(options.get_bool_option("symex-driven-lazy-loading"))
     {
-      goto_model.validate(validation_modet::INVARIANT);
+      // We can only output these after goto-symex has run.
+      (void)show_loaded_symbols(*goto_model_ptr);
+      (void)show_loaded_functions(*goto_model_ptr);
     }
 
-    // The `configure_bmc` callback passed will enable enum-unwind-static if
-    // applicable.
-    return bmct::do_language_agnostic_bmc(
-      options,
-      goto_model,
-      ui_message_handler,
-      configure_bmc);
+    return CPROVER_EXIT_SUCCESS;
+  }
+
+  if(
+    options.get_bool_option("dimacs") || !options.get_option("outfile").empty())
+  {
+    if(options.get_bool_option("paths"))
+    {
+      stop_on_fail_verifiert<java_single_path_symex_checkert> verifier(
+        options, ui_message_handler, *goto_model_ptr);
+      (void)verifier();
+    }
+    else
+    {
+      stop_on_fail_verifiert<java_multi_path_symex_checkert> verifier(
+        options, ui_message_handler, *goto_model_ptr);
+      (void)verifier();
+    }
+
+    return CPROVER_EXIT_SUCCESS;
+  }
+
+  std::unique_ptr<goto_verifiert> verifier = nullptr;
+
+  if(
+    options.get_bool_option("stop-on-fail") && options.get_bool_option("paths"))
+  {
+    verifier =
+      util_make_unique<stop_on_fail_verifiert<java_single_path_symex_checkert>>(
+        options, ui_message_handler, *goto_model_ptr);
+  }
+  else if(
+    options.get_bool_option("stop-on-fail") &&
+    !options.get_bool_option("paths"))
+  {
+    if(options.get_bool_option("localize-faults"))
+    {
+      verifier =
+        util_make_unique<stop_on_fail_verifier_with_fault_localizationt<
+          java_multi_path_symex_checkert>>(
+          options, ui_message_handler, *goto_model_ptr);
+    }
+    else
+    {
+      verifier = util_make_unique<
+        stop_on_fail_verifiert<java_multi_path_symex_checkert>>(
+        options, ui_message_handler, *goto_model_ptr);
+    }
+  }
+  else if(
+    !options.get_bool_option("stop-on-fail") &&
+    options.get_bool_option("paths"))
+  {
+    verifier = util_make_unique<all_properties_verifier_with_trace_storaget<
+      java_single_path_symex_checkert>>(
+      options, ui_message_handler, *goto_model_ptr);
+  }
+  else if(
+    !options.get_bool_option("stop-on-fail") &&
+    !options.get_bool_option("paths"))
+  {
+    if(options.get_bool_option("localize-faults"))
+    {
+      verifier =
+        util_make_unique<all_properties_verifier_with_fault_localizationt<
+          java_multi_path_symex_checkert>>(
+          options, ui_message_handler, *goto_model_ptr);
+    }
+    else
+    {
+      verifier = util_make_unique<all_properties_verifier_with_trace_storaget<
+        java_multi_path_symex_checkert>>(
+        options, ui_message_handler, *goto_model_ptr);
+    }
   }
   else
   {
-    // Use symex-driven lazy loading:
-    lazy_goto_modelt lazy_goto_model=lazy_goto_modelt::from_handler_object(
-      *this, options, get_message_handler());
-    lazy_goto_model.initialize(cmdline.args, options);
+    UNREACHABLE;
+  }
 
-    class_hierarchy =
-      util_make_unique<class_hierarchyt>(lazy_goto_model.symbol_table);
+  const resultt result = (*verifier)();
+  verifier->report();
+  return result_to_exit_code(result);
+}
 
+int jbmc_parse_optionst::get_goto_program(
+  std::unique_ptr<abstract_goto_modelt> &goto_model_ptr,
+  const optionst &options)
+{
+  if(options.is_set("context-include") || options.is_set("context-exclude"))
+    method_context = get_context(options);
+  lazy_goto_modelt lazy_goto_model =
+    lazy_goto_modelt::from_handler_object(*this, options, ui_message_handler);
+  lazy_goto_model.initialize(cmdline.args, options);
+
+  class_hierarchy =
+    util_make_unique<class_hierarchyt>(lazy_goto_model.symbol_table);
+
+  // Show the class hierarchy
+  if(cmdline.isset("show-class-hierarchy"))
+  {
+    show_class_hierarchy(*class_hierarchy, ui_message_handler);
+    return CPROVER_EXIT_SUCCESS;
+  }
+
+  // Add failed symbols for any symbol created prior to loading any
+  // particular function:
+  add_failed_symbols(lazy_goto_model.symbol_table);
+
+  if(!options.get_bool_option("symex-driven-lazy-loading"))
+  {
+    log.status() << "Generating GOTO Program" << messaget::eom;
+    lazy_goto_model.load_all_functions();
+
+    // show symbol table or list symbols
+    if(show_loaded_symbols(lazy_goto_model))
+      return CPROVER_EXIT_SUCCESS;
+
+    // Move the model out of the local lazy_goto_model
+    // and into the caller's goto_model
+    goto_model_ptr = lazy_goto_modelt::process_whole_model_and_freeze(
+      std::move(lazy_goto_model));
+    if(goto_model_ptr == nullptr)
+      return CPROVER_EXIT_INTERNAL_ERROR;
+
+    goto_modelt &goto_model = dynamic_cast<goto_modelt &>(*goto_model_ptr);
+
+    if(cmdline.isset("validate-goto-model"))
+    {
+      goto_model.validate();
+    }
+
+    if(show_loaded_functions(goto_model))
+      return CPROVER_EXIT_SUCCESS;
+
+    if(cmdline.isset("property"))
+      ::set_properties(goto_model, cmdline.get_values("property"));
+  }
+  else
+  {
     // The precise wording of this error matches goto-symex's complaint when no
     // __CPROVER_start exists (if we just go ahead and run it anyway it will
     // trip an invariant when it tries to load it)
     if(!lazy_goto_model.symbol_table.has_symbol(goto_functionst::entry_point()))
     {
-      error() << "the program has no entry point";
-      return 6;
+      log.error() << "the program has no entry point" << messaget::eom;
+      return CPROVER_EXIT_INCORRECT_TASK;
     }
-
-    // Add failed symbols for any symbol created prior to loading any
-    // particular function:
-    add_failed_symbols(lazy_goto_model.symbol_table);
 
     if(cmdline.isset("validate-goto-model"))
     {
-      lazy_goto_model.validate(validation_modet::INVARIANT);
+      lazy_goto_model.validate();
     }
 
-    // Provide show-goto-functions and similar dump functions after symex
-    // executes. If --paths is active, these dump routines run after every
-    // paths iteration. Its return value indicates that if we ran any dump
-    // function, then we should skip the actual solver phase.
-    auto callback_after_symex = [this, &lazy_goto_model]() {
-      return show_loaded_functions(lazy_goto_model);
-    };
-
-    // The `configure_bmc` callback passed will enable enum-unwind-static if
-    // applicable.
-    return bmct::do_language_agnostic_bmc(
-      options,
-      lazy_goto_model,
-      ui_message_handler,
-      configure_bmc,
-      callback_after_symex);
-  }
-}
-
-bool jbmc_parse_optionst::set_properties(goto_modelt &goto_model)
-{
-  try
-  {
-    if(cmdline.isset("property"))
-      ::set_properties(goto_model, cmdline.get_values("property"));
+    goto_model_ptr =
+      util_make_unique<lazy_goto_modelt>(std::move(lazy_goto_model));
   }
 
-  catch(const char *e)
-  {
-    error() << e << eom;
-    return true;
-  }
-
-  catch(const std::string &e)
-  {
-    error() << e << eom;
-    return true;
-  }
-
-  catch(int)
-  {
-    return true;
-  }
-
-  return false;
-}
-
-int jbmc_parse_optionst::get_goto_program(
-  std::unique_ptr<goto_modelt> &goto_model,
-  const optionst &options)
-{
-  if(cmdline.args.empty())
-  {
-    error() << "Please provide a program to verify" << eom;
-    return 6;
-  }
-
-  try
-  {
-    lazy_goto_modelt lazy_goto_model=lazy_goto_modelt::from_handler_object(
-      *this, options, get_message_handler());
-    lazy_goto_model.initialize(cmdline.args, options);
-
-    class_hierarchy =
-      util_make_unique<class_hierarchyt>(lazy_goto_model.symbol_table);
-
-    // Show the class hierarchy
-    if(cmdline.isset("show-class-hierarchy"))
-    {
-      show_class_hierarchy(*class_hierarchy, ui_message_handler);
-      return CPROVER_EXIT_SUCCESS;
-    }
-
-    // Add failed symbols for any symbol created prior to loading any
-    // particular function:
-    add_failed_symbols(lazy_goto_model.symbol_table);
-
-    status() << "Generating GOTO Program" << messaget::eom;
-    lazy_goto_model.load_all_functions();
-
-    // Show the symbol table before process_goto_functions mangles return
-    // values, etc
-    if(cmdline.isset("show-symbol-table"))
-    {
-      show_symbol_table(lazy_goto_model.symbol_table, ui_message_handler);
-      return 0;
-    }
-    else if(cmdline.isset("list-symbols"))
-    {
-      show_symbol_table_brief(lazy_goto_model.symbol_table, ui_message_handler);
-      return 0;
-    }
-
-    // Move the model out of the local lazy_goto_model
-    // and into the caller's goto_model
-    goto_model=lazy_goto_modelt::process_whole_model_and_freeze(
-      std::move(lazy_goto_model));
-    if(goto_model == nullptr)
-      return 6;
-
-    // show it?
-    if(cmdline.isset("show-loops"))
-    {
-      show_loop_ids(ui_message_handler.get_ui(), *goto_model);
-      return 0;
-    }
-
-    // show it?
-    if(
-      cmdline.isset("show-goto-functions") ||
-      cmdline.isset("list-goto-functions"))
-    {
-      show_goto_functions(
-        *goto_model,
-        get_message_handler(),
-        ui_message_handler.get_ui(),
-        cmdline.isset("list-goto-functions"));
-      return 0;
-    }
-
-    status() << config.object_bits_info() << eom;
-  }
-
-  catch(const char *e)
-  {
-    error() << e << eom;
-    return 6;
-  }
-
-  catch(const std::string &e)
-  {
-    error() << e << eom;
-    return 6;
-  }
-
-  catch(int)
-  {
-    return 6;
-  }
-
-  catch(const std::bad_alloc &)
-  {
-    error() << "Out of memory" << eom;
-    return 6;
-  }
+  log.status() << config.object_bits_info() << messaget::eom;
 
   return -1; // no error, continue
 }
@@ -767,103 +774,83 @@ void jbmc_parse_optionst::process_goto_function(
   bool using_symex_driven_loading =
     options.get_bool_option("symex-driven-lazy-loading");
 
-  try
+  // Removal of RTTI inspection:
+  remove_instanceof(
+    function.get_function_id(),
+    goto_function,
+    symbol_table,
+    *class_hierarchy,
+    ui_message_handler);
+  // Java virtual functions -> explicit dispatch tables:
+  remove_virtual_functions(function, *class_hierarchy);
+
+  auto function_is_stub = [&symbol_table, &model](const irep_idt &id) {
+    return symbol_table.lookup_ref(id).value.is_nil() &&
+           !model.can_produce_function(id);
+  };
+
+  remove_returns(function, function_is_stub);
+
+  replace_java_nondet(function);
+
+  // Similar removal of java nondet statements:
+  convert_nondet(function, ui_message_handler, object_factory_params, ID_java);
+
+  if(using_symex_driven_loading)
   {
-    // Removal of RTTI inspection:
-    remove_instanceof(
-      goto_function, symbol_table, *class_hierarchy, get_message_handler());
-    // Java virtual functions -> explicit dispatch tables:
-    remove_virtual_functions(function);
-
-    auto function_is_stub = [&symbol_table, &model](const irep_idt &id) {
-      return symbol_table.lookup_ref(id).value.is_nil() &&
-             !model.can_produce_function(id);
-    };
-
-    remove_returns(function, function_is_stub);
-
-    replace_java_nondet(function);
-
-    // Similar removal of java nondet statements:
-    convert_nondet(
-      function,
-      get_message_handler(),
-      object_factory_params,
-      ID_java);
-
-    if(using_symex_driven_loading)
-    {
-      // remove exceptions
-      // If using symex-driven function loading we need to do this now so that
-      // symex doesn't have to cope with exception-handling constructs; however
-      // the results are slightly worse than running it in whole-program mode
-      // (e.g. dead catch sites will be retained)
-      remove_exceptions(
-        goto_function.body,
-        symbol_table,
-        *class_hierarchy.get(),
-        get_message_handler());
-    }
-
-    // add generic checks
-    goto_check(
-      function.get_function_id(), function.get_goto_function(), ns, options);
-
-    // Replace Java new side effects
-    remove_java_new(goto_function, symbol_table, get_message_handler());
-
-    // checks don't know about adjusted float expressions
-    adjust_float_expressions(goto_function, ns);
-
-    // add failed symbols for anything created relating to this particular
-    // function (note this means subseqent passes mustn't create more!):
-    journalling_symbol_tablet::changesett new_symbols =
-      symbol_table.get_inserted();
-    for(const irep_idt &new_symbol_name : new_symbols)
-    {
-      add_failed_symbol_if_needed(
-        symbol_table.lookup_ref(new_symbol_name),
-        symbol_table);
-    }
-
-    // If using symex-driven function loading we must label the assertions
-    // now so symex sees its targets; otherwise we leave this until
-    // process_goto_functions, as we haven't run remove_exceptions yet, and that
-    // pass alters the CFG.
-    if(using_symex_driven_loading)
-    {
-      // label the assertions
-      label_properties(goto_function.body);
-
-      goto_function.body.update();
-      function.compute_location_numbers();
-      goto_function.body.compute_loop_numbers();
-    }
-
-    // update the function member in each instruction
-    function.update_instructions_function();
+    // remove exceptions
+    // If using symex-driven function loading we need to do this now so that
+    // symex doesn't have to cope with exception-handling constructs; however
+    // the results are slightly worse than running it in whole-program mode
+    // (e.g. dead catch sites will be retained)
+    remove_exceptions(
+      function.get_function_id(),
+      goto_function.body,
+      symbol_table,
+      *class_hierarchy.get(),
+      ui_message_handler);
   }
 
-  catch(const char *e)
+  // add generic checks
+  goto_check(
+    function.get_function_id(), function.get_goto_function(), ns, options);
+
+  // Replace Java new side effects
+  remove_java_new(
+    function.get_function_id(),
+    goto_function,
+    symbol_table,
+    ui_message_handler);
+
+  // checks don't know about adjusted float expressions
+  adjust_float_expressions(goto_function, ns);
+
+  // add failed symbols for anything created relating to this particular
+  // function (note this means subsequent passes mustn't create more!):
+  journalling_symbol_tablet::changesett new_symbols =
+    symbol_table.get_inserted();
+  for(const irep_idt &new_symbol_name : new_symbols)
   {
-    error() << e << eom;
-    throw;
+    add_failed_symbol_if_needed(
+      symbol_table.lookup_ref(new_symbol_name), symbol_table);
   }
 
-  catch(const std::string &e)
+  // If using symex-driven function loading we must label the assertions
+  // now so symex sees its targets; otherwise we leave this until
+  // process_goto_functions, as we haven't run remove_exceptions yet, and that
+  // pass alters the CFG.
+  if(using_symex_driven_loading)
   {
-    error() << e << eom;
-    throw;
-  }
+    // label the assertions
+    label_properties(goto_function.body);
 
-  catch(const std::bad_alloc &)
-  {
-    error() << "Out of memory" << eom;
-    throw;
+    goto_function.body.update();
+    function.compute_location_numbers();
+    goto_function.body.compute_loop_numbers();
   }
 }
 
-bool jbmc_parse_optionst::show_loaded_functions(
+bool jbmc_parse_optionst::show_loaded_symbols(
   const abstract_goto_modelt &goto_model)
 {
   if(cmdline.isset("show-symbol-table"))
@@ -877,6 +864,12 @@ bool jbmc_parse_optionst::show_loaded_functions(
     return true;
   }
 
+  return false;
+}
+
+bool jbmc_parse_optionst::show_loaded_functions(
+  const abstract_goto_modelt &goto_model)
+{
   if(cmdline.isset("show-loops"))
   {
     show_loop_ids(ui_message_handler.get_ui(), goto_model.get_goto_functions());
@@ -890,8 +883,7 @@ bool jbmc_parse_optionst::show_loaded_functions(
     namespacet ns(goto_model.get_symbol_table());
     show_goto_functions(
       ns,
-      get_message_handler(),
-      ui_message_handler.get_ui(),
+      ui_message_handler,
       goto_model.get_goto_functions(),
       cmdline.isset("list-goto-functions"));
     return true;
@@ -900,11 +892,7 @@ bool jbmc_parse_optionst::show_loaded_functions(
   if(cmdline.isset("show-properties"))
   {
     namespacet ns(goto_model.get_symbol_table());
-    show_properties(
-      ns,
-      get_message_handler(),
-      ui_message_handler.get_ui(),
-      goto_model.get_goto_functions());
+    show_properties(ns, ui_message_handler, goto_model.get_goto_functions());
     return true;
   }
 
@@ -915,116 +903,92 @@ bool jbmc_parse_optionst::process_goto_functions(
   goto_modelt &goto_model,
   const optionst &options)
 {
-  try
+  log.status() << "Running GOTO functions transformation passes"
+               << messaget::eom;
+
+  bool using_symex_driven_loading =
+    options.get_bool_option("symex-driven-lazy-loading");
+
+  // When using symex-driven lazy loading, *all* relevant processing is done
+  // during process_goto_function, so we have nothing to do here.
+  if(using_symex_driven_loading)
+    return false;
+
+  // remove catch and throw
+  remove_exceptions(goto_model, *class_hierarchy.get(), ui_message_handler);
+
+  // instrument library preconditions
+  instrument_preconditions(goto_model);
+
+  // ignore default/user-specified initialization
+  // of variables with static lifetime
+  if(cmdline.isset("nondet-static"))
   {
-    status() << "Running GOTO functions transformation passes" << eom;
+    log.status() << "Adding nondeterministic initialization "
+                    "of static/global variables"
+                 << messaget::eom;
+    nondet_static(goto_model);
+  }
 
-    bool using_symex_driven_loading =
-      options.get_bool_option("symex-driven-lazy-loading");
+  // recalculate numbers, etc.
+  goto_model.goto_functions.update();
 
-    // When using symex-driven lazy loading, *all* relevant processing is done
-    // during process_goto_function, so we have nothing to do here.
-    if(using_symex_driven_loading)
-      return false;
+  if(cmdline.isset("drop-unused-functions"))
+  {
+    // Entry point will have been set before and function pointers removed
+    log.status() << "Removing unused functions" << messaget::eom;
+    remove_unused_functions(goto_model, ui_message_handler);
+  }
 
-    // remove catch and throw
-    remove_exceptions(
-      goto_model, *class_hierarchy.get(), get_message_handler());
+  // remove skips such that trivial GOTOs are deleted
+  remove_skip(goto_model);
 
-    // instrument library preconditions
-    instrument_preconditions(goto_model);
+  // label the assertions
+  // This must be done after adding assertions and
+  // before using the argument of the "property" option.
+  // Do not re-label after using the property slicer because
+  // this would cause the property identifiers to change.
+  label_properties(goto_model);
 
-    // ignore default/user-specified initialization
-    // of variables with static lifetime
-    if(cmdline.isset("nondet-static"))
-    {
-      status() << "Adding nondeterministic initialization "
-                  "of static/global variables" << eom;
-      nondet_static(goto_model);
-    }
-
-    // recalculate numbers, etc.
-    goto_model.goto_functions.update();
-
-    if(cmdline.isset("drop-unused-functions"))
-    {
-      // Entry point will have been set before and function pointers removed
-      status() << "Removing unused functions" << eom;
-      remove_unused_functions(goto_model, get_message_handler());
-    }
-
-    // remove skips such that trivial GOTOs are deleted
-    remove_skip(goto_model);
-
-    // label the assertions
-    // This must be done after adding assertions and
-    // before using the argument of the "property" option.
-    // Do not re-label after using the property slicer because
-    // this would cause the property identifiers to change.
-    label_properties(goto_model);
-
-    // reachability slice?
-    if(cmdline.isset("reachability-slice-fb"))
-    {
-      if(cmdline.isset("reachability-slice"))
-      {
-        error() << "--reachability-slice and --reachability-slice-fb "
-                << "must not be given together" << eom;
-        return true;
-      }
-
-      status() << "Performing a forwards-backwards reachability slice" << eom;
-      if(cmdline.isset("property"))
-        reachability_slicer(goto_model, cmdline.get_values("property"), true);
-      else
-        reachability_slicer(goto_model, true);
-    }
-
+  // reachability slice?
+  if(cmdline.isset("reachability-slice-fb"))
+  {
     if(cmdline.isset("reachability-slice"))
     {
-      status() << "Performing a reachability slice" << eom;
-      if(cmdline.isset("property"))
-        reachability_slicer(goto_model, cmdline.get_values("property"));
-      else
-        reachability_slicer(goto_model);
+      log.error() << "--reachability-slice and --reachability-slice-fb "
+                  << "must not be given together" << messaget::eom;
+      return true;
     }
 
-    // full slice?
-    if(cmdline.isset("full-slice"))
-    {
-      status() << "Performing a full slice" << eom;
-      if(cmdline.isset("property"))
-        property_slicer(goto_model, cmdline.get_values("property"));
-      else
-        full_slicer(goto_model);
-    }
-
-    // remove any skips introduced
-    remove_skip(goto_model);
+    log.status() << "Performing a forwards-backwards reachability slice"
+                 << messaget::eom;
+    if(cmdline.isset("property"))
+      reachability_slicer(goto_model, cmdline.get_values("property"), true);
+    else
+      reachability_slicer(goto_model, true);
   }
 
-  catch(const char *e)
+  if(cmdline.isset("reachability-slice"))
   {
-    error() << e << eom;
-    return true;
+    log.status() << "Performing a reachability slice" << messaget::eom;
+    if(cmdline.isset("property"))
+      reachability_slicer(goto_model, cmdline.get_values("property"));
+    else
+      reachability_slicer(goto_model);
   }
 
-  catch(const std::string &e)
+  // full slice?
+  if(cmdline.isset("full-slice"))
   {
-    error() << e << eom;
-    return true;
+    log.status() << "Performing a full slice" << messaget::eom;
+    if(cmdline.isset("property"))
+      property_slicer(goto_model, cmdline.get_values("property"));
+    else
+      full_slicer(goto_model);
   }
 
-  catch(int)
-  {
-    return true;
-  }
-
-  catch(const std::bad_alloc &)
-  {
-    error() << "Out of memory" << eom;
-    return true;
-  }
+  // remove any skips introduced
+  remove_skip(goto_model);
 
   return false;
 }
@@ -1045,7 +1009,9 @@ bool jbmc_parse_optionst::generate_function_body(
   // Provide a simple stub implementation for any function we don't have a
   // bytecode implementation for:
 
-  if(body_available)
+  if(
+    body_available &&
+    (!method_context || (*method_context)(id2string(function_name))))
     return false;
 
   if(!can_generate_function_body(function_name))
@@ -1058,9 +1024,9 @@ bool jbmc_parse_optionst::generate_function_body(
       symbol_table,
       stub_objects_are_not_null,
       object_factory_params,
-      get_message_handler());
+      ui_message_handler);
 
-    goto_convert_functionst converter(symbol_table, get_message_handler());
+    goto_convert_functionst converter(symbol_table, ui_message_handler);
     converter.convert_function(function_name, function);
 
     return true;
@@ -1076,21 +1042,23 @@ void jbmc_parse_optionst::help()
 {
   // clang-format off
   std::cout << '\n' << banner_string("JBMC", CBMC_VERSION) << '\n'
-            <<
-    "* *                 Copyright (C) 2001-2018                 * *\n"
-    "* *              Daniel Kroening, Edmund Clarke             * *\n"
-    "* * Carnegie Mellon University, Computer Science Department * *\n"
-    "* *                 kroening@kroening.com                   * *\n"
-    "\n"
+            << align_center_with_border("Copyright (C) 2001-2018") << '\n'
+            << align_center_with_border("Daniel Kroening, Edmund Clarke") << '\n' // NOLINT(*)
+            << align_center_with_border("Carnegie Mellon University, Computer Science Department") << '\n' // NOLINT(*)
+            << align_center_with_border("kroening@kroening.com") << '\n'
+            << "\n"
     "Usage:                       Purpose:\n"
     "\n"
     " jbmc [-?] [-h] [--help]      show help\n"
-    " jbmc class                   name of class or JAR file to be checked\n"
-    "                              In the case of a JAR file, if a main class can be\n" // NOLINT(*)
-    "                              inferred from --main-class, --function, or the JAR\n" // NOLINT(*)
-    "                              manifest (checked in this order), the behavior is\n" // NOLINT(*)
-    "                              the same as running jbmc on the corresponding\n" // NOLINT(*)
-    "                              class file."
+    " jbmc\n"
+    HELP_JAVA_CLASS_NAME
+    " jbmc\n"
+    HELP_JAVA_JAR
+    " jbmc\n"
+    HELP_JAVA_GOTO_BINARY
+    "\n"
+    HELP_JAVA_CLASSPATH
+    HELP_FUNCTIONS
     "\n"
     "Analysis options:\n"
     HELP_SHOW_PROPERTIES
@@ -1098,8 +1066,7 @@ void jbmc_parse_optionst::help()
     " --property id                only check one specific property\n"
     " --stop-on-fail               stop analysis once a failed property is detected\n" // NOLINT(*)
     " --trace                      give a counterexample trace for failed properties\n" //NOLINT(*)
-    "\n"
-    HELP_FUNCTIONS
+    HELP_JAVA_TRACE_VALIDATION
     "\n"
     "Program representations:\n"
     " --show-parse-tree            show parse tree\n"
@@ -1119,8 +1086,6 @@ void jbmc_parse_optionst::help()
     " --full-slice                 run full slicer (experimental)\n" // NOLINT(*)
     "\n"
     "Java Bytecode frontend options:\n"
-    " --classpath dir/jar          set the classpath\n"
-    " --main-class class-name      set the name of the main class\n"
     JAVA_BYTECODE_LANGUAGE_OPTIONS_HELP
     // This one is handled by jbmc_parse_options not by the Java frontend,
     // hence its presence here:
@@ -1160,8 +1125,8 @@ void jbmc_parse_optionst::help()
     "\n"
     "Other options:\n"
     " --version                    show version and exit\n"
-    " --xml-ui                     use XML-formatted output\n"
-    " --json-ui                    use JSON-formatted output\n"
+    HELP_XML_INTERFACE
+    HELP_JSON_INTERFACE
     HELP_VALIDATE
     HELP_GOTO_TRACE
     HELP_FLUSH

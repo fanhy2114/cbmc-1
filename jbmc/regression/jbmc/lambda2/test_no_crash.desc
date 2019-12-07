@@ -1,8 +1,8 @@
 CORE symex-driven-lazy-loading-expected-failure
-SymStream.class
---no-lazy-methods --verbosity 10 --show-goto-functions
-^EXIT=0
-^SIGNAL=0
+org.symphonyoss.symphony.clients.model.SymStream
+--no-lazy-methods --show-goto-functions
+^EXIT=0$
+^SIGNAL=0$
 --
 --
 just to test that it doesn't crash in this situation, cf. TG-2684

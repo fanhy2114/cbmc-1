@@ -1,9 +1,24 @@
 %{
+#ifdef _MSC_VER
+// possible loss of data
+#pragma warning(disable:4242)
+// possible loss of data
+#pragma warning(disable:4244)
+// signed/unsigned mismatch
+#pragma warning(disable:4365)
+// switch with default but no case labels
+#pragma warning(disable:4065)
+// unreachable code
+#pragma warning(disable:4702)
+#endif
+
 // Strictly follows http://www.json.org/
 %}
 
 %{
 #include "json_parser.h"
+
+#include <util/unicode.h>
 
 int yyjsonlex();
 extern char *yyjsontext;
@@ -33,8 +48,16 @@ static std::string convert_TOK_STRING()
       case 'r':  result+='\r'; break;
       case 't':  result+='\t'; break;
       case 'u':
+      {
+        // Character in hexadecimal Unicode representation, in the format
+        // \uABCD, i.e. the following four digits are part of this character.
+        char *last_hex_digit = p + 4;
+        assert(last_hex_digit < yyjsontext + len - 1);
+        std::string hex(++p, 4);
+        result += codepoint_hex_to_utf8(hex);
+        p = last_hex_digit;
         break;
-        
+      }
       default:; /* an error */
       }
     }

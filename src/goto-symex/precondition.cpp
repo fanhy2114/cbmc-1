@@ -25,13 +25,13 @@ public:
     const namespacet &_ns,
     value_setst &_value_sets,
     const goto_programt::const_targett _target,
-    const symex_target_equationt::SSA_stept &_SSA_step,
-    const goto_symex_statet &_s):
-    ns(_ns),
-    value_sets(_value_sets),
-    target(_target),
-    SSA_step(_SSA_step),
-    s(_s)
+    const SSA_stept &_SSA_step,
+    const goto_symex_statet &_s)
+    : ns(_ns),
+      value_sets(_value_sets),
+      target(_target),
+      SSA_step(_SSA_step),
+      s(_s)
   {
   }
 
@@ -39,7 +39,7 @@ protected:
   const namespacet &ns;
   value_setst &value_sets;
   const goto_programt::const_targett target;
-  const symex_target_equationt::SSA_stept &SSA_step;
+  const SSA_stept &SSA_step;
   const goto_symex_statet &s;
   void compute_rec(exprt &dest);
 
@@ -112,22 +112,17 @@ void preconditiont::compute_rec(exprt &dest)
 
     // aliasing may happen here
 
-    value_setst::valuest expr_set;
-    value_sets.get_values(target, deref_expr.pointer(), expr_set);
-    std::unordered_set<irep_idt> symbols;
-
-    for(value_setst::valuest::const_iterator
-        it=expr_set.begin();
-        it!=expr_set.end();
-        it++)
-      find_symbols(*it, symbols);
+    const std::vector<exprt> expr_set = value_sets.get_values(
+      SSA_step.source.function_id, target, deref_expr.pointer());
+    const std::unordered_set<irep_idt> symbols =
+      find_symbols_or_nexts(expr_set.begin(), expr_set.end());
 
     if(symbols.find(lhs_identifier)!=symbols.end())
     {
       // may alias!
       exprt tmp;
       tmp.swap(deref_expr.pointer());
-      dereference(target, tmp, ns, value_sets);
+      dereference(SSA_step.source.function_id, target, tmp, ns, value_sets);
       deref_expr.swap(tmp);
       compute_rec(deref_expr);
     }
@@ -139,8 +134,7 @@ void preconditiont::compute_rec(exprt &dest)
   }
   else if(dest==SSA_step.ssa_lhs.get_original_expr())
   {
-    dest=SSA_step.ssa_rhs;
-    s.get_original_name(dest);
+    dest = get_original_name(SSA_step.ssa_rhs);
   }
   else
     Forall_operands(it, dest)

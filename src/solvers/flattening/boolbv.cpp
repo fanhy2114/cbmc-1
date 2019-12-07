@@ -72,9 +72,13 @@ bool boolbvt::literal(
       std::size_t element_width=boolbv_width(index_expr.type());
       CHECK_RETURN(element_width != 0);
 
-      mp_integer index = numeric_cast_v<mp_integer>(index_expr.index());
+      const auto &index = index_expr.index();
+      PRECONDITION(index.id() == ID_constant);
+      mp_integer index_int =
+        numeric_cast_v<mp_integer>(to_constant_expr(index));
 
-      std::size_t offset = numeric_cast_v<std::size_t>(index * element_width);
+      std::size_t offset =
+        numeric_cast_v<std::size_t>(index_int * element_width);
 
       return literal(index_expr.array(), bit+offset, dest);
     }
@@ -93,7 +97,7 @@ bool boolbvt::literal(
         const typet &subtype = c.type();
 
         if(c.get_name() == component_name)
-          return literal(expr.op0(), bit+offset, dest);
+          return literal(member_expr.struct_op(), bit + offset, dest);
 
         std::size_t element_width=boolbv_width(subtype);
         CHECK_RETURN(element_width != 0);
@@ -167,9 +171,6 @@ bvt boolbvt::conversion_failed(const exprt &expr)
 /// \param expr: Expression to convert
 /// \return A vector of literals corresponding to the outputs of the Boolean
 ///   circuit
-/// \throws bitvector_conversion_exceptiont raised if converting byte_extraction
-/// goes wrong.
-/// TODO: extend for other types of conversion exception (diffblue/cbmc#2103).
 bvt boolbvt::convert_bitvector(const exprt &expr)
 {
   if(expr.type().id()==ID_bool)
@@ -187,9 +188,9 @@ bvt boolbvt::convert_bitvector(const exprt &expr)
   else if(expr.id()==ID_member)
     return convert_member(to_member_expr(expr));
   else if(expr.id()==ID_with)
-    return convert_with(expr);
+    return convert_with(to_with_expr(expr));
   else if(expr.id()==ID_update)
-    return convert_update(expr);
+    return convert_update(to_update_expr(expr));
   else if(expr.id()==ID_width)
   {
     std::size_t result_width=boolbv_width(expr.type());
@@ -200,7 +201,7 @@ bvt boolbvt::convert_bitvector(const exprt &expr)
     if(expr.operands().size()!=1)
       return conversion_failed(expr);
 
-    std::size_t op_width=boolbv_width(expr.op0().type());
+    std::size_t op_width = boolbv_width(to_unary_expr(expr).op().type());
 
     if(op_width==0)
       return conversion_failed(expr);
@@ -239,7 +240,9 @@ bvt boolbvt::convert_bitvector(const exprt &expr)
   else if(expr.id()==ID_floatbv_plus || expr.id()==ID_floatbv_minus ||
           expr.id()==ID_floatbv_mult || expr.id()==ID_floatbv_div ||
           expr.id()==ID_floatbv_rem)
-    return convert_floatbv_op(expr);
+  {
+    return convert_floatbv_op(to_ieee_float_op_expr(expr));
+  }
   else if(expr.id()==ID_floatbv_typecast)
     return convert_floatbv_typecast(to_floatbv_typecast_expr(expr));
   else if(expr.id()==ID_concatenation)
@@ -289,8 +292,8 @@ bvt boolbvt::convert_bitvector(const exprt &expr)
     return convert_complex_real(to_complex_real_expr(expr));
   else if(expr.id()==ID_complex_imag)
     return convert_complex_imag(to_complex_imag_expr(expr));
-  else if(expr.id()==ID_lambda)
-    return convert_lambda(expr);
+  else if(expr.id() == ID_array_comprehension)
+    return convert_array_comprehension(to_array_comprehension_expr(expr));
   else if(expr.id()==ID_array_of)
     return convert_array_of(to_array_of_expr(expr));
   else if(expr.id()==ID_let)
@@ -312,28 +315,21 @@ bvt boolbvt::convert_bitvector(const exprt &expr)
   return conversion_failed(expr);
 }
 
-bvt boolbvt::convert_lambda(const exprt &expr)
+bvt boolbvt::convert_array_comprehension(const array_comprehension_exprt &expr)
 {
   std::size_t width=boolbv_width(expr.type());
 
   if(width==0)
     return conversion_failed(expr);
 
-  DATA_INVARIANT(
-    expr.operands().size() == 2, "lambda expression should have two operands");
-
-  if(expr.type().id()!=ID_array)
-    return conversion_failed(expr);
-
-  const exprt &array_size=
-    to_array_type(expr.type()).size();
+  const exprt &array_size = expr.type().size();
 
   const auto size = numeric_cast<mp_integer>(array_size);
 
   if(!size.has_value())
     return conversion_failed(expr);
 
-  typet counter_type=expr.op0().type();
+  typet counter_type = expr.arg().type();
 
   bvt bv;
   bv.resize(width);
@@ -342,10 +338,10 @@ bvt boolbvt::convert_lambda(const exprt &expr)
   {
     exprt counter=from_integer(i, counter_type);
 
-    exprt expr_op1(expr.op1());
-    replace_expr(expr.op0(), counter, expr_op1);
+    exprt body = expr.body();
+    replace_expr(expr.arg(), counter, body);
 
-    const bvt &tmp=convert_bv(expr_op1);
+    const bvt &tmp = convert_bv(body);
 
     INVARIANT(
       *size * tmp.size() == width,
@@ -431,7 +427,6 @@ bvt boolbvt::convert_function_application(
 literalt boolbvt::convert_rest(const exprt &expr)
 {
   PRECONDITION(expr.type().id() == ID_bool);
-  const exprt::operandst &operands=expr.operands();
 
   if(expr.id()==ID_typecast)
     return convert_typecast(to_typecast_expr(expr));
@@ -442,15 +437,20 @@ literalt boolbvt::convert_rest(const exprt &expr)
     return convert_verilog_case_equality(to_binary_relation_expr(expr));
   else if(expr.id()==ID_notequal)
   {
-    DATA_INVARIANT(expr.operands().size() == 2, "notequal expects two operands");
-    return !convert_equality(equal_exprt(expr.op0(), expr.op1()));
+    const auto &notequal_expr = to_notequal_expr(expr);
+    return !convert_equality(
+      equal_exprt(notequal_expr.lhs(), notequal_expr.rhs()));
   }
   else if(expr.id()==ID_ieee_float_equal ||
           expr.id()==ID_ieee_float_notequal)
-    return convert_ieee_float_rel(expr);
+  {
+    return convert_ieee_float_rel(to_binary_relation_expr(expr));
+  }
   else if(expr.id()==ID_le || expr.id()==ID_ge ||
           expr.id()==ID_lt  || expr.id()==ID_gt)
-    return convert_bv_rel(expr);
+  {
+    return convert_bv_rel(to_binary_relation_expr(expr));
+  }
   else if(expr.id()==ID_extractbit)
     return convert_extractbit(to_extractbit_expr(expr));
   else if(expr.id()==ID_forall)
@@ -492,10 +492,10 @@ literalt boolbvt::convert_rest(const exprt &expr)
   }
   else if(expr.id()==ID_sign)
   {
-    DATA_INVARIANT(expr.operands().size() == 1, "sign expects one operand");
-    const bvt &bv=convert_bv(operands[0]);
+    const auto &op = to_sign_expr(expr).op();
+    const bvt &bv = convert_bv(op);
     CHECK_RETURN(!bv.empty());
-    const irep_idt type_id = operands[0].type().id();
+    const irep_idt type_id = op.type().id();
     if(type_id == ID_signedbv || type_id == ID_fixedbv || type_id == ID_floatbv)
       return bv[bv.size()-1];
     if(type_id == ID_unsignedbv)
@@ -511,53 +511,56 @@ literalt boolbvt::convert_rest(const exprt &expr)
     return convert_overflow(expr);
   else if(expr.id()==ID_isnan)
   {
-    DATA_INVARIANT(expr.operands().size() == 1, "isnan expects one operand");
-    const bvt &bv=convert_bv(operands[0]);
+    const auto &op = to_unary_expr(expr).op();
+    const bvt &bv = convert_bv(op);
 
-    if(expr.op0().type().id()==ID_floatbv)
+    if(op.type().id() == ID_floatbv)
     {
-      float_utilst float_utils(prop, to_floatbv_type(expr.op0().type()));
+      float_utilst float_utils(prop, to_floatbv_type(op.type()));
       return float_utils.is_NaN(bv);
     }
-    else if(expr.op0().type().id() == ID_fixedbv)
+    else if(op.type().id() == ID_fixedbv)
       return const_literal(false);
   }
   else if(expr.id()==ID_isfinite)
   {
-    DATA_INVARIANT(expr.operands().size() == 1, "isfinite expects one operand");
-    const bvt &bv=convert_bv(operands[0]);
-    if(expr.op0().type().id()==ID_floatbv)
+    const auto &op = to_unary_expr(expr).op();
+    const bvt &bv = convert_bv(op);
+
+    if(op.type().id() == ID_floatbv)
     {
-      float_utilst float_utils(prop, to_floatbv_type(expr.op0().type()));
+      float_utilst float_utils(prop, to_floatbv_type(op.type()));
       return prop.land(
         !float_utils.is_infinity(bv),
         !float_utils.is_NaN(bv));
     }
-    else if(expr.op0().type().id() == ID_fixedbv)
+    else if(op.id() == ID_fixedbv)
       return const_literal(true);
   }
   else if(expr.id()==ID_isinf)
   {
-    DATA_INVARIANT(expr.operands().size() == 1, "isinf expects one operand");
-    const bvt &bv=convert_bv(operands[0]);
-    if(expr.op0().type().id()==ID_floatbv)
+    const auto &op = to_unary_expr(expr).op();
+    const bvt &bv = convert_bv(op);
+
+    if(op.type().id() == ID_floatbv)
     {
-      float_utilst float_utils(prop, to_floatbv_type(expr.op0().type()));
+      float_utilst float_utils(prop, to_floatbv_type(op.type()));
       return float_utils.is_infinity(bv);
     }
-    else if(expr.op0().type().id() == ID_fixedbv)
+    else if(op.type().id() == ID_fixedbv)
       return const_literal(false);
   }
   else if(expr.id()==ID_isnormal)
   {
-    DATA_INVARIANT(expr.operands().size() == 1, "isnormal expects one operand");
-    if(expr.op0().type().id()==ID_floatbv)
+    const auto &op = to_unary_expr(expr).op();
+
+    if(op.type().id() == ID_floatbv)
     {
-      const bvt &bv = convert_bv(operands[0]);
-      float_utilst float_utils(prop, to_floatbv_type(expr.op0().type()));
+      const bvt &bv = convert_bv(op);
+      float_utilst float_utils(prop, to_floatbv_type(op.type()));
       return float_utils.is_normal(bv);
     }
-    else if(expr.op0().type().id() == ID_fixedbv)
+    else if(op.type().id() == ID_fixedbv)
       return const_literal(true);
   }
 
@@ -569,11 +572,11 @@ bool boolbvt::boolbv_set_equality_to_true(const equal_exprt &expr)
   if(!equality_propagation)
     return true;
 
-  const typet &type=ns.follow(expr.lhs().type());
+  const typet &type = expr.lhs().type();
 
-  if(expr.lhs().id()==ID_symbol &&
-     type==ns.follow(expr.rhs().type()) &&
-     type.id()!=ID_bool)
+  if(
+    expr.lhs().id() == ID_symbol && type == expr.rhs().type() &&
+    type.id() != ID_bool)
   {
     // see if it is an unbounded array
     if(is_unbounded_array(type))
@@ -636,12 +639,12 @@ bool boolbvt::is_unbounded_array(const typet &type) const
 
   const exprt &size=to_array_type(type).size();
 
-  mp_integer s;
-  if(to_integer(size, s))
+  const auto s = numeric_cast<mp_integer>(size);
+  if(!s.has_value())
     return true;
 
   if(unbounded_array==unbounded_arrayt::U_AUTO)
-    if(s>MAX_FLATTENED_ARRAY_SIZE)
+    if(*s > MAX_FLATTENED_ARRAY_SIZE)
       return true;
 
   return false;

@@ -191,7 +191,12 @@ bool boolbvt::type_conversion(
         dest=src;
         return false;
 
-      default:
+      case bvtypet::IS_C_BIT_FIELD:
+      case bvtypet::IS_UNKNOWN:
+      case bvtypet::IS_RANGE:
+      case bvtypet::IS_VERILOG_UNSIGNED:
+      case bvtypet::IS_VERILOG_SIGNED:
+      case bvtypet::IS_FIXED:
         if(src_type.id()==ID_bool)
         {
           // bool to float
@@ -260,7 +265,7 @@ bool boolbvt::type_conversion(
     {
       INVARIANT(
         src_width == dest_width,
-        "source bitvector with shall equal the destination bitvector width");
+        "source bitvector width shall equal the destination bitvector width");
       dest=src;
       return false;
     }
@@ -415,24 +420,33 @@ bool boolbvt::type_conversion(
       }
       break;
 
-    default:
-      if(src_type.id()==ID_bool)
-      {
-        // bool to integer
-
+      case bvtypet::IS_BV:
         INVARIANT(
-          src_width == 1, "bitvector of type boolean shall have width one");
-
-        for(std::size_t i=0; i<dest_width; i++)
-        {
-          if(i==0)
-            dest.push_back(src[0]);
-          else
-            dest.push_back(const_literal(false));
-        }
-
+          src_width == dest_width,
+          "source bitvector width shall equal the destination bitvector width");
+        dest = src;
         return false;
-      }
+
+      case bvtypet::IS_RANGE:
+      case bvtypet::IS_C_BIT_FIELD:
+      case bvtypet::IS_UNKNOWN:
+        if(src_type.id() == ID_bool)
+        {
+          // bool to integer
+
+          INVARIANT(
+            src_width == 1, "bitvector of type boolean shall have width one");
+
+          for(std::size_t i = 0; i < dest_width; i++)
+          {
+            if(i == 0)
+              dest.push_back(src[0]);
+            else
+              dest.push_back(const_literal(false));
+          }
+
+          return false;
+        }
     }
     break;
 
@@ -509,7 +523,9 @@ bool boolbvt::type_conversion(
 
     return false;
 
-  default:
+  case bvtypet::IS_C_BIT_FIELD:
+  case bvtypet::IS_UNKNOWN:
+  case bvtypet::IS_VERILOG_SIGNED:
     if(dest_type.id()==ID_array)
     {
       if(src_width==dest_width)

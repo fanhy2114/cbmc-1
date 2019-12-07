@@ -93,14 +93,10 @@ static exprt simplify_json_expr(const exprt &src)
 /// The `mode` argument is used to correctly report types.
 /// \param type: a type
 /// \param ns: a namespace
-/// \param mode: language in which the code was written; for now ID_C and
-///   ID_java are supported
+/// \param mode: language in which the code was written
 /// \return a json object
 json_objectt json(const typet &type, const namespacet &ns, const irep_idt &mode)
 {
-  if(type.id() == ID_symbol_type)
-    return json(ns.follow(type), ns, mode);
-
   json_objectt result;
 
   if(type.id() == ID_unsignedbv)
@@ -157,6 +153,7 @@ json_objectt json(const typet &type, const namespacet &ns, const irep_idt &mode)
   {
     result["name"] = json_stringt("array");
     result["subtype"] = json(to_array_type(type).subtype(), ns, mode);
+    result["size"] = json(to_array_type(type).size(), ns, mode);
   }
   else if(type.id() == ID_vector)
   {
@@ -172,10 +169,14 @@ json_objectt json(const typet &type, const namespacet &ns, const irep_idt &mode)
       to_struct_type(type).components();
     for(const auto &component : components)
     {
-      json_objectt e({{"name", json_stringt(component.get_name())},
-                      {"type", json(component.type(), ns, mode)}});
+      json_objectt e{{"name", json_stringt(component.get_name())},
+                     {"type", json(component.type(), ns, mode)}};
       members.push_back(std::move(e));
     }
+  }
+  else if(type.id() == ID_struct_tag)
+  {
+    return json(ns.follow_tag(to_struct_tag_type(type)), ns, mode);
   }
   else if(type.id() == ID_union)
   {
@@ -185,10 +186,14 @@ json_objectt json(const typet &type, const namespacet &ns, const irep_idt &mode)
       to_union_type(type).components();
     for(const auto &component : components)
     {
-      json_objectt e({{"name", json_stringt(component.get_name())},
-                      {"type", json(component.type(), ns, mode)}});
+      json_objectt e{{"name", json_stringt(component.get_name())},
+                     {"type", json(component.type(), ns, mode)}};
       members.push_back(std::move(e));
     }
+  }
+  else if(type.id() == ID_union_tag)
+  {
+    return json(ns.follow_tag(to_union_tag_type(type)), ns, mode);
   }
   else
     result["name"] = json_stringt("unknown");
@@ -198,7 +203,11 @@ json_objectt json(const typet &type, const namespacet &ns, const irep_idt &mode)
 
 static std::string binary(const constant_exprt &src)
 {
-  const auto width = to_bitvector_type(src.type()).get_width();
+  std::size_t width;
+  if(src.type().id() == ID_c_enum)
+    width = to_bitvector_type(to_c_enum_type(src.type()).subtype()).get_width();
+  else
+    width = to_bitvector_type(src.type()).get_width();
   const auto int_val = bvrep2integer(src.get_value(), width, false);
   return integer2binary(int_val, width);
 }
@@ -207,26 +216,23 @@ static std::string binary(const constant_exprt &src)
 /// The mode is used to correctly report types.
 /// \param expr: an expression
 /// \param ns: a namespace
-/// \param mode: language in which the code was written; for now ID_C and
-///   ID_java are supported
+/// \param mode: language in which the code was written
 /// \return a json object
 json_objectt json(const exprt &expr, const namespacet &ns, const irep_idt &mode)
 {
   json_objectt result;
 
-  const typet &type = ns.follow(expr.type());
-
   if(expr.id() == ID_constant)
   {
+    const constant_exprt &constant_expr = to_constant_expr(expr);
+
+    const typet &type = expr.type();
+
     std::unique_ptr<languaget> lang;
-    if(mode == ID_unknown)
-      lang = std::unique_ptr<languaget>(get_default_language());
-    else
-    {
+    if(mode != ID_unknown)
       lang = std::unique_ptr<languaget>(get_language_from_mode(mode));
-      if(!lang)
-        lang = std::unique_ptr<languaget>(get_default_language());
-    }
+    if(!lang)
+      lang = std::unique_ptr<languaget>(get_default_language());
 
     const typet &underlying_type =
       type.id() == ID_c_bit_field ? to_c_bit_field_type(type).subtype() : type;
@@ -238,10 +244,9 @@ json_objectt json(const exprt &expr, const namespacet &ns, const irep_idt &mode)
     std::string value_string;
     lang->from_expr(expr, value_string, ns);
 
-    const constant_exprt &constant_expr = to_constant_expr(expr);
     if(
       type.id() == ID_unsignedbv || type.id() == ID_signedbv ||
-      type.id() == ID_c_bit_field)
+      type.id() == ID_c_bit_field || type.id() == ID_c_bool)
     {
       std::size_t width = to_bitvector_type(type).get_width();
 
@@ -320,15 +325,6 @@ json_objectt json(const exprt &expr, const namespacet &ns, const irep_idt &mode)
       result["binary"] = json_stringt(expr.is_true() ? "1" : "0");
       result["data"] = jsont::json_boolean(expr.is_true());
     }
-    else if(type.id() == ID_c_bool)
-    {
-      result["name"] = json_stringt("integer");
-      result["width"] =
-        json_numbert(std::to_string(to_bitvector_type(type).get_width()));
-      result["type"] = json_stringt(type_string);
-      result["binary"] = json_stringt(expr.get_string(ID_value));
-      result["data"] = json_stringt(value_string);
-    }
     else if(type.id() == ID_string)
     {
       result["name"] = json_stringt("string");
@@ -348,8 +344,8 @@ json_objectt json(const exprt &expr, const namespacet &ns, const irep_idt &mode)
 
     forall_operands(it, expr)
     {
-      json_objectt e({{"index", json_numbert(std::to_string(index))},
-                      {"value", json(*it, ns, mode)}});
+      json_objectt e{{"index", json_numbert(std::to_string(index))},
+                     {"value", json(*it, ns, mode)}};
       elements.push_back(std::move(e));
       index++;
     }
@@ -357,6 +353,8 @@ json_objectt json(const exprt &expr, const namespacet &ns, const irep_idt &mode)
   else if(expr.id() == ID_struct)
   {
     result["name"] = json_stringt("struct");
+
+    const typet &type = ns.follow(expr.type());
 
     // these are expected to have a struct type
     if(type.id() == ID_struct)
@@ -370,8 +368,8 @@ json_objectt json(const exprt &expr, const namespacet &ns, const irep_idt &mode)
       json_arrayt &members = result["members"].make_array();
       for(std::size_t m = 0; m < expr.operands().size(); m++)
       {
-        json_objectt e({{"value", json(expr.operands()[m], ns, mode)},
-                        {"name", json_stringt(components[m].get_name())}});
+        json_objectt e{{"value", json(expr.operands()[m], ns, mode)},
+                       {"name", json_stringt(components[m].get_name())}};
         members.push_back(std::move(e));
       }
     }

@@ -7,8 +7,8 @@ Author: Diffblue Ltd.
 
 \*******************************************************************/
 
-#include <testing-utils/catch.hpp>
 #include <java-testing-utils/load_java_class.h>
+#include <testing-utils/use_catch.h>
 
 #include <util/simplify_expr.h>
 #include <goto-programs/remove_virtual_functions.h>
@@ -29,22 +29,28 @@ exprt resolve_classid_test(
     return resolved;
   }
 
-  if(expr.op0().id() == ID_constant && expr.op1().id() != ID_constant)
+  const auto &expr_binary = to_binary_expr(expr);
+
+  if(
+    expr_binary.op0().id() == ID_constant &&
+    expr_binary.op1().id() != ID_constant)
   {
-    exprt swapped = expr;
+    binary_exprt swapped = expr_binary;
     std::swap(swapped.op0(), swapped.op1());
     return resolve_classid_test(swapped, actual_class_id, ns);
   }
 
-  if(expr.op0().id() == ID_member &&
-     to_member_expr(expr.op0()).get_component_name() == "@class_identifier" &&
-     expr.op1().id() == ID_constant &&
-     expr.op1().type().id() == ID_string)
+  if(
+    expr_binary.op0().id() == ID_member &&
+    to_member_expr(expr_binary.op0()).get_component_name() ==
+      "@class_identifier" &&
+    expr_binary.op1().id() == ID_constant &&
+    expr_binary.op1().type().id() == ID_string)
   {
-    exprt resolved = expr;
-    resolved.op0() = constant_exprt(actual_class_id, expr.op1().type());
+    binary_exprt resolved = expr_binary;
+    resolved.op0() = constant_exprt(actual_class_id, expr_binary.op1().type());
     simplify(resolved, ns);
-    return resolved;
+    return std::move(resolved);
   }
 
   return expr;
@@ -116,18 +122,19 @@ SCENARIO(
 {
   symbol_tablet symbol_table = load_java_class(
     "VirtualFunctionsTestParent", "./java_bytecode/goto-programs/");
+  const irep_idt test_program_id = "java::testProgram:()V";
+  symbolt test_program_symbol{};
+  test_program_symbol.mode = ID_java;
+  test_program_symbol.name = test_program_id;
+  test_program_symbol.base_name = test_program_id;
+  symbol_table.insert(test_program_symbol);
   namespacet ns(symbol_table);
-
-  goto_programt test_program;
-  auto virtual_call_inst = test_program.add_instruction(FUNCTION_CALL);
 
   const symbolt &callee_symbol =
     symbol_table.lookup_ref("java::VirtualFunctionsTestParent.f:()V");
 
-  exprt callee(ID_virtual_function, callee_symbol.type);
-  callee.set(ID_identifier, callee_symbol.name);
-  callee.set(ID_C_class, "java::VirtualFunctionsTestParent");
-  callee.set(ID_component_name, "f:()V");
+  class_method_descriptor_exprt callee{
+    callee_symbol.type, "f:()V", "java::VirtualFunctionsTestParent", "f"};
 
   const code_function_callt call(
     callee,
@@ -135,9 +142,12 @@ SCENARIO(
     // null pointer:
     {null_pointer_exprt(
       to_pointer_type(to_code_type(callee.type()).parameters()[0].type()))});
-  virtual_call_inst->code = call;
 
-  test_program.add_instruction(END_FUNCTION);
+  goto_programt test_program;
+  auto virtual_call_inst =
+    test_program.add(goto_programt::make_function_call(call));
+
+  test_program.add(goto_programt::make_end_function());
 
   WHEN("Resolving virtual callsite to a single callee")
   {
@@ -147,6 +157,7 @@ SCENARIO(
 
     remove_virtual_function(
       symbol_table,
+      test_program_id,
       test_program,
       virtual_call_inst,
       dispatch_table,
@@ -178,6 +189,7 @@ SCENARIO(
 
     remove_virtual_function(
       symbol_table,
+      test_program_id,
       test_program,
       virtual_call_inst,
       dispatch_table,
@@ -220,6 +232,7 @@ SCENARIO(
 
     remove_virtual_function(
       symbol_table,
+      test_program_id,
       test_program,
       virtual_call_inst,
       dispatch_table,
@@ -271,6 +284,7 @@ SCENARIO(
 
     remove_virtual_function(
       symbol_table,
+      test_program_id,
       test_program,
       virtual_call_inst,
       dispatch_table,

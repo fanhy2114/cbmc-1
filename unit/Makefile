@@ -16,6 +16,8 @@ SRC += analyses/ai/ai.cpp \
        analyses/does_remove_const/is_type_at_least_as_const_as.cpp \
        big-int/big-int.cpp \
        compound_block_locations.cpp \
+       goto-instrument/cover_instrument.cpp \
+       goto-instrument/cover/cover_only.cpp \
        goto-programs/goto_model_function_type_consistency.cpp \
        goto-programs/goto_program_assume.cpp \
        goto-programs/goto_program_dead.cpp \
@@ -24,47 +26,77 @@ SRC += analyses/ai/ai.cpp \
        goto-programs/goto_program_goto_target.cpp \
        goto-programs/goto_program_symbol_type_table_consistency.cpp \
        goto-programs/goto_program_table_consistency.cpp \
+       goto-programs/goto_program_validate.cpp \
        goto-programs/goto_trace_output.cpp \
+       goto-programs/is_goto_binary.cpp \
+       goto-programs/osx_fat_reader.cpp \
+       goto-programs/remove_returns.cpp \
        goto-programs/xml_expr.cpp \
+       goto-symex/apply_condition.cpp \
+       goto-symex/expr_skeleton.cpp \
+       goto-symex/goto_symex_state.cpp \
        goto-symex/ssa_equation.cpp \
+       goto-symex/is_constant.cpp \
+       goto-symex/symex_assign.cpp \
+       goto-symex/symex_level0.cpp \
+       goto-symex/symex_level1.cpp \
+       goto-symex/try_evaluate_pointer_comparisons.cpp \
        interpreter/interpreter.cpp \
        json/json_parser.cpp \
        json_symbol_table.cpp \
        path_strategies.cpp \
        pointer-analysis/value_set.cpp \
+       solvers/bdd/miniBDD/miniBDD.cpp \
        solvers/floatbv/float_utils.cpp \
-       solvers/miniBDD/miniBDD.cpp \
-       solvers/refinement/array_pool/array_pool.cpp \
-       solvers/refinement/string_constraint_generator_valueof/calculate_max_string_length.cpp \
-       solvers/refinement/string_constraint_generator_valueof/get_numeric_value_from_character.cpp \
-       solvers/refinement/string_constraint_generator_valueof/is_digit_with_radix.cpp \
-       solvers/refinement/string_refinement/concretize_array.cpp \
-       solvers/refinement/string_refinement/sparse_array.cpp \
-       solvers/refinement/string_refinement/substitute_array_list.cpp \
-       solvers/refinement/string_refinement/union_find_replace.cpp \
+       solvers/lowering/byte_operators.cpp \
+       solvers/prop/bdd_expr.cpp \
+       solvers/sat/satcheck_minisat2.cpp \
+       solvers/strings/array_pool/array_pool.cpp \
+       solvers/strings/string_constraint_generator_valueof/calculate_max_string_length.cpp \
+       solvers/strings/string_constraint_generator_valueof/get_numeric_value_from_character.cpp \
+       solvers/strings/string_constraint_generator_valueof/is_digit_with_radix.cpp \
+       solvers/strings/string_format_builtin_function/length_for_format_specifier.cpp \
+       solvers/strings/string_format_builtin_function/length_of_decimal_int.cpp \
+       solvers/strings/string_refinement/concretize_array.cpp \
+       solvers/strings/string_refinement/sparse_array.cpp \
+       solvers/strings/string_refinement/string_refinement.cpp \
+       solvers/strings/string_refinement/substitute_array_list.cpp \
+       solvers/strings/string_refinement/union_find_replace.cpp \
+       util/allocate_objects.cpp \
        util/cmdline.cpp \
+       util/dense_integer_map.cpp \
        util/expr_cast/expr_cast.cpp \
        util/expr.cpp \
+       util/expr_iterator.cpp \
        util/file_util.cpp \
        util/format_number_range.cpp \
        util/get_base_name.cpp \
        util/graph.cpp \
+       util/interval_constraint.cpp \
+       util/interval_union.cpp \
        util/irep.cpp \
        util/irep_sharing.cpp \
+       util/json_array.cpp \
        util/json_object.cpp \
+       util/lazy.cpp \
        util/memory_info.cpp \
        util/message.cpp \
        util/optional.cpp \
        util/optional_utils.cpp \
+       util/parse_options.cpp \
        util/pointer_offset_size.cpp \
+       util/prefix_filter.cpp \
        util/range.cpp \
        util/replace_symbol.cpp \
        util/sharing_map.cpp \
        util/sharing_node.cpp \
        util/simplify_expr.cpp \
        util/small_map.cpp \
-       util/small_shared_two_way_ptr.cpp \
-			 util/std_expr.cpp \
+       util/small_shared_n_way_ptr.cpp \
+       util/ssa_expr.cpp \
+       util/std_expr.cpp \
+       util/string2int.cpp \
+       util/string_utils/join_string.cpp \
        util/string_utils/split_string.cpp \
        util/string_utils/strip_string.cpp \
        util/symbol_table.cpp \
@@ -72,8 +104,26 @@ SRC += analyses/ai/ai.cpp \
        util/unicode.cpp \
        # Empty last line
 
+ifeq ($(OS),Windows_NT)
+    detected_OS := Windows
+else
+    detected_OS := $(shell sh -c 'uname 2>/dev/null || echo Unknown')
+endif
+
+ifeq ($(detected_OS),Linux)
+  ifneq ($(WITH_MEMORY_ANALYZER),0)
+    # only set if it wasn't explicitly unset
+    WITH_MEMORY_ANALYZER=1
+  endif
+endif
+
+ifeq ($(WITH_MEMORY_ANALYZER),1)
+  SRC += memory-analyzer/gdb_api.cpp
+endif
+
 INCLUDES= -I ../src/ -I.
 
+CPROVER_DIR = .
 include ../src/config.inc
 include ../src/common
 
@@ -87,14 +137,10 @@ testing-utils-clean:
 	$(MAKE) $(MAKEARGS) -C testing-utils clean
 
 # We need to link bmc.o to the unit test, so here's everything it depends on...
-BMC_DEPS =../src/cbmc/all_properties$(OBJEXT) \
-          ../src/cbmc/bmc$(OBJEXT) \
-          ../src/cbmc/bmc_cover$(OBJEXT) \
+BMC_DEPS =../src/cbmc/c_test_input_generator$(OBJEXT) \
           ../src/cbmc/cbmc_languages$(OBJEXT) \
           ../src/cbmc/cbmc_parse_options$(OBJEXT) \
-          ../src/cbmc/counterexample_beautification$(OBJEXT) \
-          ../src/cbmc/fault_localization$(OBJEXT) \
-          ../src/cbmc/xml_interface$(OBJEXT) \
+          ../src/goto-instrument/source_lines$(OBJEXT) \
           ../src/goto-instrument/cover$(OBJEXT) \
           ../src/goto-instrument/cover_basic_blocks$(OBJEXT) \
           ../src/goto-instrument/cover_filter$(OBJEXT) \
@@ -129,16 +175,22 @@ CPROVER_LIBS =../src/ansi-c/ansi-c$(LIBEXT) \
               ../src/assembler/assembler$(LIBEXT) \
               ../src/analyses/analyses$(LIBEXT) \
               ../src/solvers/solvers$(LIBEXT) \
+              ../src/statement-list/statement-list$(LIBEXT) \
               $(BMC_DEPS)
               # Empty last line
 
 OBJ += $(CPROVER_LIBS) testing-utils/testing-utils$(LIBEXT)
 
 CATCH_TEST = unit_tests$(EXEEXT)
+EXCLUDED_TESTS=expr_undefined_casts.cpp
+ifneq ($(WITH_MEMORY_ANALYZER),1)
+EXCLUDED_TESTS += gdb_api.cpp
+endif
+
 N_CATCH_TESTS = $(shell \
                   cat $$(find . -name "*.cpp" \
-                    -a -not -name "expr_undefined_casts.cpp") | \
-                  grep -c -E "(SCENARIO|TEST_CASE)")
+                $$(printf ' -not -name %s ' $(EXCLUDED_TESTS))) | \
+                  grep -E "(SCENARIO|TEST_CASE)" | grep -c -v '\[\.\]')
 
 CLEANFILES = $(CATCH_TEST) testing-utils/testing-utils$(LIBEXT)
 

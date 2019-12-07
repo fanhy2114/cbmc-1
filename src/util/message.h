@@ -15,10 +15,12 @@ Author: Daniel Kroening, kroening@kroening.com
 #include <sstream>
 #include <string>
 
+#include "deprecate.h"
 #include "invariant.h"
-#include "json.h"
 #include "source_location.h"
 
+class json_objectt;
+class jsont;
 class xmlt;
 
 class message_handlert
@@ -71,6 +73,11 @@ protected:
 class null_message_handlert:public message_handlert
 {
 public:
+  null_message_handlert() : message_handlert()
+  {
+    verbosity = 0;
+  }
+
   void print(unsigned level, const std::string &message) override
   {
     message_handlert::print(level, message);
@@ -181,7 +188,7 @@ public:
 
   // constructors, destructor
 
-  DEPRECATED("use messaget(message_handler) instead")
+  DEPRECATED(SINCE(2019, 1, 7, "use messaget(message_handler) instead"))
   messaget():
     message_handler(nullptr),
     mstream(M_DEBUG, *this)
@@ -247,16 +254,7 @@ public:
       return *this;
     }
 
-    mstreamt &operator << (const json_objectt &data)
-    {
-      if(this->tellp() > 0)
-        *this << eom; // force end of previous message
-      if(message.message_handler)
-      {
-        message.message_handler->print(message_level, data);
-      }
-      return *this;
-    }
+    mstreamt &operator<<(const json_objectt &data);
 
     template <class T>
     mstreamt &operator << (const T &x)

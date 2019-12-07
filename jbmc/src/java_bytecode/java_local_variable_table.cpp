@@ -32,10 +32,15 @@ struct procedure_local_cfg_baset<
   : public grapht<
       cfg_base_nodet<T, java_bytecode_convert_methodt::method_offsett>>
 {
+  typedef grapht<
+    cfg_base_nodet<T, java_bytecode_convert_methodt::method_offsett>>
+    base_grapht;
+  typedef typename base_grapht::nodet nodet;
   typedef java_bytecode_convert_methodt::method_with_amapt method_with_amapt;
   typedef std::map<java_bytecode_convert_methodt::method_offsett,
                    java_bytecode_convert_methodt::method_offsett>
     entry_mapt;
+  typedef std::size_t entryt;
   entry_mapt entry_map;
 
   procedure_local_cfg_baset() {}
@@ -85,19 +90,36 @@ struct procedure_local_cfg_baset<
     }
   }
 
-  java_bytecode_convert_methodt::method_offsett
-  get_first_node(const method_with_amapt &args) const
+  java_bytecode_convert_methodt::method_offsett get_node_index(
+    const java_bytecode_convert_methodt::method_offsett &instruction) const
+  {
+    return entry_map.at(instruction);
+  }
+
+  nodet &
+  get_node(const java_bytecode_convert_methodt::method_offsett &instruction)
+  {
+    return (*this)[get_node_index(instruction)];
+  }
+  const nodet &get_node(
+    const java_bytecode_convert_methodt::method_offsett &instruction) const
+  {
+    return (*this)[get_node_index(instruction)];
+  }
+
+  static java_bytecode_convert_methodt::method_offsett
+  get_first_node(const method_with_amapt &args)
   {
     return args.second.begin()->first;
   }
 
-  java_bytecode_convert_methodt::method_offsett
-  get_last_node(const method_with_amapt &args) const
+  static java_bytecode_convert_methodt::method_offsett
+  get_last_node(const method_with_amapt &args)
   {
     return (--args.second.end())->first;
   }
 
-  bool nodes_empty(const method_with_amapt &args) const
+  static bool nodes_empty(const method_with_amapt &args)
   {
     return args.second.empty();
   }
@@ -184,7 +206,8 @@ static bool is_store_to_slot(
   const java_bytecode_convert_methodt::instructiont &inst,
   unsigned slotidx)
 {
-  const std::string prevstatement=id2string(inst.statement);
+  const std::string prevstatement = bytecode_info[inst.bytecode].mnemonic;
+
   if(!(prevstatement.size()>=1 && prevstatement.substr(1, 5)=="store"))
     return false;
 
@@ -773,7 +796,7 @@ void java_bytecode_convert_methodt::setup_local_variables(
   // to calculate which variable to use, one uses the address of the instruction
   // that uses the variable, the size of the instruction and the start_pc /
   // length values in the local variable table
-  for(const auto &v : vars_with_holes)
+  for(auto &v : vars_with_holes)
   {
     if(v.is_parameter)
       continue;
@@ -794,9 +817,9 @@ void java_bytecode_convert_methodt::setup_local_variables(
     const std::string class_name = method_name.substr(0, class_name_end);
 
     const typet t = v.var.signature.has_value()
-                      ? java_type_from_string_with_exception(
+                      ? *java_type_from_string_with_exception(
                           v.var.descriptor, v.var.signature, class_name)
-                      : java_type_from_string(v.var.descriptor);
+                      : *java_type_from_string(v.var.descriptor);
 
     std::ostringstream id_oss;
     id_oss << method_id << "::" << v.var.start_pc << "::" << v.var.name;
@@ -807,12 +830,8 @@ void java_bytecode_convert_methodt::setup_local_variables(
     // Create a new local variable in the variables[] array, the result of
     // merging multiple local variables with equal name (parameters excluded)
     // into a single local variable with holes
-    variables[v.var.index].push_back(variablet());
-    auto &newv=variables[v.var.index].back();
-    newv.symbol_expr=result;
-    newv.start_pc=v.var.start_pc;
-    newv.length=v.var.length;
-    newv.holes=std::move(v.holes);
+    variables[v.var.index].emplace_back(
+      result, v.var.start_pc, v.var.length, false, std::move(v.holes));
 
     // Register the local variable in the symbol table
     symbolt new_symbol;
@@ -862,9 +881,7 @@ java_bytecode_convert_methodt::find_variable_for_slot(
   // with scope from 0 to SIZE_T_MAX
   // as it is at the end of the vector, it will only be taken into account
   // if no other variable is valid
-  size_t list_length=var_list.size();
-  var_list.resize(list_length+1);
-  var_list[list_length].start_pc=0;
-  var_list[list_length].length=std::numeric_limits<size_t>::max();
-  return var_list[list_length];
+  var_list.emplace_back(
+    symbol_exprt(irep_idt(), typet()), 0, std::numeric_limits<size_t>::max());
+  return var_list.back();
 }

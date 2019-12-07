@@ -25,12 +25,17 @@ Author: Daniel Kroening, kroening@kroening.com
 
 #include <goto-programs/class_hierarchy.h>
 #include <goto-programs/goto_trace.h>
-#include <goto-programs/lazy_goto_model.h>
 #include <goto-programs/show_properties.h>
 
-#include <solvers/refinement/string_refinement.h>
+#include <goto-symex/path_storage.h>
+
+#include <solvers/strings/string_refinement.h>
 
 #include <java_bytecode/java_bytecode_language.h>
+#include <java_bytecode/lazy_goto_model.h>
+
+#include <json/json_interface.h>
+#include <xmllang/xml_interface.h>
 
 class goto_functionst;
 class optionst;
@@ -38,16 +43,20 @@ class optionst;
 // clang-format off
 #define JBMC_OPTIONS \
   OPT_BMC \
-  "(preprocess)(slice-by-trace):" \
+  "(preprocess)" \
   OPT_FUNCTIONS \
   "(no-simplify)(full-slice)" \
   OPT_REACHABILITY_SLICER \
   "(debug-level):(no-propagation)(no-simplify-if)" \
   "(document-subgoals)(outfile):" \
   "(object-bits):" \
-  "(classpath):(cp):(main-class):" \
+  "(classpath):(cp):" \
+  OPT_JAVA_JAR \
+  "(main-class):" \
+  OPT_JAVA_GOTO_BINARY \
   "(no-assertions)(no-assumptions)" \
-  "(xml-ui)(json-ui)" \
+  OPT_XML_INTERFACE \
+  OPT_JSON_INTERFACE \
   "(smt1)(smt2)(fpa)(cvc3)(cvc4)(boolector)(yices)(z3)(mathsat)" \
   "(no-sat-preprocessor)" \
   "(beautify)" \
@@ -65,6 +74,7 @@ class optionst;
   "(property):(stop-on-fail)(trace)" \
   "(verbosity):" \
   "(nondet-static)" \
+  OPT_JAVA_TRACE_VALIDATION \
   "(version)" \
   "(symex-coverage-report):" \
   OPT_TIMESTAMP \
@@ -75,16 +85,14 @@ class optionst;
   OPT_FLUSH \
   JAVA_BYTECODE_LANGUAGE_OPTIONS \
   "(java-unwind-enum-static)" \
-  "(localize-faults)(localize-faults-method):" \
+  "(localize-faults)" \
   "(java-threading)" \
   OPT_GOTO_TRACE \
   OPT_VALIDATE \
   "(symex-driven-lazy-loading)"
 // clang-format on
 
-class jbmc_parse_optionst:
-  public parse_options_baset,
-  public messaget
+class jbmc_parse_optionst : public parse_options_baset
 {
 public:
   virtual int doit() override;
@@ -117,7 +125,6 @@ public:
     bool body_available);
 
 protected:
-  ui_message_handlert ui_message_handler;
   java_object_factory_parameterst object_factory_params;
   bool stub_objects_are_not_null;
 
@@ -125,10 +132,15 @@ protected:
 
   void get_command_line_options(optionst &);
   int get_goto_program(
-    std::unique_ptr<goto_modelt> &goto_model, const optionst &);
+    std::unique_ptr<abstract_goto_modelt> &goto_model,
+    const optionst &);
   bool show_loaded_functions(const abstract_goto_modelt &goto_model);
+  bool show_loaded_symbols(const abstract_goto_modelt &goto_model);
 
-  bool set_properties(goto_modelt &goto_model);
+  /// See java_bytecode_languaget::method_context.
+  /// The two fields are initialized in exactly the same way.
+  /// TODO Refactor this so it only needs to be computed once, in one place.
+  optionalt<prefix_filtert> method_context;
 };
 
 #endif // CPROVER_JBMC_JBMC_PARSE_OPTIONS_H

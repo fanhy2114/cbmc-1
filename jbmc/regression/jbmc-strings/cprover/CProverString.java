@@ -147,4 +147,20 @@ public final class CProverString {
             StringBuffer sb, int offset, long l) {
         return sb.insert(offset, l);
     }
+
+    public static String toString(int i) { return String.valueOf(i); }
+
+    public static String toString(int i, int radix) {
+      return Integer.toString(i, radix);
+    }
+
+    public static String toString(long l) { return String.valueOf(l); }
+
+    public static String toString(long l, int radix) {
+      return Long.toString(l, radix);
+    }
+
+    public static String toString(float f) { return String.valueOf(f); }
+
+    public static String toString(double d) { return String.valueOf((float)d); }
 }

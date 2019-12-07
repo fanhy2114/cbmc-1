@@ -14,12 +14,26 @@ Author: Daniel Kroening, kroening@kroening.com
 #include <unordered_set>
 
 #include <util/message.h>
+#include <util/optional.h>
 #include <util/std_expr.h>
 #include <util/symbol_table.h>
 
 #include <goto-programs/resolve_inherited_component.h>
 
+DEPRECATED(SINCE(2019, 6, 10, "use is_java_array_type instead"))
 bool java_is_array_type(const typet &type);
+
+/// Returns true iff the argument represents a string type (CharSequence,
+/// StringBuilder, StringBuffer or String).
+/// The check for the length and data components is necessary in the case where
+/// string refinement is not activated. In this case, \p struct_type only
+/// contains the standard Object fields (or may have some other model entirely),
+/// and in particular may not have length and data fields.
+bool is_java_string_type(const struct_typet &struct_type);
+
+/// Returns true iff the argument is the fully qualified name of a Java
+/// primitive wrapper type.
+bool is_primitive_wrapper_type_name(const std::string &type_name);
 
 void generate_class_stub(
   const irep_idt &class_name,
@@ -68,10 +82,16 @@ irep_idt resolve_friendly_method_name(
   const symbol_table_baset &symbol_table,
   std::string &error);
 
+/// Given a pointer type to a Java class and a type representing a more specific
+/// Java class, return a pointer type to the more specific class with the same
+/// structure as the original pointer type.
+pointer_typet pointer_to_replacement_type(
+  const pointer_typet &given_pointer_type,
+  const java_class_typet &replacement_class_type);
+
 /// Dereference an expression and flag it for a null-pointer check
 /// \param expr: expression to dereference and check
-/// \param type: expected result type (typically expr.type().subtype())
-dereference_exprt checked_dereference(const exprt &expr, const typet &type);
+dereference_exprt checked_dereference(const exprt &expr);
 
 /// Add the components in components_to_add to the class denoted
 /// by class symbol.
@@ -87,30 +107,42 @@ size_t find_closing_delimiter(
   char open_char,
   char close_char);
 
-void declare_function(
-  irep_idt function_name,
-  const typet &type,
-  symbol_table_baset &symbol_table);
-
 exprt make_function_application(
   const irep_idt &function_name,
   const exprt::operandst &arguments,
-  const typet &type,
+  const typet &range,
   symbol_table_baset &symbol_table);
 
 irep_idt strip_java_namespace_prefix(const irep_idt &to_strip);
 
 std::string pretty_print_java_type(const std::string &fqn_java_type);
 
-resolve_inherited_componentt::inherited_componentt get_inherited_component(
+optionalt<resolve_inherited_componentt::inherited_componentt>
+get_inherited_component(
   const irep_idt &component_class_id,
   const irep_idt &component_name,
   const symbol_tablet &symbol_table,
-  const class_hierarchyt &class_hierarchy,
   bool include_interfaces);
 
 bool is_non_null_library_global(const irep_idt &);
 
 extern const std::unordered_set<std::string> cprover_methods_to_ignore;
+
+symbolt &fresh_java_symbol(
+  const typet &type,
+  const std::string &basename_prefix,
+  const source_locationt &source_location,
+  const irep_idt &function_name,
+  symbol_table_baset &symbol_table);
+
+/// Gets the identifier of the class which declared a given \p symbol. If the
+/// symbol is not declared by a class then an empty optional is returned. This
+/// is used for method symbols and static field symbols to link them back to the
+/// class which declared them.
+optionalt<irep_idt> declaring_class(const symbolt &symbol);
+
+/// Sets the identifier of the class which declared a given \p symbol to \p
+/// declaring_class.
+void set_declaring_class(symbolt &symbol, const irep_idt &declaring_class);
 
 #endif // CPROVER_JAVA_BYTECODE_JAVA_UTILS_H

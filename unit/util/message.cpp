@@ -6,10 +6,10 @@ Author: Diffblue Ltd.
 
 \*******************************************************************/
 
-#include <testing-utils/catch.hpp>
-#include <util/message.h>
 #include <sstream>
 #include <string.h>
+#include <testing-utils/use_catch.h>
+#include <util/message.h>
 
 TEST_CASE("Copy a messaget")
 {
@@ -38,7 +38,7 @@ TEST_CASE("Assign a messaget")
   messaget msg1(handler1);
 
   // Assign messaget:
-  messaget msg2;
+  messaget msg2(handler1);
   msg2=msg1;
 
   // Change its handler:

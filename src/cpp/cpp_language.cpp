@@ -20,6 +20,7 @@ Author: Daniel Kroening, kroening@cs.cmu.edu
 #include <util/get_base_name.h>
 
 #include <linking/linking.h>
+#include <linking/remove_internal_symbols.h>
 
 #include <ansi-c/ansi_c_entry_point.h>
 #include <ansi-c/c_preprocess.h>
@@ -37,6 +38,7 @@ std::set<std::string> cpp_languaget::extensions() const
   s.insert("cpp");
   s.insert("CPP");
   s.insert("cc");
+  s.insert("cp");
   s.insert("c++");
   s.insert("ii");
   s.insert("cxx");
@@ -59,7 +61,7 @@ bool cpp_languaget::preprocess(
   const std::string &path,
   std::ostream &outstream)
 {
-  if(path=="")
+  if(path.empty())
     return c_preprocess(instream, outstream, get_message_handler());
 
   // check extension
@@ -122,7 +124,7 @@ bool cpp_languaget::typecheck(
   symbol_tablet &symbol_table,
   const std::string &module)
 {
-  if(module=="")
+  if(module.empty())
     return false;
 
   symbol_tablet new_symbol_table;
@@ -130,6 +132,8 @@ bool cpp_languaget::typecheck(
   if(cpp_typecheck(
       cpp_parse_tree, new_symbol_table, module, get_message_handler()))
     return true;
+
+  remove_internal_symbols(new_symbol_table, get_message_handler(), false);
 
   return linking(symbol_table, new_symbol_table, get_message_handler());
 }

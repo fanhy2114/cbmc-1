@@ -1,10 +1,19 @@
 default: tests.log
 
+include ../../src/config.inc
+include ../../src/common
+
+ifeq ($(BUILD_ENV_),MSVC)
+	gcc_only = -X gcc-only
+else
+	gcc_only =
+endif
+
 test:
-	@../test.pl -p -c ../../../src/cbmc/cbmc
+	@../test.pl -e -p -c "../../../src/cbmc/cbmc --validate-goto-model --validate-ssa-equation" $(gcc_only)
 
 tests.log: ../test.pl
-	@../test.pl -p -c ../../../src/cbmc/cbmc
+	@../test.pl -e -p -c "../../../src/cbmc/cbmc --validate-goto-model --validate-ssa-equation" $(gcc_only)
 
 show:
 	@for dir in *; do \

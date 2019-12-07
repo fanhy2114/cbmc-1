@@ -1,7 +1,3 @@
-class A
-{
-}
-
 class multinewarray
 {
   public static void main(String[] args)

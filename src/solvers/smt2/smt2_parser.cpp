@@ -13,6 +13,8 @@ Author: Daniel Kroening, kroening@kroening.com
 #include <util/arith_tools.h>
 #include <util/ieee_float.h>
 #include <util/invariant.h>
+#include <util/mathematical_expr.h>
+#include <util/prefix.h>
 #include <util/range.h>
 
 #include <numeric>
@@ -70,7 +72,12 @@ void smt2_parsert::command_sequence()
       // what we expect
       break;
 
-    default:
+    case smt2_tokenizert::OPEN:
+    case smt2_tokenizert::SYMBOL:
+    case smt2_tokenizert::NUMERAL:
+    case smt2_tokenizert::STRING_LITERAL:
+    case smt2_tokenizert::NONE:
+    case smt2_tokenizert::KEYWORD:
       throw error("expected ')' at end of command");
     }
   }
@@ -99,7 +106,11 @@ void smt2_parsert::ignore_command()
     case smt2_tokenizert::END_OF_FILE:
       throw error("unexpected EOF in command");
 
-    default:
+    case smt2_tokenizert::SYMBOL:
+    case smt2_tokenizert::NUMERAL:
+    case smt2_tokenizert::STRING_LITERAL:
+    case smt2_tokenizert::NONE:
+    case smt2_tokenizert::KEYWORD:
       next_token();
     }
   }
@@ -117,24 +128,42 @@ exprt::operandst smt2_parsert::operands()
   return result;
 }
 
-irep_idt smt2_parsert::get_fresh_id(const irep_idt &id)
+irep_idt smt2_parsert::add_fresh_id(
+  const irep_idt &id,
+  idt::kindt kind,
+  const exprt &expr)
 {
-  if(id_map[id].type.is_nil())
-    return id; // id not yet used
-
   auto &count=renaming_counters[id];
   irep_idt new_id;
   do
   {
     new_id=id2string(id)+'#'+std::to_string(count);
     count++;
-  }
-  while(id_map.find(new_id)!=id_map.end());
+  } while(!id_map
+             .emplace(
+               std::piecewise_construct,
+               std::forward_as_tuple(new_id),
+               std::forward_as_tuple(kind, expr))
+             .second);
 
   // record renaming
-  renaming_map[id]=new_id;
+  renaming_map[id] = new_id;
 
   return new_id;
+}
+
+void smt2_parsert::add_unique_id(const irep_idt &id, const exprt &expr)
+{
+  if(!id_map
+        .emplace(
+          std::piecewise_construct,
+          std::forward_as_tuple(id),
+          std::forward_as_tuple(idt::VARIABLE, expr))
+        .second)
+  {
+    // id already used
+    throw error() << "identifier '" << id << "' defined twice";
+  }
 }
 
 irep_idt smt2_parsert::rename_id(const irep_idt &id) const
@@ -183,27 +212,21 @@ exprt smt2_parsert::let_expression()
   for(auto &b : bindings)
   {
     // get a fresh id for it
-    b.first=get_fresh_id(b.first);
-    auto &entry=id_map[b.first];
-    entry.type=b.second.type();
-    entry.definition=b.second;
+    b.first = add_fresh_id(b.first, idt::BINDING, b.second);
   }
 
-  exprt expr=expression();
+  exprt where = expression();
 
   if(next_token() != smt2_tokenizert::CLOSE)
     throw error("expected ')' after let");
 
-  exprt result=expr;
+  binding_exprt::variablest variables;
+  exprt::operandst values;
 
-  // go backwards, build let_expr
-  for(auto r_it=bindings.rbegin(); r_it!=bindings.rend(); r_it++)
+  for(const auto &b : bindings)
   {
-    const let_exprt let(
-      symbol_exprt(r_it->first, r_it->second.type()),
-      r_it->second,
-      result);
-    result=let;
+    variables.push_back(symbol_exprt(b.first, b.second.type()));
+    values.push_back(b.second);
   }
 
   // we keep these in the id_map in order to retain globally
@@ -212,7 +235,7 @@ exprt smt2_parsert::let_expression()
   // restore renamings
   renaming_map=old_renaming_map;
 
-  return result;
+  return let_exprt(variables, values, where);
 }
 
 exprt smt2_parsert::quantifier_expression(irep_idt id)
@@ -242,12 +265,16 @@ exprt smt2_parsert::quantifier_expression(irep_idt id)
   if(next_token() != smt2_tokenizert::CLOSE)
     throw error("expected ')' at end of bindings");
 
-  // go forwards, add to id_map
-  for(const auto &b : bindings)
+  // save the renaming map
+  renaming_mapt old_renaming_map = renaming_map;
+
+  // go forwards, add to id_map, renaming if need be
+  for(auto &b : bindings)
   {
-    auto &entry=id_map[b.get_identifier()];
-    entry.type=b.type();
-    entry.definition=nil_exprt();
+    const irep_idt id =
+      add_fresh_id(b.get_identifier(), idt::BINDING, exprt(ID_nil, b.type()));
+
+    b.set_identifier(id);
   }
 
   exprt expr=expression();
@@ -261,10 +288,13 @@ exprt smt2_parsert::quantifier_expression(irep_idt id)
   for(const auto &b : bindings)
     id_map.erase(b.get_identifier());
 
+  // restore renaming map
+  renaming_map = old_renaming_map;
+
   // go backwards, build quantified expression
   for(auto r_it=bindings.rbegin(); r_it!=bindings.rend(); r_it++)
   {
-    binary_predicate_exprt quantifier(*r_it, id, result);
+    quantifier_exprt quantifier(id, *r_it, result);
     result=quantifier;
   }
 
@@ -272,26 +302,22 @@ exprt smt2_parsert::quantifier_expression(irep_idt id)
 }
 
 exprt smt2_parsert::function_application(
-  const irep_idt &,
-  const exprt::operandst &)
+  const symbol_exprt &function,
+  const exprt::operandst &op)
 {
-  #if 0
-  const auto &f = id_map[identifier];
+  const auto &function_type = to_mathematical_function_type(function.type());
 
   // check the arguments
-  if(op.size()!=f.type.variables().size())
+  if(op.size() != function_type.domain().size())
     throw error("wrong number of arguments for function");
 
   for(std::size_t i=0; i<op.size(); i++)
   {
-    if(op[i].type() != f.type.variables()[i].type())
+    if(op[i].type() != function_type.domain()[i])
       throw error("wrong type for arguments for function");
   }
 
-  return function_application_exprt(
-    symbol_exprt(identifier, f.type), op, f.type.range());
-  #endif
-  return nil_exprt();
+  return function_application_exprt(function, op);
 }
 
 exprt::operandst smt2_parsert::cast_bv_to_signed(const exprt::operandst &op)
@@ -339,8 +365,8 @@ exprt smt2_parsert::multi_ary(irep_idt id, const exprt::operandst &op)
     if(op[i].type() != op[0].type())
     {
       throw error() << "expression must have operands with matching types,"
-                       " but got `"
-                    << smt2_format(op[0].type()) << "' and `"
+                       " but got '"
+                    << smt2_format(op[0].type()) << "' and '"
                     << smt2_format(op[i].type()) << '\'';
     }
   }
@@ -358,8 +384,8 @@ exprt smt2_parsert::binary_predicate(irep_idt id, const exprt::operandst &op)
   if(op[0].type() != op[1].type())
   {
     throw error() << "expression must have operands with matching types,"
-                     " but got `"
-                  << smt2_format(op[0].type()) << "' and `"
+                     " but got '"
+                  << smt2_format(op[0].type()) << "' and '"
                   << smt2_format(op[1].type()) << '\'';
   }
 
@@ -383,6 +409,25 @@ exprt smt2_parsert::binary(irep_idt id, const exprt::operandst &op)
     throw error("expression must have operands with matching types");
 
   return binary_exprt(op[0], id, op[1], op[0].type());
+}
+
+exprt smt2_parsert::function_application_ieee_float_eq(
+  const exprt::operandst &op)
+{
+  if(op.size() != 2)
+    throw error() << "FloatingPoint equality takes two operands";
+
+  if(op[0].type().id() != ID_floatbv || op[1].type().id() != ID_floatbv)
+    throw error() << "FloatingPoint equality takes FloatingPoint operands";
+
+  if(op[0].type() != op[1].type())
+  {
+    throw error() << "FloatingPoint equality takes FloatingPoint operands with "
+                  << "matching sort, but got " << smt2_format(op[0].type())
+                  << " vs " << smt2_format(op[1].type());
+  }
+
+  return ieee_float_equal_exprt(op[0], op[1]);
 }
 
 exprt smt2_parsert::function_application_ieee_float_op(
@@ -491,9 +536,8 @@ exprt smt2_parsert::function_application()
           {
             const symbol_exprt symbol_expr(
               smt2_tokenizer.get_buffer(), bool_typet());
-            auto &named_term = named_terms[symbol_expr.get_identifier()];
-            named_term.term = term;
-            named_term.name = symbol_expr;
+            named_terms.emplace(
+              symbol_expr.get_identifier(), named_termt(term, symbol_expr));
           }
           else
             throw error("invalid name attribute, expected symbol");
@@ -509,264 +553,30 @@ exprt smt2_parsert::function_application()
     }
     else
     {
-      // non-indexed symbol; hash it
-      const irep_idt id = smt2_tokenizer.get_buffer();
+      // non-indexed symbol, look up in expression table
+      const auto id = smt2_tokenizer.get_buffer();
+      const auto e_it = expressions.find(id);
+      if(e_it != expressions.end())
+        return e_it->second();
 
-      if(id==ID_let)
-        return let_expression();
-      else if(id==ID_forall || id==ID_exists)
-        return quantifier_expression(id);
+      // get the operands
+      auto op = operands();
 
-      auto op=operands();
-
-      if(id==ID_and ||
-         id==ID_or ||
-         id==ID_xor)
+      // rummage through id_map
+      const irep_idt final_id = rename_id(id);
+      auto id_it = id_map.find(final_id);
+      if(id_it != id_map.end())
       {
-        return multi_ary(id, op);
-      }
-      else if(id==ID_not)
-      {
-        return unary(id, op);
-      }
-      else if(id==ID_equal ||
-              id==ID_le ||
-              id==ID_ge ||
-              id==ID_lt ||
-              id==ID_gt)
-      {
-        return binary_predicate(id, op);
-      }
-      else if(id=="bvule")
-      {
-        return binary_predicate(ID_le, op);
-      }
-      else if(id=="bvsle")
-      {
-        return binary_predicate(ID_le, cast_bv_to_signed(op));
-      }
-      else if(id=="bvuge")
-      {
-        return binary_predicate(ID_ge, op);
-      }
-      else if(id=="bvsge")
-      {
-        return binary_predicate(ID_ge, cast_bv_to_signed(op));
-      }
-      else if(id=="bvult")
-      {
-        return binary_predicate(ID_lt, op);
-      }
-      else if(id=="bvslt")
-      {
-        return binary_predicate(ID_lt, cast_bv_to_signed(op));
-      }
-      else if(id=="bvugt")
-      {
-        return binary_predicate(ID_gt, op);
-      }
-      else if(id=="bvsgt")
-      {
-        return binary_predicate(ID_gt, cast_bv_to_signed(op));
-      }
-      else if(id=="bvashr")
-      {
-        return cast_bv_to_unsigned(binary(ID_ashr, cast_bv_to_signed(op)));
-      }
-      else if(id=="bvlshr" || id=="bvshr")
-      {
-        return binary(ID_lshr, op);
-      }
-      else if(id=="bvlshr" || id=="bvashl" || id=="bvshl")
-      {
-        return binary(ID_shl, op);
-      }
-      else if(id=="bvand")
-      {
-        return multi_ary(ID_bitand, op);
-      }
-      else if(id=="bvnand")
-      {
-        return multi_ary(ID_bitnand, op);
-      }
-      else if(id=="bvor")
-      {
-        return multi_ary(ID_bitor, op);
-      }
-      else if(id=="bvnor")
-      {
-        return multi_ary(ID_bitnor, op);
-      }
-      else if(id=="bvxor")
-      {
-        return multi_ary(ID_bitxor, op);
-      }
-      else if(id=="bvxnor")
-      {
-        return multi_ary(ID_bitxnor, op);
-      }
-      else if(id=="bvnot")
-      {
-        return unary(ID_bitnot, op);
-      }
-      else if(id=="bvneg")
-      {
-        return unary(ID_unary_minus, op);
-      }
-      else if(id=="bvadd")
-      {
-        return multi_ary(ID_plus, op);
-      }
-      else if(id==ID_plus)
-      {
-        return multi_ary(id, op);
-      }
-      else if(id=="bvsub" || id=="-")
-      {
-        return binary(ID_minus, op);
-      }
-      else if(id=="bvmul" || id=="*")
-      {
-        return binary(ID_mult, op);
-      }
-      else if(id=="bvsdiv")
-      {
-        return cast_bv_to_unsigned(binary(ID_div, cast_bv_to_signed(op)));
-      }
-      else if(id=="bvudiv")
-      {
-        return binary(ID_div, op);
-      }
-      else if(id=="/" || id=="div")
-      {
-        return binary(ID_div, op);
-      }
-      else if(id=="bvsrem")
-      {
-        // 2's complement signed remainder (sign follows dividend)
-        // This matches our ID_mod, and what C does since C99.
-        return cast_bv_to_unsigned(binary(ID_mod, cast_bv_to_signed(op)));
-      }
-      else if(id=="bvsmod")
-      {
-        // 2's complement signed remainder (sign follows divisor)
-        // We don't have that.
-        return cast_bv_to_unsigned(binary(ID_mod, cast_bv_to_signed(op)));
-      }
-      else if(id=="bvurem" || id=="%")
-      {
-        return binary(ID_mod, op);
-      }
-      else if(id=="concat")
-      {
-        // add the widths
-        auto op_width = make_range(op).map([](const exprt &o) {
-          return to_unsignedbv_type(o.type()).get_width();
-        });
-
-        const std::size_t total_width =
-          std::accumulate(op_width.begin(), op_width.end(), 0);
-
-        return concatenation_exprt(
-          std::move(op), unsignedbv_typet(total_width));
-      }
-      else if(id=="distinct")
-      {
-        // pair-wise different constraint, multi-ary
-        return multi_ary("distinct", op);
-      }
-      else if(id=="ite")
-      {
-        if(op.size()!=3)
-          throw error("ite takes three operands");
-
-        if(op[0].type().id()!=ID_bool)
-          throw error("ite takes a boolean as first operand");
-
-        if(op[1].type()!=op[2].type())
-          throw error("ite needs matching types");
-
-        return if_exprt(op[0], op[1], op[2]);
-      }
-      else if(id=="=>" || id=="implies")
-      {
-        return binary(ID_implies, op);
-      }
-      else if(id == "select")
-      {
-        // array index
-        if(op.size() != 2)
-          throw error("select takes two operands");
-
-        if(op[0].type().id() != ID_array)
-          throw error("select expects array operand");
-
-        return index_exprt(op[0], op[1]);
-      }
-      else if(id == "store")
-      {
-        // array update
-        if(op.size() != 3)
-          throw error("store takes three operands");
-
-        if(op[0].type().id() != ID_array)
-          throw error("store expects array operand");
-
-        if(to_array_type(op[0].type()).subtype() != op[2].type())
-          throw error("store expects value that matches array element type");
-
-        return with_exprt(op[0], op[1], op[2]);
-      }
-      else if(id == "fp.isNaN")
-      {
-        if(op.size() != 1)
-          throw error("fp.isNaN takes one operand");
-
-        if(op[0].type().id() != ID_floatbv)
-          throw error("fp.isNaN takes FloatingPoint operand");
-
-        return unary_predicate_exprt(ID_isnan, op[0]);
-      }
-      else if(id == "fp.isInf")
-      {
-        if(op.size() != 1)
-          throw error("fp.isInf takes one operand");
-
-        if(op[0].type().id() != ID_floatbv)
-          throw error("fp.isInf takes FloatingPoint operand");
-
-        return unary_predicate_exprt(ID_isinf, op[0]);
-      }
-      else if(id == "fp")
-      {
-        return function_application_fp(op);
-      }
-      else if(
-        id == "fp.add" || id == "fp.mul" || id == "fp.sub" || id == "fp.div")
-      {
-        return function_application_ieee_float_op(id, op);
-      }
-      else
-      {
-        // rummage through id_map
-        const irep_idt final_id=rename_id(id);
-        auto id_it=id_map.find(final_id);
-        if(id_it!=id_map.end())
+        if(id_it->second.type.id() == ID_mathematical_function)
         {
-          if(id_it->second.type.id()==ID_mathematical_function)
-          {
-            return function_application_exprt(
-              symbol_exprt(final_id, id_it->second.type),
-              op,
-              to_mathematical_function_type(
-                id_it->second.type).codomain());
-          }
-          else
-            return symbol_exprt(final_id, id_it->second.type);
+          return function_application(
+            symbol_exprt(final_id, id_it->second.type), op);
         }
-
-        throw error() << "unknown function symbol `" << id << '\'';
+        else
+          return symbol_exprt(final_id, id_it->second.type);
       }
+
+      throw error() << "unknown function symbol '" << id << '\'';
     }
     break;
 
@@ -871,7 +681,7 @@ exprt smt2_parsert::function_application()
         }
         else
         {
-          throw error() << "unknown indexed identifier `"
+          throw error() << "unknown indexed identifier '"
                         << smt2_tokenizer.get_buffer() << '\'';
         }
       }
@@ -906,7 +716,12 @@ exprt smt2_parsert::function_application()
     }
     break;
 
-  default:
+  case smt2_tokenizert::CLOSE:
+  case smt2_tokenizert::NUMERAL:
+  case smt2_tokenizert::STRING_LITERAL:
+  case smt2_tokenizert::END_OF_FILE:
+  case smt2_tokenizert::NONE:
+  case smt2_tokenizert::KEYWORD:
     // just parentheses
     exprt tmp=expression();
     if(next_token() != smt2_tokenizert::CLOSE)
@@ -923,41 +738,14 @@ exprt smt2_parsert::expression()
   switch(next_token())
   {
   case smt2_tokenizert::SYMBOL:
-  {
-    // hash it
-    const irep_idt identifier = smt2_tokenizer.get_buffer();
+    {
+      const auto &identifier = smt2_tokenizer.get_buffer();
 
-    if(identifier == ID_true)
-      return true_exprt();
-    else if(identifier == ID_false)
-      return false_exprt();
-    else if(identifier == "roundNearestTiesToEven")
-    {
-      // we encode as 32-bit unsignedbv
-      return from_integer(ieee_floatt::ROUND_TO_EVEN, unsignedbv_typet(32));
-    }
-    else if(identifier == "roundNearestTiesToAway")
-    {
-      throw error("unsupported rounding mode");
-    }
-    else if(identifier == "roundTowardPositive")
-    {
-      // we encode as 32-bit unsignedbv
-      return from_integer(ieee_floatt::ROUND_TO_PLUS_INF, unsignedbv_typet(32));
-    }
-    else if(identifier == "roundTowardNegative")
-    {
-      // we encode as 32-bit unsignedbv
-      return from_integer(
-        ieee_floatt::ROUND_TO_MINUS_INF, unsignedbv_typet(32));
-    }
-    else if(identifier == "roundTowardZero")
-    {
-      // we encode as 32-bit unsignedbv
-      return from_integer(ieee_floatt::ROUND_TO_ZERO, unsignedbv_typet(32));
-    }
-    else
-    {
+      // in the expression table?
+      const auto e_it = expressions.find(identifier);
+      if(e_it != expressions.end())
+        return e_it->second();
+
       // rummage through id_map
       const irep_idt final_id = rename_id(identifier);
       auto id_it = id_map.find(final_id);
@@ -969,9 +757,9 @@ exprt smt2_parsert::expression()
         return std::move(symbol_expr);
       }
 
-      throw error() << "unknown expression `" << identifier << '\'';
+      // don't know, give up
+      throw error() << "unknown expression '" << identifier << '\'';
     }
-  }
 
   case smt2_tokenizert::NUMERAL:
   {
@@ -1006,103 +794,367 @@ exprt smt2_parsert::expression()
   case smt2_tokenizert::END_OF_FILE:
     throw error("EOF in an expression");
 
-  default:
+  case smt2_tokenizert::CLOSE:
+  case smt2_tokenizert::STRING_LITERAL:
+  case smt2_tokenizert::NONE:
+  case smt2_tokenizert::KEYWORD:
     throw error("unexpected token in an expression");
   }
 
   UNREACHABLE;
 }
 
+void smt2_parsert::setup_expressions()
+{
+  expressions["true"] = [] { return true_exprt(); };
+  expressions["false"] = [] { return false_exprt(); };
+
+  expressions["roundNearestTiesToEven"] = [] {
+    // we encode as 32-bit unsignedbv
+    return from_integer(ieee_floatt::ROUND_TO_EVEN, unsignedbv_typet(32));
+  };
+
+  expressions["roundNearestTiesToAway"] = [this]() -> exprt {
+    throw error("unsupported rounding mode");
+  };
+
+  expressions["roundTowardPositive"] = [] {
+    // we encode as 32-bit unsignedbv
+    return from_integer(ieee_floatt::ROUND_TO_PLUS_INF, unsignedbv_typet(32));
+  };
+
+  expressions["roundTowardNegative"] = [] {
+    // we encode as 32-bit unsignedbv
+    return from_integer(ieee_floatt::ROUND_TO_MINUS_INF, unsignedbv_typet(32));
+  };
+
+  expressions["roundTowardZero"] = [] {
+    // we encode as 32-bit unsignedbv
+    return from_integer(ieee_floatt::ROUND_TO_ZERO, unsignedbv_typet(32));
+  };
+
+  expressions["let"] = [this] { return let_expression(); };
+  expressions["exists"] = [this] { return quantifier_expression(ID_exists); };
+  expressions["forall"] = [this] { return quantifier_expression(ID_forall); };
+  expressions["and"] = [this] { return multi_ary(ID_and, operands()); };
+  expressions["or"] = [this] { return multi_ary(ID_or, operands()); };
+  expressions["xor"] = [this] { return multi_ary(ID_xor, operands()); };
+  expressions["not"] = [this] { return unary(ID_not, operands()); };
+  expressions["="] = [this] { return binary_predicate(ID_equal, operands()); };
+  expressions["<="] = [this] { return binary_predicate(ID_le, operands()); };
+  expressions[">="] = [this] { return binary_predicate(ID_ge, operands()); };
+  expressions["<"] = [this] { return binary_predicate(ID_lt, operands()); };
+  expressions[">"] = [this] { return binary_predicate(ID_gt, operands()); };
+
+  expressions["bvule"] = [this] { return binary_predicate(ID_le, operands()); };
+
+  expressions["bvsle"] = [this] {
+    return binary_predicate(ID_le, cast_bv_to_signed(operands()));
+  };
+
+  expressions["bvuge"] = [this] { return binary_predicate(ID_ge, operands()); };
+
+  expressions["bvsge"] = [this] {
+    return binary_predicate(ID_ge, cast_bv_to_signed(operands()));
+  };
+
+  expressions["bvult"] = [this] { return binary_predicate(ID_lt, operands()); };
+
+  expressions["bvslt"] = [this] {
+    return binary_predicate(ID_lt, cast_bv_to_signed(operands()));
+  };
+
+  expressions["bvugt"] = [this] { return binary_predicate(ID_gt, operands()); };
+
+  expressions["bvsgt"] = [this] {
+    return binary_predicate(ID_gt, cast_bv_to_signed(operands()));
+  };
+
+  expressions["bvashr"] = [this] {
+    return cast_bv_to_unsigned(binary(ID_ashr, cast_bv_to_signed(operands())));
+  };
+
+  expressions["bvlshr"] = [this] { return binary(ID_lshr, operands()); };
+  expressions["bvshr"] = [this] { return binary(ID_lshr, operands()); };
+  expressions["bvlshl"] = [this] { return binary(ID_shl, operands()); };
+  expressions["bvashl"] = [this] { return binary(ID_shl, operands()); };
+  expressions["bvshl"] = [this] { return binary(ID_shl, operands()); };
+  expressions["bvand"] = [this] { return multi_ary(ID_bitand, operands()); };
+  expressions["bvnand"] = [this] { return multi_ary(ID_bitnand, operands()); };
+  expressions["bvor"] = [this] { return multi_ary(ID_bitor, operands()); };
+  expressions["bvnor"] = [this] { return multi_ary(ID_bitnor, operands()); };
+  expressions["bvxor"] = [this] { return multi_ary(ID_bitxor, operands()); };
+  expressions["bvxnor"] = [this] { return multi_ary(ID_bitxnor, operands()); };
+  expressions["bvnot"] = [this] { return unary(ID_bitnot, operands()); };
+  expressions["bvneg"] = [this] { return unary(ID_unary_minus, operands()); };
+  expressions["bvadd"] = [this] { return multi_ary(ID_plus, operands()); };
+  expressions["+"] = [this] { return multi_ary(ID_plus, operands()); };
+  expressions["bvsub"] = [this] { return binary(ID_minus, operands()); };
+  expressions["-"] = [this] { return binary(ID_minus, operands()); };
+  expressions["bvmul"] = [this] { return binary(ID_mult, operands()); };
+  expressions["*"] = [this] { return binary(ID_mult, operands()); };
+
+  expressions["bvsdiv"] = [this] {
+    return cast_bv_to_unsigned(binary(ID_div, cast_bv_to_signed(operands())));
+  };
+
+  expressions["bvudiv"] = [this] { return binary(ID_div, operands()); };
+  expressions["/"] = [this] { return binary(ID_div, operands()); };
+  expressions["div"] = [this] { return binary(ID_div, operands()); };
+
+  expressions["bvsrem"] = [this] {
+    // 2's complement signed remainder (sign follows dividend)
+    // This matches our ID_mod, and what C does since C99.
+    return cast_bv_to_unsigned(binary(ID_mod, cast_bv_to_signed(operands())));
+  };
+
+  expressions["bvsmod"] = [this] {
+    // 2's complement signed remainder (sign follows divisor)
+    // We don't have that.
+    return cast_bv_to_unsigned(binary(ID_mod, cast_bv_to_signed(operands())));
+  };
+
+  expressions["bvurem"] = [this] { return binary(ID_mod, operands()); };
+
+  expressions["%"] = [this] { return binary(ID_mod, operands()); };
+
+  expressions["concat"] = [this] {
+    auto op = operands();
+
+    // add the widths
+    auto op_width = make_range(op).map(
+      [](const exprt &o) { return to_unsignedbv_type(o.type()).get_width(); });
+
+    const std::size_t total_width =
+      std::accumulate(op_width.begin(), op_width.end(), 0);
+
+    return concatenation_exprt(std::move(op), unsignedbv_typet(total_width));
+  };
+
+  expressions["distinct"] = [this] {
+    // pair-wise different constraint, multi-ary
+    return multi_ary("distinct", operands());
+  };
+
+  expressions["ite"] = [this] {
+    auto op = operands();
+
+    if(op.size() != 3)
+      throw error("ite takes three operands");
+
+    if(op[0].type().id() != ID_bool)
+      throw error("ite takes a boolean as first operand");
+
+    if(op[1].type() != op[2].type())
+      throw error("ite needs matching types");
+
+    return if_exprt(op[0], op[1], op[2]);
+  };
+
+  expressions["implies"] = [this] { return binary(ID_implies, operands()); };
+
+  expressions["=>"] = [this] { return binary(ID_implies, operands()); };
+
+  expressions["select"] = [this] {
+    auto op = operands();
+
+    // array index
+    if(op.size() != 2)
+      throw error("select takes two operands");
+
+    if(op[0].type().id() != ID_array)
+      throw error("select expects array operand");
+
+    return index_exprt(op[0], op[1]);
+  };
+
+  expressions["store"] = [this] {
+    auto op = operands();
+
+    // array update
+    if(op.size() != 3)
+      throw error("store takes three operands");
+
+    if(op[0].type().id() != ID_array)
+      throw error("store expects array operand");
+
+    if(to_array_type(op[0].type()).subtype() != op[2].type())
+      throw error("store expects value that matches array element type");
+
+    return with_exprt(op[0], op[1], op[2]);
+  };
+
+  expressions["fp.isNaN"] = [this] {
+    auto op = operands();
+
+    if(op.size() != 1)
+      throw error("fp.isNaN takes one operand");
+
+    if(op[0].type().id() != ID_floatbv)
+      throw error("fp.isNaN takes FloatingPoint operand");
+
+    return unary_predicate_exprt(ID_isnan, op[0]);
+  };
+
+  expressions["fp.isInf"] = [this] {
+    auto op = operands();
+
+    if(op.size() != 1)
+      throw error("fp.isInf takes one operand");
+
+    if(op[0].type().id() != ID_floatbv)
+      throw error("fp.isInf takes FloatingPoint operand");
+
+    return unary_predicate_exprt(ID_isinf, op[0]);
+  };
+
+  expressions["fp.isNormal"] = [this] {
+    auto op = operands();
+
+    if(op.size() != 1)
+      throw error("fp.isNormal takes one operand");
+
+    if(op[0].type().id() != ID_floatbv)
+      throw error("fp.isNormal takes FloatingPoint operand");
+
+    return isnormal_exprt(op[0]);
+  };
+
+  expressions["fp"] = [this] { return function_application_fp(operands()); };
+
+  expressions["fp.add"] = [this] {
+    return function_application_ieee_float_op("fp.add", operands());
+  };
+
+  expressions["fp.mul"] = [this] {
+    return function_application_ieee_float_op("fp.mul", operands());
+  };
+
+  expressions["fp.sub"] = [this] {
+    return function_application_ieee_float_op("fp.sub", operands());
+  };
+
+  expressions["fp.div"] = [this] {
+    return function_application_ieee_float_op("fp.div", operands());
+  };
+
+  expressions["fp.eq"] = [this] {
+    return function_application_ieee_float_eq(operands());
+  };
+
+  expressions["fp.leq"] = [this] {
+    return binary_predicate(ID_le, operands());
+  };
+
+  expressions["fp.lt"] = [this] { return binary_predicate(ID_lt, operands()); };
+
+  expressions["fp.geq"] = [this] {
+    return binary_predicate(ID_ge, operands());
+  };
+
+  expressions["fp.gt"] = [this] { return binary_predicate(ID_gt, operands()); };
+
+  expressions["fp.neg"] = [this] { return unary(ID_unary_minus, operands()); };
+}
+
 typet smt2_parsert::sort()
 {
+  // a sort is one of the following three cases:
+  // SYMBOL
+  // ( _ SYMBOL ...
+  // ( SYMBOL ...
   switch(next_token())
   {
   case smt2_tokenizert::SYMBOL:
-  {
-    const std::string &buffer = smt2_tokenizer.get_buffer();
-
-    if(buffer=="Bool")
-      return bool_typet();
-    else if(buffer=="Int")
-      return integer_typet();
-    else if(buffer=="Real")
-      return real_typet();
-    else
-      throw error() << "unexpected sort: `" << buffer << '\'';
-  }
+    break;
 
   case smt2_tokenizert::OPEN:
-    if(next_token() != smt2_tokenizert::SYMBOL)
+    if(smt2_tokenizer.next_token() != smt2_tokenizert::SYMBOL)
       throw error("expected symbol after '(' in a sort ");
 
     if(smt2_tokenizer.get_buffer() == "_")
     {
-      // indexed identifier
       if(next_token() != smt2_tokenizert::SYMBOL)
         throw error("expected symbol after '_' in a sort");
-
-      if(smt2_tokenizer.get_buffer() == "BitVec")
-      {
-        if(next_token() != smt2_tokenizert::NUMERAL)
-          throw error("expected numeral as bit-width");
-
-        auto width = std::stoll(smt2_tokenizer.get_buffer());
-
-        // eat the ')'
-        if(next_token() != smt2_tokenizert::CLOSE)
-          throw error("expected ')' at end of sort");
-
-        return unsignedbv_typet(width);
-      }
-      else if(smt2_tokenizer.get_buffer() == "FloatingPoint")
-      {
-        if(next_token() != smt2_tokenizert::NUMERAL)
-          throw error("expected numeral as bit-width");
-
-        const auto width_e = std::stoll(smt2_tokenizer.get_buffer());
-
-        if(next_token() != smt2_tokenizert::NUMERAL)
-          throw error("expected numeral as bit-width");
-
-        const auto width_f = std::stoll(smt2_tokenizer.get_buffer());
-
-        // consume the ')'
-        if(next_token() != smt2_tokenizert::CLOSE)
-          throw error("expected ')' at end of sort");
-
-        return ieee_float_spect(width_f - 1, width_e).to_type();
-      }
-      else
-        throw error() << "unexpected sort: `" << smt2_tokenizer.get_buffer()
-                      << '\'';
     }
-    else if(smt2_tokenizer.get_buffer() == "Array")
-    {
-      // this gets two sorts as arguments, domain and range
-      auto domain = sort();
-      auto range = sort();
+    break;
 
-      // eat the ')'
-      if(next_token() != smt2_tokenizert::CLOSE)
-        throw error("expected ')' at end of Array sort");
-
-      // we can turn arrays that map an unsigned bitvector type
-      // to something else into our 'array_typet'
-      if(domain.id() == ID_unsignedbv)
-        return array_typet(range, infinity_exprt(domain));
-      else
-        throw error("unsupported array sort");
-    }
-    else
-      throw error() << "unexpected sort: `" << smt2_tokenizer.get_buffer()
-                    << '\'';
-
-  default:
-    throw error() << "unexpected token in a sort: `"
+  case smt2_tokenizert::CLOSE:
+  case smt2_tokenizert::NUMERAL:
+  case smt2_tokenizert::STRING_LITERAL:
+  case smt2_tokenizert::NONE:
+  case smt2_tokenizert::KEYWORD:
+    throw error() << "unexpected token in a sort: '"
                   << smt2_tokenizer.get_buffer() << '\'';
+
+  case smt2_tokenizert::END_OF_FILE:
+    throw error() << "unexpected end-of-file in a sort";
   }
 
-  UNREACHABLE;
+  // now we have a SYMBOL
+  const auto &token = smt2_tokenizer.get_buffer();
+
+  const auto s_it = sorts.find(token);
+
+  if(s_it == sorts.end())
+    throw error() << "unexpected sort: '" << token << '\'';
+
+  return s_it->second();
+}
+
+void smt2_parsert::setup_sorts()
+{
+  sorts["Bool"] = [] { return bool_typet(); };
+  sorts["Int"] = [] { return integer_typet(); };
+  sorts["Real"] = [] { return real_typet(); };
+
+  sorts["BitVec"] = [this] {
+    if(next_token() != smt2_tokenizert::NUMERAL)
+      throw error("expected numeral as bit-width");
+
+    auto width = std::stoll(smt2_tokenizer.get_buffer());
+
+    // eat the ')'
+    if(next_token() != smt2_tokenizert::CLOSE)
+      throw error("expected ')' at end of sort");
+
+    return unsignedbv_typet(width);
+  };
+
+  sorts["FloatingPoint"] = [this] {
+    if(next_token() != smt2_tokenizert::NUMERAL)
+      throw error("expected numeral as bit-width");
+
+    const auto width_e = std::stoll(smt2_tokenizer.get_buffer());
+
+    if(next_token() != smt2_tokenizert::NUMERAL)
+      throw error("expected numeral as bit-width");
+
+    const auto width_f = std::stoll(smt2_tokenizer.get_buffer());
+
+    // consume the ')'
+    if(next_token() != smt2_tokenizert::CLOSE)
+      throw error("expected ')' at end of sort");
+
+    return ieee_float_spect(width_f - 1, width_e).to_type();
+  };
+
+  sorts["Array"] = [this] {
+    // this gets two sorts as arguments, domain and range
+    auto domain = sort();
+    auto range = sort();
+
+    // eat the ')'
+    if(next_token() != smt2_tokenizert::CLOSE)
+      throw error("expected ')' at end of Array sort");
+
+    // we can turn arrays that map an unsigned bitvector type
+    // to something else into our 'array_typet'
+    if(domain.id() == ID_unsignedbv)
+      return array_typet(range, infinity_exprt(domain));
+    else
+      throw error("unsupported array sort");
+  };
 }
 
 smt2_parsert::signature_with_parameter_idst
@@ -1130,12 +1182,10 @@ smt2_parsert::function_signature_definition()
       throw error("expected symbol in parameter");
 
     irep_idt id = smt2_tokenizer.get_buffer();
-    parameters.push_back(id);
     domain.push_back(sort());
 
-    auto &entry=id_map[id];
-    entry.type = domain.back();
-    entry.definition=nil_exprt();
+    parameters.push_back(
+      add_fresh_id(id, idt::PARAMETER, exprt(ID_nil, domain.back())));
 
     if(next_token() != smt2_tokenizert::CLOSE)
       throw error("expected ')' at end of parameter");
@@ -1185,47 +1235,49 @@ typet smt2_parsert::function_signature_declaration()
 
 void smt2_parsert::command(const std::string &c)
 {
-  if(c == "declare-const" || c == "declare-var")
+  auto c_it = commands.find(c);
+  if(c_it == commands.end())
   {
-    // declare-var appears to be a synonym for declare-const that is
-    // accepted by Z3 and CVC4
+    // silently ignore
+    ignore_command();
+  }
+  else
+    c_it->second();
+}
+
+void smt2_parsert::setup_commands()
+{
+  commands["declare-const"] = [this]() {
+    const auto s = smt2_tokenizer.get_buffer();
+
     if(next_token() != smt2_tokenizert::SYMBOL)
-      throw error() << "expected a symbol after `" << c << '\'';
+      throw error() << "expected a symbol after " << s;
 
     irep_idt id = smt2_tokenizer.get_buffer();
     auto type = sort();
 
-    if(id_map.find(id)!=id_map.end())
-      throw error() << "identifier `" << id << "' defined twice";
+    add_unique_id(id, exprt(ID_nil, type));
+  };
 
-    auto &entry = id_map[id];
-    entry.type = type;
-    entry.definition = nil_exprt();
-  }
-  else if(c=="declare-fun")
-  {
+  // declare-var appears to be a synonym for declare-const that is
+  // accepted by Z3 and CVC4
+  commands["declare-var"] = commands["declare-const"];
+
+  commands["declare-fun"] = [this]() {
     if(next_token() != smt2_tokenizert::SYMBOL)
       throw error("expected a symbol after declare-fun");
 
     irep_idt id = smt2_tokenizer.get_buffer();
     auto type = function_signature_declaration();
 
-    if(id_map.find(id)!=id_map.end())
-      throw error() << "identifier `" << id << "' defined twice";
+    add_unique_id(id, exprt(ID_nil, type));
+  };
 
-    auto &entry = id_map[id];
-    entry.type = type;
-    entry.definition = nil_exprt();
-  }
-  else if(c == "define-const")
-  {
+  commands["define-const"] = [this]() {
     if(next_token() != smt2_tokenizert::SYMBOL)
       throw error("expected a symbol after define-const");
 
     const irep_idt id = smt2_tokenizer.get_buffer();
-
-    if(id_map.find(id) != id_map.end())
-      throw error() << "identifier `" << id << "' defined twice";
 
     const auto type = sort();
     const auto value = expression();
@@ -1233,28 +1285,29 @@ void smt2_parsert::command(const std::string &c)
     // check type of value
     if(value.type() != type)
     {
-      throw error() << "type mismatch in constant definition: expected `"
-                    << smt2_format(type) << "' but got `"
+      throw error() << "type mismatch in constant definition: expected '"
+                    << smt2_format(type) << "' but got '"
                     << smt2_format(value.type()) << '\'';
     }
 
     // create the entry
-    auto &entry = id_map[id];
-    entry.type = type;
-    entry.definition = value;
-  }
-  else if(c=="define-fun")
-  {
+    add_unique_id(id, value);
+  };
+
+  commands["define-fun"] = [this]() {
     if(next_token() != smt2_tokenizert::SYMBOL)
       throw error("expected a symbol after define-fun");
 
-    const irep_idt id = smt2_tokenizer.get_buffer();
+    // save the renaming map
+    renaming_mapt old_renaming_map = renaming_map;
 
-    if(id_map.find(id)!=id_map.end())
-      throw error() << "identifier `" << id << "' defined twice";
+    const irep_idt id = smt2_tokenizer.get_buffer();
 
     const auto signature = function_signature_definition();
     const auto body = expression();
+
+    // restore renamings
+    std::swap(renaming_map, old_renaming_map);
 
     // check type of body
     if(signature.type.id() == ID_mathematical_function)
@@ -1262,28 +1315,24 @@ void smt2_parsert::command(const std::string &c)
       const auto &f_signature = to_mathematical_function_type(signature.type);
       if(body.type() != f_signature.codomain())
       {
-        throw error() << "type mismatch in function definition: expected `"
-                      << smt2_format(f_signature.codomain()) << "' but got `"
+        throw error() << "type mismatch in function definition: expected '"
+                      << smt2_format(f_signature.codomain()) << "' but got '"
                       << smt2_format(body.type()) << '\'';
       }
     }
     else if(body.type() != signature.type)
     {
-      throw error() << "type mismatch in function definition: expected `"
-                    << smt2_format(signature.type) << "' but got `"
+      throw error() << "type mismatch in function definition: expected '"
+                    << smt2_format(signature.type) << "' but got '"
                     << smt2_format(body.type()) << '\'';
     }
 
     // create the entry
-    auto &entry = id_map[id];
-    entry.type = signature.type;
-    entry.parameters = signature.parameters;
-    entry.definition = body;
-  }
-  else if(c=="exit")
-  {
-    exit=true;
-  }
-  else
-    ignore_command();
+    add_unique_id(id, body);
+
+    id_map.at(id).type = signature.type;
+    id_map.at(id).parameters = signature.parameters;
+  };
+
+  commands["exit"] = [this]() { exit = true; };
 }

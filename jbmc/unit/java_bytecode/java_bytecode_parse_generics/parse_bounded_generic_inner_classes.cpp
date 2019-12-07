@@ -6,9 +6,9 @@ Author: Diffblue Ltd.
 
 \*******************************************************************/
 
-#include <testing-utils/catch.hpp>
 #include <java-testing-utils/load_java_class.h>
 #include <java-testing-utils/require_type.h>
+#include <testing-utils/use_catch.h>
 
 SCENARIO(
   "parse_bounded_generic_inner_classes",
@@ -91,8 +91,8 @@ SCENARIO(
     const struct_union_typet::componentt &belem_type =
       require_type::require_component(
         to_struct_type(class_symbol.type), "belem");
-    require_type::require_pointer(
-      belem_type.type(), struct_tag_typet(class_prefix + "$BoundedInner"));
+    require_type::require_pointer_to_tag(
+      belem_type.type(), class_prefix + "$BoundedInner");
     require_type::require_java_generic_type(
       belem_type.type(),
       {{require_type::type_argument_kindt::Inst, "java::java.lang.Integer"}});

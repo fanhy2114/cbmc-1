@@ -14,12 +14,15 @@ SRC += java_bytecode/ci_lazy_methods/lazy_load_lambdas.cpp \
        java_bytecode/goto-programs/class_hierarchy_output.cpp \
        java_bytecode/goto-programs/remove_virtual_functions_without_fallback.cpp \
        java_bytecode/inherited_static_fields/inherited_static_fields.cpp \
+       java_bytecode/java_bytecode_convert_class/add_java_array_types.cpp \
        java_bytecode/java_bytecode_convert_class/convert_abstract_class.cpp \
        java_bytecode/java_bytecode_convert_class/convert_java_annotations.cpp \
        java_bytecode/java_bytecode_convert_method/convert_initalizers.cpp \
        java_bytecode/java_bytecode_convert_method/convert_invoke_dynamic.cpp \
        java_bytecode/java_bytecode_convert_method/convert_method.cpp \
        java_bytecode/java_bytecode_instrument/virtual_call_null_checks.cpp \
+       java_bytecode/java_bytecode_language/language.cpp \
+       java_bytecode/java_bytecode_language/context_excluded.cpp \
        java_bytecode/java_bytecode_parse_generics/parse_bounded_generic_inner_classes.cpp \
        java_bytecode/java_bytecode_parse_generics/parse_derived_generic_class.cpp \
        java_bytecode/java_bytecode_parse_generics/parse_functions_with_generics.cpp \
@@ -44,19 +47,24 @@ SRC += java_bytecode/ci_lazy_methods/lazy_load_lambdas.cpp \
        java_bytecode/java_bytecode_parser/parse_java_class.cpp \
        java_bytecode/java_bytecode_parser/parse_java_field.cpp \
        java_bytecode/java_object_factory/gen_nondet_string_init.cpp \
+       java_bytecode/java_object_factory/struct_tag_types.cpp \
        java_bytecode/java_replace_nondet/replace_nondet.cpp \
+       java_bytecode/java_static_initializers/assignments_from_json.cpp \
+       java_bytecode/java_static_initializers/java_static_initializers.cpp \
        java_bytecode/java_string_library_preprocess/convert_exprt_to_string_exprt.cpp \
+       java_bytecode/java_trace_validation/java_trace_validation.cpp \
        java_bytecode/java_types/erase_type_arguments.cpp \
        java_bytecode/java_types/generic_type_index.cpp \
        java_bytecode/java_types/java_generic_symbol_type.cpp \
        java_bytecode/java_types/java_type_from_string.cpp \
+       java_bytecode/java_string_literals.cpp \
        java_bytecode/java_utils_test.cpp \
        java_bytecode/java_virtual_functions/virtual_functions.cpp \
        java_bytecode/load_method_by_regex.cpp \
        pointer-analysis/custom_value_set_analysis.cpp \
-       solvers/refinement/string_constraint_instantiation/instantiate_not_contains.cpp \
-       solvers/refinement/string_refinement/dependency_graph.cpp \
-       solvers/refinement/string_refinement/string_symbol_resolution.cpp \
+       solvers/strings/string_constraint_instantiation/instantiate_not_contains.cpp \
+       solvers/strings/string_refinement/dependency_graph.cpp \
+       solvers/strings/string_refinement/string_symbol_resolution.cpp \
        util/expr_iterator.cpp \
        util/has_subtype.cpp \
        util/parameter_indices.cpp \
@@ -81,28 +89,6 @@ java-testing-utils/java-testing-utils$(LIBEXT): jprover.dir
 java-testing-utils-clean:
 	$(MAKE) $(MAKEARGS) -C java-testing-utils clean
 
-# We need to link bmc.o to the unit test, so here's everything it depends on...
-BMC_DEPS =$(CPROVER_DIR)/src/cbmc/all_properties$(OBJEXT) \
-          $(CPROVER_DIR)/src/cbmc/bmc$(OBJEXT) \
-          $(CPROVER_DIR)/src/cbmc/bmc_cover$(OBJEXT) \
-          $(CPROVER_DIR)/src/cbmc/cbmc_languages$(OBJEXT) \
-          $(CPROVER_DIR)/src/cbmc/cbmc_parse_options$(OBJEXT) \
-          $(CPROVER_DIR)/src/cbmc/counterexample_beautification$(OBJEXT) \
-          $(CPROVER_DIR)/src/cbmc/fault_localization$(OBJEXT) \
-          $(CPROVER_DIR)/src/cbmc/xml_interface$(OBJEXT) \
-          $(CPROVER_DIR)/src/jsil/expr2jsil$(OBJEXT) \
-          $(CPROVER_DIR)/src/jsil/jsil_convert$(OBJEXT) \
-          $(CPROVER_DIR)/src/jsil/jsil_entry_point$(OBJEXT) \
-          $(CPROVER_DIR)/src/jsil/jsil_internal_additions$(OBJEXT) \
-          $(CPROVER_DIR)/src/jsil/jsil_language$(OBJEXT) \
-          $(CPROVER_DIR)/src/jsil/jsil_lex.yy$(OBJEXT) \
-          $(CPROVER_DIR)/src/jsil/jsil_parser$(OBJEXT) \
-          $(CPROVER_DIR)/src/jsil/jsil_parse_tree$(OBJEXT) \
-          $(CPROVER_DIR)/src/jsil/jsil_typecheck$(OBJEXT) \
-          $(CPROVER_DIR)/src/jsil/jsil_types$(OBJEXT) \
-          $(CPROVER_DIR)/src/jsil/jsil_y.tab$(OBJEXT) \
-          # Empty last line
-
 CPROVER_LIBS =../src/java_bytecode/java_bytecode$(LIBEXT) \
               ../src/miniz/miniz$(OBJEXT) \
               $(CPROVER_DIR)/src/ansi-c/ansi-c$(LIBEXT) \
@@ -115,6 +101,7 @@ CPROVER_LIBS =../src/java_bytecode/java_bytecode$(LIBEXT) \
               $(CPROVER_DIR)/src/goto-checker/goto-checker$(LIBEXT) \
               $(CPROVER_DIR)/src/goto-programs/goto-programs$(LIBEXT) \
               $(CPROVER_DIR)/src/goto-symex/goto-symex$(LIBEXT) \
+              $(CPROVER_DIR)/src/goto-instrument/source_lines$(OBJEXT) \
               $(CPROVER_DIR)/src/goto-instrument/cover$(OBJEXT) \
               $(CPROVER_DIR)/src/goto-instrument/cover_basic_blocks$(OBJEXT) \
               $(CPROVER_DIR)/src/goto-instrument/cover_filter$(OBJEXT) \
@@ -135,7 +122,6 @@ CPROVER_LIBS =../src/java_bytecode/java_bytecode$(LIBEXT) \
               $(CPROVER_DIR)/src/assembler/assembler$(LIBEXT) \
               $(CPROVER_DIR)/src/analyses/analyses$(LIBEXT) \
               $(CPROVER_DIR)/src/solvers/solvers$(LIBEXT) \
-              $(BMC_DEPS) \
               # Empty last line
 
 OBJ += $(CPROVER_LIBS) \

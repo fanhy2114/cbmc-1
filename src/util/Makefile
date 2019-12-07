@@ -1,5 +1,6 @@
 SRC = allocate_objects.cpp \
       arith_tools.cpp \
+      array_element_from_pointer.cpp \
       array_name.cpp \
       base_type.cpp \
       bv_arithmetic.cpp \
@@ -8,7 +9,6 @@ SRC = allocate_objects.cpp \
       cmdline.cpp \
       config.cpp \
       cout_message.cpp \
-      decision_procedure.cpp \
       dstring.cpp \
       endianness_map.cpp \
       expr.cpp \
@@ -26,21 +26,23 @@ SRC = allocate_objects.cpp \
       fresh_symbol.cpp \
       get_base_name.cpp \
       get_module.cpp \
-      guard.cpp \
       identifier.cpp \
       ieee_float.cpp \
+      interval_union.cpp \
       invariant.cpp \
       irep.cpp \
       irep_hash.cpp \
       irep_hash_container.cpp \
       irep_ids.cpp \
       irep_serialization.cpp \
+      interval_constraint.cpp \
       invariant_utils.cpp \
       json.cpp \
       json_irep.cpp \
       json_stream.cpp \
       lispexpr.cpp \
       lispirep.cpp \
+      mathematical_expr.cpp \
       mathematical_types.cpp \
       memory_info.cpp \
       merge_irep.cpp \
@@ -53,7 +55,9 @@ SRC = allocate_objects.cpp \
       parse_options.cpp \
       parser.cpp \
       pointer_offset_size.cpp \
+      pointer_offset_sum.cpp \
       pointer_predicates.cpp \
+      prefix_filter.cpp \
       rational.cpp \
       rational_tools.cpp \
       ref_expr_set.cpp \
@@ -68,6 +72,7 @@ SRC = allocate_objects.cpp \
       simplify_expr_array.cpp \
       simplify_expr_boolean.cpp \
       simplify_expr_floatbv.cpp \
+      simplify_expr_if.cpp \
       simplify_expr_int.cpp \
       simplify_expr_pointer.cpp \
       simplify_expr_struct.cpp \
@@ -90,13 +95,11 @@ SRC = allocate_objects.cpp \
       threeval.cpp \
       timestamper.cpp \
       type.cpp \
-      type_eq.cpp \
       typecheck.cpp \
       ui_message.cpp \
       unicode.cpp \
       union_find.cpp \
       union_find_replace.cpp \
-      unwrap_nested_exception.cpp \
       validate_code.cpp \
       validate_expressions.cpp \
       validate_types.cpp \

@@ -7,22 +7,47 @@ DIRS = cbmc \
        ansi-c \
        goto-instrument \
        cpp \
+       cbmc-concurrency \
        cbmc-cover \
        goto-instrument-typedef \
        smt2_solver \
+       smt2_strings \
        strings \
        invariants \
        goto-diff \
        test-script \
        goto-analyzer-taint \
        goto-gcc \
+       goto-harness \
        goto-cl \
        goto-cc-cbmc \
        cbmc-cpp \
        goto-cc-goto-analyzer \
+       statement-list \
        systemc \
        contracts \
+       goto-cc-file-local \
+       linking-goto-binaries \
+       symtab2gb \
        # Empty last line
+
+ifeq ($(OS),Windows_NT)
+    detected_OS := Windows
+else
+    detected_OS := $(shell sh -c 'uname 2>/dev/null || echo Unknown')
+endif
+
+ifeq ($(detected_OS),Linux)
+  ifneq ($(WITH_MEMORY_ANALYZER),0)
+    # only set if it wasn't explicitly unset
+    WITH_MEMORY_ANALYZER=1
+  endif
+endif
+
+ifeq ($(WITH_MEMORY_ANALYZER),1)
+  DIRS += snapshot-harness \
+          memory-analyzer
+endif
 
 # Run all test directories in sequence
 .PHONY: test

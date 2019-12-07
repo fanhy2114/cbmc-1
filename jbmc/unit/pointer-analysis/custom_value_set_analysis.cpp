@@ -6,17 +6,22 @@ Author: Chris Smowton, chris@smowton.net
 
 \*******************************************************************/
 
-#include <testing-utils/catch.hpp>
 #include <testing-utils/message.h>
+#include <testing-utils/use_catch.h>
 
 #include <goto-programs/goto_inline.h>
 #include <goto-programs/initialize_goto_model.h>
+
 #include <java_bytecode/java_bytecode_language.h>
 #include <java_bytecode/java_types.h>
 #include <java_bytecode/remove_java_new.h>
+
 #include <langapi/mode.h>
+
 #include <pointer-analysis/value_set_analysis.h>
+
 #include <util/config.h>
+#include <util/expr_util.h>
 #include <util/options.h>
 
 /// An example customised value_sett. It makes a series of small changes
@@ -96,9 +101,7 @@ public:
   {
     // Always add an ID_unknown to reads from variables containing
     // "maybe_unknown":
-    exprt read_sym=expr;
-    while(read_sym.id()==ID_typecast)
-      read_sym=read_sym.op0();
+    exprt read_sym = skip_typecast(expr);
     if(read_sym.id()==ID_symbol)
     {
       const irep_idt &id=to_symbol_expr(read_sym).get_identifier();
@@ -171,7 +174,7 @@ SCENARIO("test_value_set_analysis",
   GIVEN("Normal and custom value-set analysis of CustomVSATest::test")
   {
     config.set_arch("none");
-    config.main = "";
+    config.main = {};
 
     // This classpath is the default, but the config object
     // is global and previous unit tests may have altered it
@@ -179,6 +182,7 @@ SCENARIO("test_value_set_analysis",
 
     optionst options;
     options.set_option("java-cp-include-files", "CustomVSATest.class");
+    config.java.main_class = "CustomVSATest";
 
     register_language(new_java_bytecode_language);
 

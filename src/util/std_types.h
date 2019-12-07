@@ -18,28 +18,25 @@ Author: Daniel Kroening, kroening@kroening.com
 #include "invariant.h"
 #include "mp_arith.h"
 #include "validate.h"
+#include <util/narrow.h>
 
 #include <unordered_map>
 
 class constant_exprt;
 class namespacet;
 
+/// This method tests,
+/// if the given typet is a constant
+inline bool is_constant(const typet &type)
+{
+  return type.get_bool(ID_C_constant);
+}
+
 /// The Boolean type
 class bool_typet:public typet
 {
 public:
   bool_typet():typet(ID_bool)
-  {
-  }
-};
-
-/// The NIL type, i.e., an invalid type, no value.
-/// \deprecated Use `optional<typet>` instead.
-// NOLINTNEXTLINE
-class DEPRECATED("Use `optional<typet>` instead.") nil_typet : public typet
-{
-public:
-  nil_typet():typet(static_cast<const typet &>(get_nil_irep()))
   {
   }
 };
@@ -52,61 +49,6 @@ public:
   {
   }
 };
-
-/// The void type, the same as \ref empty_typet.
-class void_typet:public empty_typet
-{
-};
-
-/// A reference into the symbol table
-class symbol_typet:public typet
-{
-public:
-  explicit symbol_typet(const irep_idt &identifier) : typet(ID_symbol_type)
-  {
-    set_identifier(identifier);
-  }
-
-  void set_identifier(const irep_idt &identifier)
-  {
-    set(ID_identifier, identifier);
-  }
-
-  const irep_idt &get_identifier() const
-  {
-    return get(ID_identifier);
-  }
-};
-
-/// Check whether a reference to a typet is a \ref symbol_typet.
-/// \param type: Source type.
-/// \return True if \p type is a \ref symbol_typet.
-template <>
-inline bool can_cast_type<symbol_typet>(const typet &type)
-{
-  return type.id() == ID_symbol_type;
-}
-
-/// \brief Cast a typet to a \ref symbol_typet.
-///
-/// This is an unchecked conversion. \a type must be known to be
-/// \ref symbol_typet. Will fail with a precondition violation if type
-/// doesn't match.
-///
-/// \param type: Source type.
-/// \return Object of type \ref symbol_typet.
-inline const symbol_typet &to_symbol_type(const typet &type)
-{
-  PRECONDITION(can_cast_type<symbol_typet>(type));
-  return static_cast<const symbol_typet &>(type);
-}
-
-/// \copydoc to_symbol_type(const typet &)
-inline symbol_typet &to_symbol_type(typet &type)
-{
-  PRECONDITION(can_cast_type<symbol_typet>(type));
-  return static_cast<symbol_typet &>(type);
-}
 
 /// Base type for structs and unions
 ///
@@ -123,10 +65,10 @@ public:
   public:
     componentt() = default;
 
-    componentt(const irep_idt &_name, const typet &_type)
+    componentt(const irep_idt &_name, typet _type)
     {
       set_name(_name);
-      type()=_type;
+      type().swap(_type);
     }
 
     const irep_idt &get_name() const
@@ -188,19 +130,14 @@ public:
     {
       return set(ID_C_is_padding, is_padding);
     }
-
-    bool get_is_final() const
-    {
-      return get_bool(ID_final);
-    }
-
-    void set_is_final(const bool is_final)
-    {
-      set(ID_final, is_final);
-    }
   };
 
   typedef std::vector<componentt> componentst;
+
+  struct_union_typet(const irep_idt &_id, componentst _components) : typet(_id)
+  {
+    components() = std::move(_components);
+  }
 
   const componentst &components() const
   {
@@ -292,6 +229,11 @@ public:
   {
   }
 
+  explicit struct_typet(componentst _components)
+    : struct_union_typet(ID_struct, std::move(_components))
+  {
+  }
+
   bool is_prefix_of(const struct_typet &other) const;
 
   /// A struct may be a class, where members may have access restrictions.
@@ -306,7 +248,7 @@ public:
   public:
     struct_tag_typet &type();
     const struct_tag_typet &type() const;
-    explicit baset(const struct_tag_typet &base);
+    explicit baset(struct_tag_typet base);
   };
 
   typedef std::vector<baset> basest;
@@ -390,9 +332,22 @@ public:
     return (const methodst &)(find(ID_methods).get_sub());
   }
 
-  componentst &methods()
+  methodst &methods()
   {
     return (methodst &)(add(ID_methods).get_sub());
+  }
+
+  using static_membert = componentt;
+  using static_memberst = componentst;
+
+  const static_memberst &static_members() const
+  {
+    return (const static_memberst &)(find(ID_static_members).get_sub());
+  }
+
+  static_memberst &static_members()
+  {
+    return (static_memberst &)(add(ID_static_members).get_sub());
   }
 
   bool is_abstract() const
@@ -438,6 +393,11 @@ class union_typet:public struct_union_typet
 {
 public:
   union_typet():struct_union_typet(ID_union)
+  {
+  }
+
+  explicit union_typet(componentst _components)
+    : struct_union_typet(ID_union, std::move(_components))
   {
   }
 };
@@ -659,8 +619,8 @@ inline enumeration_typet &to_enumeration_type(typet &type)
 class c_enum_typet:public type_with_subtypet
 {
 public:
-  explicit c_enum_typet(const typet &_subtype):
-    type_with_subtypet(ID_c_enum, _subtype)
+  explicit c_enum_typet(typet _subtype)
+    : type_with_subtypet(ID_c_enum, std::move(_subtype))
   {
   }
 
@@ -781,30 +741,10 @@ public:
   /// Constructs a new code type, i.e., function type.
   /// \param _parameters: The vector of function parameters.
   /// \param _return_type: The return type.
-  code_typet(parameterst &&_parameters, typet &&_return_type) : typet(ID_code)
+  code_typet(parameterst _parameters, typet _return_type) : typet(ID_code)
   {
     parameters().swap(_parameters);
     return_type().swap(_return_type);
-  }
-
-  /// Constructs a new code type, i.e., function type.
-  /// \param _parameters: The vector of function parameters.
-  /// \param _return_type: The return type.
-  code_typet(parameterst &&_parameters, const typet &_return_type)
-    : typet(ID_code)
-  {
-    parameters().swap(_parameters);
-    return_type() = _return_type;
-  }
-
-  /// \deprecated
-  DEPRECATED("Use the two argument constructor instead")
-  code_typet():typet(ID_code)
-  {
-    // make sure these properties are always there to avoid problems
-    // with irept comparisons
-    add(ID_parameters);
-    add_type(ID_return_type);
   }
 
   // used to be argumentt -- now uses standard terminology
@@ -812,7 +752,7 @@ public:
   class parametert:public exprt
   {
   public:
-    DEPRECATED("use parametert(type) instead")
+    DEPRECATED(SINCE(2018, 9, 21, "use parametert(type) instead"))
     parametert():exprt(ID_parameter)
     {
     }
@@ -1006,7 +946,7 @@ inline bool can_cast_type<code_typet>(const typet &type)
 inline const code_typet &to_code_type(const typet &type)
 {
   PRECONDITION(can_cast_type<code_typet>(type));
-  validate_type(type);
+  code_typet::check(type);
   return static_cast<const code_typet &>(type);
 }
 
@@ -1014,7 +954,7 @@ inline const code_typet &to_code_type(const typet &type)
 inline code_typet &to_code_type(typet &type)
 {
   PRECONDITION(can_cast_type<code_typet>(type));
-  validate_type(type);
+  code_typet::check(type);
   return static_cast<code_typet &>(type);
 }
 
@@ -1024,11 +964,10 @@ inline code_typet &to_code_type(typet &type)
 class array_typet:public type_with_subtypet
 {
 public:
-  array_typet(
-    const typet &_subtype,
-    const exprt &_size):type_with_subtypet(ID_array, _subtype)
+  array_typet(typet _subtype, exprt _size)
+    : type_with_subtypet(ID_array, std::move(_subtype))
   {
-    size()=_size;
+    add(ID_size, std::move(_size));
   }
 
   const exprt &size() const
@@ -1106,7 +1045,7 @@ public:
 
   void set_width(std::size_t width)
   {
-    set(ID_width, width);
+    set(ID_width, narrow_cast<long long>(width));
   }
 
   static void check(
@@ -1130,6 +1069,13 @@ inline bool can_cast_type<bitvector_typet>(const typet &type)
          type.id() == ID_verilog_unsignedbv || type.id() == ID_bv ||
          type.id() == ID_pointer || type.id() == ID_c_bit_field ||
          type.id() == ID_c_bool;
+}
+
+/// This method tests,
+/// if the given typet is a signed or unsigned bitvector.
+inline bool is_signed_or_unsigned_bitvector(const typet &type)
+{
+  return type.id() == ID_signedbv || type.id() == ID_unsignedbv;
 }
 
 /// \brief Cast a typet to a \ref bitvector_typet
@@ -1163,6 +1109,14 @@ public:
   {
     set_width(width);
   }
+
+  static void check(
+    const typet &type,
+    const validation_modet vm = validation_modet::INVARIANT)
+  {
+    DATA_CHECK(
+      vm, !type.get(ID_width).empty(), "bitvector type must have width");
+  }
 };
 
 /// Check whether a reference to a typet is a \ref bv_typet.
@@ -1172,11 +1126,6 @@ template <>
 inline bool can_cast_type<bv_typet>(const typet &type)
 {
   return type.id() == ID_bv;
-}
-
-inline void validate_type(const bv_typet &type)
-{
-  DATA_INVARIANT(!type.get(ID_width).empty(), "bitvector type must have width");
 }
 
 /// \brief Cast a typet to a \ref bv_typet
@@ -1190,34 +1139,86 @@ inline void validate_type(const bv_typet &type)
 inline const bv_typet &to_bv_type(const typet &type)
 {
   PRECONDITION(can_cast_type<bv_typet>(type));
-  const bv_typet &ret = static_cast<const bv_typet &>(type);
-  validate_type(ret);
-  return ret;
+  bv_typet::check(type);
+  return static_cast<const bv_typet &>(type);
 }
 
 /// \copydoc to_bv_type(const typet &)
 inline bv_typet &to_bv_type(typet &type)
 {
   PRECONDITION(can_cast_type<bv_typet>(type));
-  bv_typet &ret = static_cast<bv_typet &>(type);
-  validate_type(ret);
-  return ret;
+  bv_typet::check(type);
+  return static_cast<bv_typet &>(type);
 }
 
-/// Fixed-width bit-vector with unsigned binary interpretation
-class unsignedbv_typet:public bitvector_typet
+/// Fixed-width bit-vector representing a signed or unsigned integer
+class integer_bitvector_typet : public bitvector_typet
 {
 public:
-  explicit unsignedbv_typet(std::size_t width):
-    bitvector_typet(ID_unsignedbv, width)
+  integer_bitvector_typet(const irep_idt &id, std::size_t width)
+    : bitvector_typet(id, width)
   {
   }
 
+  /// Return the smallest value that can be represented using this type.
   mp_integer smallest() const;
+  /// Return the largest value that can be represented using this type.
   mp_integer largest() const;
+
+  // If we ever need any of the following three methods in \ref fixedbv_typet or
+  // \ref floatbv_typet, we might want to move them to a new class
+  // numeric_bitvector_typet, which would be between integer_bitvector_typet and
+  // bitvector_typet in the hierarchy.
+
+  /// Return an expression representing the smallest value of this type.
   constant_exprt smallest_expr() const;
+  /// Return an expression representing the zero value of this type.
   constant_exprt zero_expr() const;
+  /// Return an expression representing the largest value of this type.
   constant_exprt largest_expr() const;
+};
+
+/// Check whether a reference to a typet is an \ref integer_bitvector_typet.
+/// \param type: Source type.
+/// \return True if \p type is an \ref integer_bitvector_typet.
+template <>
+inline bool can_cast_type<integer_bitvector_typet>(const typet &type)
+{
+  return type.id() == ID_signedbv || type.id() == ID_unsignedbv;
+}
+
+/// \brief Cast a typet to an \ref integer_bitvector_typet
+///
+/// This is an unchecked conversion. \a type must be known to be \ref
+/// integer_bitvector_typet. Will fail with a precondition violation if type
+/// doesn't match.
+///
+/// \param type: Source type.
+/// \return Object of type \ref integer_bitvector_typet.
+inline const integer_bitvector_typet &
+to_integer_bitvector_type(const typet &type)
+{
+  PRECONDITION(can_cast_type<integer_bitvector_typet>(type));
+
+  return static_cast<const integer_bitvector_typet &>(type);
+}
+
+/// \copydoc to_integer_bitvector_type(const typet &type)
+inline integer_bitvector_typet &to_integer_bitvector_type(typet &type)
+{
+  PRECONDITION(can_cast_type<integer_bitvector_typet>(type));
+
+  return static_cast<integer_bitvector_typet &>(type);
+}
+
+/// Fixed-width bit-vector with unsigned binary interpretation
+class unsignedbv_typet : public integer_bitvector_typet
+{
+public:
+  explicit unsignedbv_typet(std::size_t width)
+    : integer_bitvector_typet(ID_unsignedbv, width)
+  {
+  }
 
   static void check(
     const typet &type,
@@ -1260,19 +1261,21 @@ inline unsignedbv_typet &to_unsignedbv_type(typet &type)
 }
 
 /// Fixed-width bit-vector with two's complement interpretation
-class signedbv_typet:public bitvector_typet
+class signedbv_typet : public integer_bitvector_typet
 {
 public:
-  explicit signedbv_typet(std::size_t width):
-    bitvector_typet(ID_signedbv, width)
+  explicit signedbv_typet(std::size_t width)
+    : integer_bitvector_typet(ID_signedbv, width)
   {
   }
 
-  mp_integer smallest() const;
-  mp_integer largest() const;
-  constant_exprt smallest_expr() const;
-  constant_exprt zero_expr() const;
-  constant_exprt largest_expr() const;
+  static void check(
+    const typet &type,
+    const validation_modet vm = validation_modet::INVARIANT)
+  {
+    DATA_CHECK(
+      vm, !type.get(ID_width).empty(), "signed bitvector type must have width");
+  }
 };
 
 /// Check whether a reference to a typet is a \ref signedbv_typet.
@@ -1282,12 +1285,6 @@ template <>
 inline bool can_cast_type<signedbv_typet>(const typet &type)
 {
   return type.id() == ID_signedbv;
-}
-
-inline void validate_type(const signedbv_typet &type)
-{
-  DATA_INVARIANT(
-    !type.get(ID_width).empty(), "signed bitvector type must have width");
 }
 
 /// \brief Cast a typet to a \ref signedbv_typet
@@ -1301,18 +1298,16 @@ inline void validate_type(const signedbv_typet &type)
 inline const signedbv_typet &to_signedbv_type(const typet &type)
 {
   PRECONDITION(can_cast_type<signedbv_typet>(type));
-  const signedbv_typet &ret = static_cast<const signedbv_typet &>(type);
-  validate_type(ret);
-  return ret;
+  signedbv_typet::check(type);
+  return static_cast<const signedbv_typet &>(type);
 }
 
 /// \copydoc to_signedbv_type(const typet &)
 inline signedbv_typet &to_signedbv_type(typet &type)
 {
   PRECONDITION(can_cast_type<signedbv_typet>(type));
-  signedbv_typet &ret = static_cast<signedbv_typet &>(type);
-  validate_type(ret);
-  return ret;
+  signedbv_typet::check(type);
+  return static_cast<signedbv_typet &>(type);
 }
 
 /// Fixed-width bit-vector with signed fixed-point interpretation
@@ -1335,7 +1330,15 @@ public:
 
   void set_integer_bits(std::size_t b)
   {
-    set(ID_integer_bits, b);
+    set(ID_integer_bits, narrow_cast<long long>(b));
+  }
+
+  static void check(
+    const typet &type,
+    const validation_modet vm = validation_modet::INVARIANT)
+  {
+    DATA_CHECK(
+      vm, !type.get(ID_width).empty(), "fixed bitvector type must have width");
   }
 };
 
@@ -1346,12 +1349,6 @@ template <>
 inline bool can_cast_type<fixedbv_typet>(const typet &type)
 {
   return type.id() == ID_fixedbv;
-}
-
-inline void validate_type(const fixedbv_typet &type)
-{
-  DATA_INVARIANT(
-    !type.get(ID_width).empty(), "fixed bitvector type must have width");
 }
 
 /// \brief Cast a typet to a \ref fixedbv_typet
@@ -1365,18 +1362,16 @@ inline void validate_type(const fixedbv_typet &type)
 inline const fixedbv_typet &to_fixedbv_type(const typet &type)
 {
   PRECONDITION(can_cast_type<fixedbv_typet>(type));
-  const fixedbv_typet &ret = static_cast<const fixedbv_typet &>(type);
-  validate_type(ret);
-  return ret;
+  fixedbv_typet::check(type);
+  return static_cast<const fixedbv_typet &>(type);
 }
 
 /// \copydoc to_fixedbv_type(const typet &)
 inline fixedbv_typet &to_fixedbv_type(typet &type)
 {
   PRECONDITION(can_cast_type<fixedbv_typet>(type));
-  fixedbv_typet &ret = static_cast<fixedbv_typet &>(type);
-  validate_type(ret);
-  return ret;
+  fixedbv_typet::check(type);
+  return static_cast<fixedbv_typet &>(type);
 }
 
 /// Fixed-width bit-vector with IEEE floating-point interpretation
@@ -1397,7 +1392,15 @@ public:
 
   void set_f(std::size_t b)
   {
-    set(ID_f, b);
+    set(ID_f, narrow_cast<long long>(b));
+  }
+
+  static void check(
+    const typet &type,
+    const validation_modet vm = validation_modet::INVARIANT)
+  {
+    DATA_CHECK(
+      vm, !type.get(ID_width).empty(), "float bitvector type must have width");
   }
 };
 
@@ -1408,12 +1411,6 @@ template <>
 inline bool can_cast_type<floatbv_typet>(const typet &type)
 {
   return type.id() == ID_floatbv;
-}
-
-inline void validate_type(const floatbv_typet &type)
-{
-  DATA_INVARIANT(
-    !type.get(ID_width).empty(), "float bitvector type must have width");
 }
 
 /// \brief Cast a typet to a \ref floatbv_typet
@@ -1427,18 +1424,16 @@ inline void validate_type(const floatbv_typet &type)
 inline const floatbv_typet &to_floatbv_type(const typet &type)
 {
   PRECONDITION(can_cast_type<floatbv_typet>(type));
-  const floatbv_typet &ret = static_cast<const floatbv_typet &>(type);
-  validate_type(ret);
-  return ret;
+  floatbv_typet::check(type);
+  return static_cast<const floatbv_typet &>(type);
 }
 
 /// \copydoc to_floatbv_type(const typet &)
 inline floatbv_typet &to_floatbv_type(typet &type)
 {
   PRECONDITION(can_cast_type<floatbv_typet>(type));
-  floatbv_typet &ret = static_cast<floatbv_typet &>(type);
-  validate_type(ret);
-  return ret;
+  floatbv_typet::check(type);
+  return static_cast<floatbv_typet &>(type);
 }
 
 /// Type for C bit fields
@@ -1447,10 +1442,10 @@ inline floatbv_typet &to_floatbv_type(typet &type)
 class c_bit_field_typet:public bitvector_typet
 {
 public:
-  explicit c_bit_field_typet(const typet &_subtype, std::size_t width)
+  explicit c_bit_field_typet(typet _subtype, std::size_t width)
     : bitvector_typet(ID_c_bit_field, width)
   {
-    subtype() = _subtype;
+    subtype().swap(_subtype);
   }
 
   // These have a sub-type
@@ -1492,15 +1487,22 @@ inline c_bit_field_typet &to_c_bit_field_type(typet &type)
 class pointer_typet:public bitvector_typet
 {
 public:
-  pointer_typet(const typet &_subtype, std::size_t width)
+  pointer_typet(typet _subtype, std::size_t width)
     : bitvector_typet(ID_pointer, width)
   {
-    subtype() = _subtype;
+    subtype().swap(_subtype);
   }
 
   signedbv_typet difference_type() const
   {
     return signedbv_typet(get_width());
+  }
+
+  static void check(
+    const typet &type,
+    const validation_modet vm = validation_modet::INVARIANT)
+  {
+    DATA_CHECK(vm, !type.get(ID_width).empty(), "pointer must have width");
   }
 };
 
@@ -1511,11 +1513,6 @@ template <>
 inline bool can_cast_type<pointer_typet>(const typet &type)
 {
   return type.id() == ID_pointer;
-}
-
-inline void validate_type(const pointer_typet &type)
-{
-  DATA_INVARIANT(!type.get(ID_width).empty(), "pointer must have width");
 }
 
 /// \brief Cast a typet to a \ref pointer_typet
@@ -1529,18 +1526,23 @@ inline void validate_type(const pointer_typet &type)
 inline const pointer_typet &to_pointer_type(const typet &type)
 {
   PRECONDITION(can_cast_type<pointer_typet>(type));
-  const pointer_typet &ret = static_cast<const pointer_typet &>(type);
-  validate_type(ret);
-  return ret;
+  pointer_typet::check(type);
+  return static_cast<const pointer_typet &>(type);
 }
 
 /// \copydoc to_pointer_type(const typet &)
 inline pointer_typet &to_pointer_type(typet &type)
 {
   PRECONDITION(can_cast_type<pointer_typet>(type));
-  pointer_typet &ret = static_cast<pointer_typet &>(type);
-  validate_type(ret);
-  return ret;
+  pointer_typet::check(type);
+  return static_cast<pointer_typet &>(type);
+}
+
+/// This method tests,
+/// if the given typet is a pointer of type void.
+inline bool is_void_pointer(const typet &type)
+{
+  return type.id() == ID_pointer && type.subtype().id() == ID_empty;
 }
 
 /// The reference type
@@ -1550,8 +1552,8 @@ inline pointer_typet &to_pointer_type(typet &type)
 class reference_typet:public pointer_typet
 {
 public:
-  reference_typet(const typet &_subtype, std::size_t _width):
-    pointer_typet(_subtype, _width)
+  reference_typet(typet _subtype, std::size_t _width)
+    : pointer_typet(std::move(_subtype), _width)
   {
     set(ID_C_reference, true);
   }
@@ -1563,8 +1565,13 @@ public:
 template <>
 inline bool can_cast_type<reference_typet>(const typet &type)
 {
-  return can_cast_type<pointer_typet>(type) && type.get_bool(ID_C_reference) &&
-         !type.get(ID_width).empty();
+  return can_cast_type<pointer_typet>(type) && type.get_bool(ID_C_reference);
+}
+
+inline void validate_type(const reference_typet &type)
+{
+  DATA_INVARIANT(!type.get(ID_width).empty(), "reference must have width");
+  DATA_INVARIANT(type.get_width() > 0, "reference must have non-zero width");
 }
 
 /// \brief Cast a typet to a \ref reference_typet
@@ -1600,6 +1607,13 @@ public:
     bitvector_typet(ID_c_bool, width)
   {
   }
+
+  static void check(
+    const typet &type,
+    const validation_modet vm = validation_modet::INVARIANT)
+  {
+    DATA_CHECK(vm, !type.get(ID_width).empty(), "C bool type must have width");
+  }
 };
 
 /// Check whether a reference to a typet is a \ref c_bool_typet.
@@ -1609,11 +1623,6 @@ template <>
 inline bool can_cast_type<c_bool_typet>(const typet &type)
 {
   return type.id() == ID_c_bool;
-}
-
-inline void validate_type(const c_bool_typet &type)
-{
-  DATA_INVARIANT(!type.get(ID_width).empty(), "C bool type must have width");
 }
 
 /// \brief Cast a typet to a \ref c_bool_typet
@@ -1627,18 +1636,16 @@ inline void validate_type(const c_bool_typet &type)
 inline const c_bool_typet &to_c_bool_type(const typet &type)
 {
   PRECONDITION(can_cast_type<c_bool_typet>(type));
-  const c_bool_typet &ret = static_cast<const c_bool_typet &>(type);
-  validate_type(ret);
-  return ret;
+  c_bool_typet::check(type);
+  return static_cast<const c_bool_typet &>(type);
 }
 
 /// \copydoc to_c_bool_type(const typet &)
 inline c_bool_typet &to_c_bool_type(typet &type)
 {
   PRECONDITION(can_cast_type<c_bool_typet>(type));
-  c_bool_typet &ret = static_cast<c_bool_typet &>(type);
-  validate_type(ret);
-  return ret;
+  c_bool_typet::check(type);
+  return static_cast<c_bool_typet &>(type);
 }
 
 /// String type
@@ -1734,28 +1741,18 @@ inline range_typet &to_range_type(typet &type)
 /// Used to represent the short vectors used by CPU instruction sets such as
 /// MMX, SSE and AVX. They all provide registers that are something like
 /// 8 x int32, for example, and corresponding operations that operate
-/// element-wise on their operand vectors. Compared to \ref array_typet
-/// that has no element-wise operators. Note that `remove_vector.h` removes
-/// this data type by compilation into arrays.
+/// element-wise on their operand vectors. Compared to \ref array_typet,
+/// vector_typet has a fixed size whereas array_typet has no element-wise
+/// operators.
+/// Note that `remove_vector.h` removes this data type by compilation into
+/// arrays.
 class vector_typet:public type_with_subtypet
 {
 public:
-  vector_typet(
-    const typet &_subtype,
-    const exprt &_size):type_with_subtypet(ID_vector, _subtype)
-  {
-    size()=_size;
-  }
+  vector_typet(const typet &_subtype, const constant_exprt &_size);
 
-  const exprt &size() const
-  {
-    return static_cast<const exprt &>(find(ID_size));
-  }
-
-  exprt &size()
-  {
-    return static_cast<exprt &>(add(ID_size));
-  }
+  const constant_exprt &size() const;
+  constant_exprt &size();
 };
 
 /// Check whether a reference to a typet is a \ref vector_typet.
@@ -1792,13 +1789,13 @@ inline vector_typet &to_vector_type(typet &type)
 class complex_typet:public type_with_subtypet
 {
 public:
-  DEPRECATED("use complex_typet(type) instead")
+  DEPRECATED(SINCE(2018, 12, 2, "use complex_typet(type) instead"))
   complex_typet():type_with_subtypet(ID_complex)
   {
   }
 
-  explicit complex_typet(const typet &_subtype):
-    type_with_subtypet(ID_complex, _subtype)
+  explicit complex_typet(typet _subtype)
+    : type_with_subtypet(ID_complex, std::move(_subtype))
   {
   }
 };

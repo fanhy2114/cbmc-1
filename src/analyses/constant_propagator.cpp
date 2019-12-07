@@ -17,12 +17,12 @@ Author: Peter Schrammel
 #endif
 
 #include <util/arith_tools.h>
-#include <util/base_type.h>
 #include <util/c_types.h>
 #include <util/cprover_prefix.h>
 #include <util/expr_util.h>
 #include <util/find_symbols.h>
 #include <util/ieee_float.h>
+#include <util/mathematical_types.h>
 #include <util/simplify_expr.h>
 
 #include <langapi/language_util.h>
@@ -102,7 +102,7 @@ void constant_propagator_domaint::assign_rec(
     if(dest_values.is_constant(tmp))
     {
       DATA_INVARIANT(
-        base_type_eq(ns.lookup(s).type, tmp.type(), ns),
+        ns.lookup(s).type == tmp.type(),
         "type of constant to be replaced should match");
       dest_values.set_to(s, tmp);
     }
@@ -155,20 +155,20 @@ void constant_propagator_domaint::transform(
 
   if(from->is_decl())
   {
-    const code_declt &code_decl=to_code_decl(from->code);
+    const auto &code_decl = from->get_decl();
     const symbol_exprt &symbol = code_decl.symbol();
     values.set_to_top(symbol);
   }
   else if(from->is_assign())
   {
-    const code_assignt &assignment=to_code_assign(from->code);
+    const auto &assignment = from->get_assign();
     const exprt &lhs=assignment.lhs();
     const exprt &rhs=assignment.rhs();
     assign_rec(values, lhs, rhs, ns, cp, true);
   }
   else if(from->is_assume())
   {
-    two_way_propagate_rec(from->guard, ns, cp);
+    two_way_propagate_rec(from->get_condition(), ns, cp);
   }
   else if(from->is_goto())
   {
@@ -177,9 +177,9 @@ void constant_propagator_domaint::transform(
     // Comparing iterators is safe as the target must be within the same list
     // of instructions because this is a GOTO.
     if(from->get_target()==to)
-      g = from->guard;
+      g = from->get_condition();
     else
-      g = not_exprt(from->guard);
+      g = not_exprt(from->get_condition());
     partial_evaluate(values, g, ns);
     if(g.is_false())
      values.set_to_bottom();
@@ -188,12 +188,12 @@ void constant_propagator_domaint::transform(
   }
   else if(from->is_dead())
   {
-    const code_deadt &code_dead=to_code_dead(from->code);
+    const auto &code_dead = from->get_dead();
     values.set_to_top(code_dead.symbol());
   }
   else if(from->is_function_call())
   {
-    const code_function_callt &function_call=to_code_function_call(from->code);
+    const auto &function_call = from->get_function_call();
     const exprt &function=function_call.function();
 
     if(function.id()==ID_symbol)
@@ -334,17 +334,18 @@ bool constant_propagator_domaint::two_way_propagate_rec(
   }
   else if(expr.id() == ID_not)
   {
-    if(expr.op0().id() == ID_equal || expr.op0().id() == ID_notequal)
+    const auto &op = to_not_expr(expr).op();
+
+    if(op.id() == ID_equal || op.id() == ID_notequal)
     {
-      exprt subexpr = expr.op0();
+      exprt subexpr = op;
       subexpr.id(subexpr.id() == ID_equal ? ID_notequal : ID_equal);
       change = two_way_propagate_rec(subexpr, ns, cp);
     }
-    else if(expr.op0().id() == ID_symbol && expr.type() == bool_typet())
+    else if(op.id() == ID_symbol && expr.type() == bool_typet())
     {
       // Treat `IF !x` like `IF x == FALSE`:
-      change =
-        two_way_propagate_rec(equal_exprt(expr.op0(), false_exprt()), ns, cp);
+      change = two_way_propagate_rec(equal_exprt(op, false_exprt()), ns, cp);
     }
   }
   else if(expr.id() == ID_symbol)
@@ -359,8 +360,8 @@ bool constant_propagator_domaint::two_way_propagate_rec(
   {
     // Treat "symbol != constant" like "symbol == !constant" when the constant
     // is a boolean.
-    exprt lhs = expr.op0();
-    exprt rhs = expr.op1();
+    exprt lhs = to_notequal_expr(expr).lhs();
+    exprt rhs = to_notequal_expr(expr).rhs();
 
     if(lhs.is_constant() && !rhs.is_constant())
       std::swap(lhs, rhs);
@@ -384,8 +385,8 @@ bool constant_propagator_domaint::two_way_propagate_rec(
   }
   else if(expr.id() == ID_equal)
   {
-    exprt lhs = expr.op0();
-    exprt rhs = expr.op1();
+    exprt lhs = to_equal_expr(expr).lhs();
+    exprt rhs = to_equal_expr(expr).rhs();
 
     replace_typecast_of_bool(lhs, rhs, ns);
 
@@ -415,34 +416,40 @@ bool constant_propagator_domaint::ai_simplify(
   return partial_evaluate(values, condition, ns);
 }
 
+class constant_propagator_is_constantt : public is_constantt
+{
+public:
+  explicit constant_propagator_is_constantt(
+    const replace_symbolt &replace_const)
+    : replace_const(replace_const)
+  {
+  }
+
+  bool is_constant(const irep_idt &id) const
+  {
+    return replace_const.replaces_symbol(id);
+  }
+
+protected:
+  bool is_constant(const exprt &expr) const override
+  {
+    if(expr.id() == ID_symbol)
+      return is_constant(to_symbol_expr(expr).get_identifier());
+
+    return is_constantt::is_constant(expr);
+  }
+
+  const replace_symbolt &replace_const;
+};
 
 bool constant_propagator_domaint::valuest::is_constant(const exprt &expr) const
 {
-  class constant_propagator_is_constantt : public is_constantt
-  {
-  public:
-    explicit constant_propagator_is_constantt(
-      const replace_symbolt &replace_const)
-      : replace_const(replace_const)
-    {
-    }
-
-  protected:
-    bool is_constant(const exprt &expr) const override
-    {
-      if(expr.id() == ID_symbol)
-      {
-        return replace_const.replaces_symbol(
-          to_symbol_expr(expr).get_identifier());
-      }
-
-      return is_constantt::is_constant(expr);
-    }
-
-    const replace_symbolt &replace_const;
-  };
-
   return constant_propagator_is_constantt(replace_const)(expr);
+}
+
+bool constant_propagator_domaint::valuest::is_constant(const irep_idt &id) const
+{
+  return constant_propagator_is_constantt(replace_const).is_constant(id);
 }
 
 /// Do not call this when iterating over replace_const.expr_map!
@@ -471,8 +478,9 @@ void constant_propagator_domaint::valuest::set_dirty_to_top(
 
     const symbolt &symbol=ns.lookup(id);
 
-    if((!symbol.is_procedure_local() || dirty(id)) &&
-       !symbol.type.get_bool(ID_C_constant))
+    if(
+      (symbol.is_static_lifetime || dirty(id)) &&
+      !symbol.type.get_bool(ID_C_constant))
     {
       it = replace_const.erase(it);
     }
@@ -616,7 +624,7 @@ bool constant_propagator_domaint::valuest::meet(
     {
       const typet &m_id_type = ns.lookup(m.first).type;
       DATA_INVARIANT(
-        base_type_eq(m_id_type, m.second.type(), ns),
+        m_id_type == m.second.type(),
         "type of constant to be stored should match");
       set_to(symbol_exprt(m.first, m_id_type), m.second);
       changed=true;
@@ -649,10 +657,9 @@ bool constant_propagator_domaint::partial_evaluate(
   // if the current rounding mode is top we can
   // still get a non-top result by trying all rounding
   // modes and checking if the results are all the same
-  if(!known_values.is_constant(symbol_exprt(ID_cprover_rounding_mode_str)))
-  {
+  if(!known_values.is_constant(ID_cprover_rounding_mode_str))
     return partial_evaluate_with_all_rounding_modes(known_values, expr, ns);
-  }
+
   return replace_constants_and_simplify(known_values, expr, ns);
 }
 
@@ -749,39 +756,55 @@ void constant_propagator_ait::replace(
       continue;
 
     replace_types_rec(d.values.replace_const, it->code);
-    replace_types_rec(d.values.replace_const, it->guard);
 
     if(it->is_goto() || it->is_assume() || it->is_assert())
     {
-      constant_propagator_domaint::partial_evaluate(d.values, it->guard, ns);
+      exprt c = it->get_condition();
+      replace_types_rec(d.values.replace_const, c);
+      if(!constant_propagator_domaint::partial_evaluate(d.values, c, ns))
+        it->set_condition(c);
     }
     else if(it->is_assign())
     {
-      exprt &rhs=to_code_assign(it->code).rhs();
-      constant_propagator_domaint::partial_evaluate(d.values, rhs, ns);
+      auto assign = it->get_assign();
+      exprt &rhs = assign.rhs();
 
-      if(rhs.id()==ID_constant)
-        rhs.add_source_location() =
-          to_code_assign(it->code).lhs().source_location();
+      if(!constant_propagator_domaint::partial_evaluate(d.values, rhs, ns))
+      {
+        if(rhs.id() == ID_constant)
+          rhs.add_source_location() = assign.lhs().source_location();
+        it->set_assign(assign);
+      }
     }
     else if(it->is_function_call())
     {
-      exprt &function = to_code_function_call(it->code).function();
-      constant_propagator_domaint::partial_evaluate(d.values, function, ns);
+      auto call = it->get_function_call();
 
-      exprt::operandst &args=
-        to_code_function_call(it->code).arguments();
+      bool call_changed = false;
 
-      for(auto &arg : args)
+      if(!constant_propagator_domaint::partial_evaluate(
+           d.values, call.function(), ns))
       {
-        constant_propagator_domaint::partial_evaluate(d.values, arg, ns);
+        call_changed = true;
       }
+
+      for(auto &arg : call.arguments())
+        if(!constant_propagator_domaint::partial_evaluate(d.values, arg, ns))
+          call_changed = true;
+
+      if(call_changed)
+        it->set_function_call(call);
     }
     else if(it->is_other())
     {
-      if(it->code.get_statement()==ID_expression)
+      if(it->get_other().get_statement() == ID_expression)
       {
-        constant_propagator_domaint::partial_evaluate(d.values, it->code, ns);
+        auto c = to_code_expression(it->get_other());
+        if(!constant_propagator_domaint::partial_evaluate(
+             d.values, c.expression(), ns))
+        {
+          it->set_other(c);
+        }
       }
     }
   }

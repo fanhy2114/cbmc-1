@@ -122,7 +122,10 @@ class optionst;
 // clang-format off
 #define JANALYZER_OPTIONS \
   OPT_FUNCTIONS \
-  "(classpath):(cp):(main-class):" \
+  "(classpath):(cp):" \
+  OPT_JAVA_JAR \
+  "(main-class):" \
+  OPT_JAVA_GOTO_BINARY \
   "(16)(32)(64)(LP64)(ILP64)(LLP64)(ILP32)(LP32)" \
   "(little-endian)(big-endian)" \
   OPT_SHOW_GOTO_FUNCTIONS \
@@ -150,7 +153,7 @@ class optionst;
   JAVA_BYTECODE_LANGUAGE_OPTIONS
 // clang-format on
 
-class janalyzer_parse_optionst : public parse_options_baset, public messaget
+class janalyzer_parse_optionst : public parse_options_baset
 {
 public:
   virtual int doit() override;
@@ -158,25 +161,35 @@ public:
 
   janalyzer_parse_optionst(int argc, const char **argv);
 
+  bool process_goto_functions(goto_modelt &goto_model, const optionst &options);
+
+  void process_goto_function(
+    goto_model_functiont &function,
+    const abstract_goto_modelt &model,
+    const optionst &options);
+
+  bool can_generate_function_body(const irep_idt &name);
+
+  bool generate_function_body(
+    const irep_idt &function_name,
+    symbol_table_baset &symbol_table,
+    goto_functiont &function,
+    bool body_available);
+
 protected:
-  ui_message_handlert ui_message_handler;
-  goto_modelt goto_model;
+  std::unique_ptr<class_hierarchyt> class_hierarchy;
 
-  virtual void register_languages();
+  void register_languages();
 
-  virtual void get_command_line_options(optionst &options);
+  void get_command_line_options(optionst &options);
 
-  virtual bool process_goto_program(const optionst &options);
-  bool set_properties();
+  virtual int
+  perform_analysis(goto_modelt &goto_model, const optionst &options);
 
-  virtual int perform_analysis(const optionst &options);
-
-  ai_baset *build_analyzer(const optionst &, const namespacet &ns);
-
-  ui_message_handlert::uit get_ui()
-  {
-    return ui_message_handler.get_ui();
-  }
+  ai_baset *build_analyzer(
+    goto_modelt &goto_model,
+    const optionst &,
+    const namespacet &ns);
 };
 
 #endif // CPROVER_JANALYZER_JANALYZER_PARSE_OPTIONS_H

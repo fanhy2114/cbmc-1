@@ -31,42 +31,50 @@ std::vector<typet> parse_list_types(
 
 signedbv_typet java_int_type()
 {
-  return signedbv_typet(32);
+  static const auto result = signedbv_typet(32);
+  return result;
 }
 
-void_typet java_void_type()
+empty_typet java_void_type()
 {
-  return void_typet();
+  static const auto result = empty_typet();
+  return result;
 }
 
 signedbv_typet java_long_type()
 {
-  return signedbv_typet(64);
+  static const auto result = signedbv_typet(64);
+  return result;
 }
 
 signedbv_typet java_short_type()
 {
-  return signedbv_typet(16);
+  static const auto result = signedbv_typet(16);
+  return result;
 }
 
 signedbv_typet java_byte_type()
 {
-  return signedbv_typet(8);
+  static const auto result = signedbv_typet(8);
+  return result;
 }
 
 unsignedbv_typet java_char_type()
 {
-  return unsignedbv_typet(16);
+  static const auto result = unsignedbv_typet(16);
+  return result;
 }
 
 floatbv_typet java_float_type()
 {
-  return ieee_float_spect::single_precision().to_type();
+  static const auto result = ieee_float_spect::single_precision().to_type();
+  return result;
 }
 
 floatbv_typet java_double_type()
 {
-  return ieee_float_spect::double_precision().to_type();
+  static const auto result = ieee_float_spect::double_precision().to_type();
+  return result;
 }
 
 c_bool_typet java_boolean_type()
@@ -74,7 +82,8 @@ c_bool_typet java_boolean_type()
   // The Java standard doesn't really prescribe the width
   // of a boolean. However, JNI suggests that it's 8 bits.
   // http://docs.oracle.com/javase/7/docs/technotes/guides/jni/spec/types.html
-  return c_bool_typet(8);
+  static const auto result = c_bool_typet(8);
+  return result;
 }
 
 reference_typet java_reference_type(const typet &subtype)
@@ -82,16 +91,23 @@ reference_typet java_reference_type(const typet &subtype)
   return reference_type(subtype);
 }
 
-reference_typet java_lang_object_type()
+java_reference_typet java_reference_type(const struct_tag_typet &subtype)
 {
-  return java_reference_type(struct_tag_typet("java::java.lang.Object"));
+  return to_java_reference_type(reference_type(subtype));
+}
+
+java_reference_typet java_lang_object_type()
+{
+  static const auto result =
+    java_reference_type(struct_tag_typet("java::java.lang.Object"));
+  return result;
 }
 
 /// Construct an array pointer type. It is a pointer to a symbol with identifier
 /// java::array[]. Its ID_element_type is set to the corresponding primitive
 /// type, or void* for arrays of references.
 /// \param subtype: Character indicating the type of array
-reference_typet java_array_type(const char subtype)
+java_reference_typet java_array_type(const char subtype)
 {
   std::string subtype_str;
 
@@ -166,6 +182,49 @@ bool is_multidim_java_array_type(const typet &type)
                                        to_struct_tag_type(type.subtype())));
 }
 
+/// Returns the underlying element type and array dimensionality of Java struct
+/// \p type. If this is not an array type the return value will be `{type, 0}`.
+std::pair<typet, std::size_t>
+java_array_dimension_and_element_type(const struct_tag_typet &type)
+{
+  std::size_t array_dimensions = 0;
+  typet underlying_type;
+  for(underlying_type = java_reference_type(type);
+      is_java_array_type(underlying_type);
+      underlying_type =
+        java_array_element_type(to_struct_tag_type(underlying_type.subtype())))
+  {
+    ++array_dimensions;
+  }
+
+  return {underlying_type, array_dimensions};
+}
+
+/// \param pointer: pointer to an array[reference] object
+/// \return member expression to access its array dimension field
+exprt get_array_dimension_field(const exprt &pointer)
+{
+  PRECONDITION(pointer.type().id() == ID_pointer);
+
+  struct_tag_typet java_reference_array_type(JAVA_REFERENCE_ARRAY_CLASSID);
+  exprt deref = dereference_exprt(typecast_exprt::conditional_cast(
+    pointer, java_reference_type(java_reference_array_type)));
+  return member_exprt(deref, JAVA_ARRAY_DIMENSION_FIELD_NAME, java_int_type());
+}
+
+/// \param pointer: pointer to an array[reference] object
+/// \return member expression to access its array element_type field
+exprt get_array_element_type_field(const exprt &pointer)
+{
+  PRECONDITION(pointer.type().id() == ID_pointer);
+
+  struct_tag_typet java_reference_array_type(JAVA_REFERENCE_ARRAY_CLASSID);
+  exprt deref = dereference_exprt(typecast_exprt::conditional_cast(
+    pointer, java_reference_type(java_reference_array_type)));
+  return member_exprt(
+    deref, JAVA_ARRAY_ELEMENT_CLASSID_FIELD_NAME, string_typet());
+}
+
 /// See above
 /// \param tag: Tag of a struct
 /// \return True if the given string is a Java array tag, i.e., has a prefix
@@ -198,8 +257,10 @@ typet java_type_from_char(char t)
   case 'f': return java_float_type();
   case 'd': return java_double_type();
   case 'z': return java_boolean_type();
-  case 'a': return java_reference_type(void_typet());
-  default: UNREACHABLE; return nil_typet();
+  case 'a':
+    return java_reference_type(java_void_type());
+  default:
+    UNREACHABLE;
   }
 }
 
@@ -339,9 +400,9 @@ std::vector<typet> parse_list_types(
   for(const std::string &raw_type :
       parse_raw_list_types(src, opening_bracket, closing_bracket))
   {
-    const typet new_type = java_type_from_string(raw_type, class_name_prefix);
-    INVARIANT(new_type != nil_typet(), "Failed to parse type");
-    type_list.push_back(new_type);
+    auto new_type = java_type_from_string(raw_type, class_name_prefix);
+    INVARIANT(new_type.has_value(), "Failed to parse type");
+    type_list.push_back(std::move(*new_type));
   }
   return type_list;
 }
@@ -476,6 +537,13 @@ size_t find_closing_semi_colon_for_reference_type(
   return next_semi_colon;
 }
 
+java_reference_typet java_reference_array_type(const struct_tag_typet &subtype)
+{
+  java_reference_typet result = java_array_type('a');
+  result.subtype().set(ID_element_type, java_reference_type(subtype));
+  return result;
+}
+
 /// Transforms a string representation of a Java type into an internal type
 /// representation thereof.
 ///
@@ -489,12 +557,12 @@ size_t find_closing_semi_colon_for_reference_type(
 /// \param class_name_prefix: name of class to append to generic type
 ///   variables/parameters
 /// \return internal type representation for GOTO programs
-typet java_type_from_string(
+optionalt<typet> java_type_from_string(
   const std::string &src,
   const std::string &class_name_prefix)
 {
   if(src.empty())
-    return nil_typet();
+    return {};
 
   // a java type is encoded in different ways
   //  - a method type is encoded as '(...)R' where the parenthesis include the
@@ -538,15 +606,15 @@ typet java_type_from_string(
           "Cannot currently parse bounds on generic types");
       }
 
-      const typet &method_type=java_type_from_string(
-        src.substr(closing_generic+1, std::string::npos), class_name_prefix);
+      auto method_type = java_type_from_string(
+        src.substr(closing_generic + 1, std::string::npos), class_name_prefix);
 
       // This invariant being violated means that tkiley has not understood
       // part of the signature spec.
       // Only class and method signatures can start with a '<' and classes are
       // handled separately.
       INVARIANT(
-        method_type.id()==ID_code,
+        method_type.has_value() && method_type->id() == ID_code,
         "This should correspond to method signatures only");
 
       return method_type;
@@ -555,9 +623,9 @@ typet java_type_from_string(
     {
       std::size_t e_pos=src.rfind(')');
       if(e_pos==std::string::npos)
-        return nil_typet();
+        return {};
 
-      typet return_type = java_type_from_string(
+      auto return_type = java_type_from_string(
         std::string(src, e_pos + 1, std::string::npos), class_name_prefix);
 
       std::vector<typet> param_types =
@@ -571,7 +639,7 @@ typet java_type_from_string(
         std::back_inserter(parameters),
         [](const typet &type) { return java_method_typet::parametert(type); });
 
-      return java_method_typet(std::move(parameters), std::move(return_type));
+      return java_method_typet(std::move(parameters), std::move(*return_type));
     }
 
   case '[': // array type
@@ -579,18 +647,22 @@ typet java_type_from_string(
       // If this is a reference array, we generate a plain array[reference]
       // with void* members, but note the real type in ID_element_type.
       if(src.size()<=1)
-        return nil_typet();
+        return {};
       char subtype_letter=src[1];
-      const typet subtype=
-        java_type_from_string(src.substr(1, std::string::npos),
-                              class_name_prefix);
+      auto subtype = java_type_from_string(
+        src.substr(1, std::string::npos), class_name_prefix);
       if(subtype_letter=='L' || // [L denotes a reference array of some sort.
          subtype_letter=='[' || // Array-of-arrays
          subtype_letter=='T')   // Array of generic types
         subtype_letter='A';
-      typet tmp=java_array_type(std::tolower(subtype_letter));
-      tmp.subtype().set(ID_element_type, subtype);
-      return tmp;
+      subtype_letter = std::tolower(subtype_letter);
+      if(subtype_letter == 'a')
+      {
+        return java_reference_array_type(
+          to_struct_tag_type(subtype->subtype()));
+      }
+      else
+        return java_array_type(subtype_letter);
     }
 
   case 'B': return java_byte_type();
@@ -611,7 +683,7 @@ typet java_type_from_string(
     return java_generic_parametert(
       type_var_name,
       to_struct_tag_type(
-        java_type_from_string("Ljava/lang/Object;").subtype()));
+        java_type_from_string("Ljava/lang/Object;")->subtype()));
   }
   case 'L':
     {
@@ -627,7 +699,7 @@ typet java_type_from_string(
     throw unsupported_java_class_signature_exceptiont("wild card generic");
   }
   default:
-    return nil_typet();
+    return {};
   }
 }
 
@@ -712,7 +784,7 @@ std::vector<typet> java_generic_type_from_string(
     java_generic_parametert type_var_type(
       type_var_name,
       to_struct_tag_type(
-        java_type_from_string(bound_type, class_name).subtype()));
+        java_type_from_string(bound_type, class_name)->subtype()));
 
     types.push_back(type_var_type);
     signature=signature.substr(var_sep+1, std::string::npos);
@@ -734,7 +806,7 @@ static std::string slash_to_dot(const std::string &src)
 struct_tag_typet java_classname(const std::string &id)
 {
   if(!id.empty() && id[0]=='[')
-    return to_struct_tag_type(java_type_from_string(id).subtype());
+    return to_struct_tag_type(java_type_from_string(id)->subtype());
 
   std::string class_name=id;
 
@@ -761,7 +833,9 @@ struct_tag_typet java_classname(const std::string &id)
 /// \return True if it is a Java array type, false otherwise
 bool is_valid_java_array(const struct_typet &type)
 {
-  bool correct_num_components=type.components().size()==3;
+  bool correct_num_components =
+    type.components().size() ==
+    (type.get_tag() == JAVA_REFERENCE_ARRAY_CLASSID ? 5 : 3);
   if(!correct_num_components)
     return false;
 
@@ -769,25 +843,43 @@ bool is_valid_java_array(const struct_typet &type)
   const struct_union_typet::componentt base_class_component=
     type.components()[0];
 
-  bool base_component_valid=true;
-  base_component_valid&=base_class_component.get_name()=="@java.lang.Object";
+  if(base_class_component.get_name() != "@java.lang.Object")
+    return false;
 
-  bool length_component_valid=true;
   const struct_union_typet::componentt length_component=
     type.components()[1];
-  length_component_valid&=length_component.get_name()=="length";
-  length_component_valid&=length_component.type()==java_int_type();
+  if(length_component.get_name() != "length")
+    return false;
+  if(length_component.type() != java_int_type())
+    return false;
 
-  bool data_component_valid=true;
   const struct_union_typet::componentt data_component=
     type.components()[2];
-  data_component_valid&=data_component.get_name()=="data";
-  data_component_valid&=data_component.type().id()==ID_pointer;
+  if(data_component.get_name() != "data")
+    return false;
+  if(data_component.type().id() != ID_pointer)
+    return false;
 
-  return correct_num_components &&
-    base_component_valid &&
-    length_component_valid &&
-    data_component_valid;
+  if(type.get_tag() == JAVA_REFERENCE_ARRAY_CLASSID)
+  {
+    const struct_union_typet::componentt array_element_type_component =
+      type.components()[3];
+    if(
+      array_element_type_component.get_name() !=
+      JAVA_ARRAY_ELEMENT_CLASSID_FIELD_NAME)
+      return false;
+    if(array_element_type_component.type() != string_typet())
+      return false;
+
+    const struct_union_typet::componentt array_dimension_component =
+      type.components()[4];
+    if(array_dimension_component.get_name() != JAVA_ARRAY_DIMENSION_FIELD_NAME)
+      return false;
+    if(array_dimension_component.type() != java_int_type())
+      return false;
+  }
+
+  return true;
 }
 
 /// Compares the types, including checking element types if both types are
@@ -820,6 +912,31 @@ bool equal_java_types(const typet &type1, const typet &type2)
     }
   }
   return (type1 == type2 && arrays_with_same_element_type);
+}
+
+std::vector<java_generic_parametert>
+get_all_generic_parameters(const typet &type)
+{
+  std::vector<java_generic_parametert> generic_parameters;
+  if(is_java_implicitly_generic_class_type(type))
+  {
+    const java_implicitly_generic_class_typet &implicitly_generic_class =
+      to_java_implicitly_generic_class_type(to_java_class_type(type));
+    generic_parameters.insert(
+      generic_parameters.end(),
+      implicitly_generic_class.implicit_generic_types().begin(),
+      implicitly_generic_class.implicit_generic_types().end());
+  }
+  if(is_java_generic_class_type(type))
+  {
+    const java_generic_class_typet &generic_class =
+      to_java_generic_class_type(to_java_class_type(type));
+    generic_parameters.insert(
+      generic_parameters.end(),
+      generic_class.generic_types().begin(),
+      generic_class.generic_types().end());
+  }
+  return generic_parameters;
 }
 
 void get_dependencies_from_generic_parameters_rec(
@@ -888,9 +1005,9 @@ void get_dependencies_from_generic_parameters(
     // class signature without bounds and without wildcards
     else if(signature.find('*') == std::string::npos)
     {
-      get_dependencies_from_generic_parameters_rec(
-        java_type_from_string(signature, erase_type_arguments(signature)),
-        refs);
+      auto type_from_string =
+        java_type_from_string(signature, erase_type_arguments(signature));
+      get_dependencies_from_generic_parameters_rec(*type_from_string, refs);
     }
   }
   catch(unsupported_java_class_signature_exceptiont &)
@@ -928,9 +1045,9 @@ java_generic_struct_tag_typet::java_generic_struct_tag_typet(
   : struct_tag_typet(type)
 {
   set(ID_C_java_generic_symbol, true);
-  const typet &base_type = java_type_from_string(base_ref, class_name_prefix);
-  PRECONDITION(is_java_generic_type(base_type));
-  const java_generic_typet &gen_base_type = to_java_generic_type(base_type);
+  const auto base_type = java_type_from_string(base_ref, class_name_prefix);
+  PRECONDITION(is_java_generic_type(*base_type));
+  const java_generic_typet &gen_base_type = to_java_generic_type(*base_type);
   INVARIANT(
     type.get_identifier() ==
       to_struct_tag_type(gen_base_type.subtype()).get_identifier(),
@@ -955,9 +1072,8 @@ optionalt<size_t> java_generic_struct_tag_typet::generic_type_index(
   const auto &generics = generic_types();
   for(std::size_t i = 0; i < generics.size(); ++i)
   {
-    if(
-      is_java_generic_parameter(generics[i]) &&
-      to_java_generic_parameter(generics[i]).get_name() == type_variable)
+    auto param = type_try_dynamic_cast<java_generic_parametert>(generics[i]);
+    if(param && param->get_name() == type_variable)
       return i;
   }
   return {};

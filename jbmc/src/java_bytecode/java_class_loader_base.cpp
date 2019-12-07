@@ -12,6 +12,7 @@ Author: Daniel Kroening, kroening@kroening.com
 #include "java_bytecode_parser.h"
 
 #include <util/file_util.h>
+#include <util/prefix.h>
 #include <util/suffix.h>
 
 #include <fstream>
@@ -20,12 +21,28 @@ void java_class_loader_baset::add_classpath_entry(const std::string &path)
 {
   if(has_suffix(path, ".jar"))
   {
-    classpath_entries.push_back(classpath_entryt(classpath_entryt::JAR, path));
+    if(std::ifstream(path).good())
+    {
+      classpath_entries.push_back(
+        classpath_entryt(classpath_entryt::JAR, path));
+    }
+    else
+    {
+      warning() << "Warning: failed to access JAR file `" << path << "'" << eom;
+    }
   }
   else
   {
-    classpath_entries.push_back(
-      classpath_entryt(classpath_entryt::DIRECTORY, path));
+    if(is_directory(path))
+    {
+      classpath_entries.push_back(
+        classpath_entryt(classpath_entryt::DIRECTORY, path));
+    }
+    else
+    {
+      warning() << "Warning: failed to access directory `" << path << "'"
+                << eom;
+    }
   }
 }
 
@@ -141,15 +158,15 @@ java_class_loader_baset::get_class_from_jar(
     if(!data.has_value())
       return {};
 
-    debug() << "Getting class `" << class_name << "' from JAR " << jar_file
+    debug() << "Getting class '" << class_name << "' from JAR " << jar_file
             << eom;
 
     std::istringstream istream(*data);
-    return java_bytecode_parse(istream, get_message_handler());
+    return java_bytecode_parse(istream, class_name, get_message_handler());
   }
   catch(const std::runtime_error &)
   {
-    error() << "failed to open JAR file `" << jar_file << "'" << eom;
+    error() << "failed to open JAR file '" << jar_file << "'" << eom;
     return {};
   }
 }
@@ -169,9 +186,9 @@ java_class_loader_baset::get_class_from_directory(
 
   if(std::ifstream(full_path))
   {
-    debug() << "Getting class `" << class_name << "' from file " << full_path
+    debug() << "Getting class '" << class_name << "' from file " << full_path
             << eom;
-    return java_bytecode_parse(full_path, get_message_handler());
+    return java_bytecode_parse(full_path, class_name, get_message_handler());
   }
   else
     return {};

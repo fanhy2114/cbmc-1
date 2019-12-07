@@ -22,6 +22,7 @@ Author: Daniel Kroening
 /// parses the command line options into a cmdlinet
 /// \par parameters: argument count, argument strings
 /// \return none
+// clang-format off
 const char *non_ms_cl_options[]=
 {
   "--show-symbol-table",
@@ -44,8 +45,12 @@ const char *non_ms_cl_options[]=
   "--partial-inlining",
   "--verbosity",
   "--function",
+  "--validate-goto-model",
+  "--export-function-local-symbols",
+  "--mangle-suffix",
   nullptr
 };
+// clang-format on
 
 bool ms_cl_cmdlinet::parse(const std::vector<std::string> &arguments)
 {
@@ -56,7 +61,9 @@ bool ms_cl_cmdlinet::parse(const std::vector<std::string> &arguments)
     {
       process_non_cl_option(arguments[i]);
 
-      if(arguments[i] == "--verbosity" || arguments[i] == "--function")
+      if(
+        arguments[i] == "--verbosity" || arguments[i] == "--function" ||
+        arguments[i] == "--mangle-suffix")
       {
         if(i < arguments.size() - 1)
         {
@@ -172,8 +179,7 @@ void ms_cl_cmdlinet::process_response_file(const std::string &file)
 
   if(!infile)
   {
-    std::cerr << "failed to open response file `"
-              << file << "'\n";
+    std::cerr << "failed to open response file '" << file << "'\n";
     return;
   }
 
@@ -278,8 +284,7 @@ void ms_cl_cmdlinet::process_non_cl_option(
       return;
 
   // unrecognized option
-  std::cout << "Warning: uninterpreted non-CL option `"
-            << s << "'\n";
+  std::cout << "Warning: uninterpreted non-CL option '" << s << "'\n";
 }
 
 /// \return none
@@ -412,7 +417,7 @@ const char *ms_cl_prefixes[]=
 
 void ms_cl_cmdlinet::process_cl_option(const std::string &s)
 {
-  if(s=="")
+  if(s.empty())
     return;
 
   if(s[0]!='/' && s[0]!='-')
@@ -431,7 +436,7 @@ void ms_cl_cmdlinet::process_cl_option(const std::string &s)
       if(s.size()==2)
       {
         option.islong=false;
-        option.optstring="";
+        option.optstring.clear();
         option.optchar=s[1];
         optnr=getoptnr(option.optchar);
       }
@@ -467,7 +472,7 @@ void ms_cl_cmdlinet::process_cl_option(const std::string &s)
       if(ms_cl_prefix.size()==1)
       {
         option.islong=false;
-        option.optstring="";
+        option.optstring.clear();
         option.optchar=ms_cl_prefix[0];
         optnr=getoptnr(option.optchar);
       }
@@ -494,6 +499,5 @@ void ms_cl_cmdlinet::process_cl_option(const std::string &s)
   }
 
   // unrecognized option
-  std::cout << "Warning: uninterpreted CL option `"
-            << s << "'\n";
+  std::cout << "Warning: uninterpreted CL option '" << s << "'\n";
 }

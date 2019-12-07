@@ -6,8 +6,8 @@ Author: Diffblue Ltd.
 
 \*******************************************************************/
 
-#include <testing-utils/catch.hpp>
 #include <java_bytecode/expr2java.h>
+#include <testing-utils/use_catch.h>
 
 TEST_CASE(
   "expr2java tests",
@@ -128,5 +128,11 @@ TEST_CASE(
 #else
     REQUIRE(floating_point_to_java_string(-5.56268e-309) == "-5.56268e-309");
 #endif
+  }
+
+  SECTION("Precise exponent")
+  {
+    REQUIRE(floating_point_to_java_string(3e+06) == "3e+06");
+    REQUIRE(floating_point_to_java_string(3e+06f) == "3e+06f");
   }
 }

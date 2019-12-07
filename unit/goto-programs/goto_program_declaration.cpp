@@ -6,9 +6,11 @@ Author: Diffblue Ltd.
 
 \*******************************************************************/
 
-#include <goto-programs/goto_function.h>
-#include <testing-utils/catch.hpp>
+#include <testing-utils/use_catch.h>
+
 #include <util/arith_tools.h>
+
+#include <goto-programs/goto_function.h>
 
 SCENARIO(
   "Validation of well-formed declaration codes",
@@ -30,11 +32,7 @@ SCENARIO(
     symbol_exprt var_a(var_symbol_name, type1);
 
     goto_functiont goto_function;
-    auto &instructions = goto_function.body.instructions;
-    instructions.emplace_back(goto_program_instruction_typet::DECL);
-    code_declt declaration(var_a);
-    instructions.back().make_decl(declaration);
-    instructions.back().function = fun_name;
+    goto_function.body.add(goto_programt::make_decl(var_a));
     symbol_table.insert(fun_symbol);
 
     WHEN("Declaring known symbol")

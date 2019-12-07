@@ -1,18 +1,14 @@
-SRC = all_properties.cpp \
-      bmc.cpp \
-      bmc_cover.cpp \
+SRC = c_test_input_generator.cpp \
       cbmc_languages.cpp \
       cbmc_main.cpp \
       cbmc_parse_options.cpp \
-      counterexample_beautification.cpp \
-      fault_localization.cpp \
-      xml_interface.cpp \
       # Empty last line
 
 OBJ += ../ansi-c/ansi-c$(LIBEXT) \
       ../cpp/cpp$(LIBEXT) \
       ../json/json$(LIBEXT) \
       ../json-symtab-language/json-symtab-language$(LIBEXT) \
+      ../statement-list/statement-list$(LIBEXT) \
       ../linking/linking$(LIBEXT) \
       ../big-int/big-int$(LIBEXT) \
       ../goto-checker/goto-checker$(LIBEXT) \
@@ -26,6 +22,7 @@ OBJ += ../ansi-c/ansi-c$(LIBEXT) \
       ../pointer-analysis/add_failed_symbols$(OBJEXT) \
       ../pointer-analysis/rewrite_index$(OBJEXT) \
       ../pointer-analysis/goto_program_dereference$(OBJEXT) \
+      ../goto-instrument/source_lines$(OBJEXT) \
       ../goto-instrument/cover$(OBJEXT) \
       ../goto-instrument/cover_basic_blocks$(OBJEXT) \
       ../goto-instrument/cover_filter$(OBJEXT) \
@@ -46,7 +43,6 @@ OBJ += ../ansi-c/ansi-c$(LIBEXT) \
       ../assembler/assembler$(LIBEXT) \
       ../solvers/solvers$(LIBEXT) \
       ../util/util$(LIBEXT) \
-      ../json/json$(LIBEXT)
 
 INCLUDES= -I ..
 

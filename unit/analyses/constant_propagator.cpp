@@ -6,15 +6,16 @@ Author: Diffblue Ltd
 
 \*******************************************************************/
 
-#include <testing-utils/catch.hpp>
 #include <testing-utils/message.h>
+#include <testing-utils/use_catch.h>
 
 #include <analyses/constant_propagator.h>
 
 #include <goto-programs/goto_convert_functions.h>
 
 #include <util/arith_tools.h>
-#include <util/message.h>
+#include <util/mathematical_types.h>
+#include <util/prefix.h>
 
 static bool starts_with_x(const exprt &e, const namespacet &)
 {
@@ -53,7 +54,7 @@ SCENARIO("constant_propagator", "[core][analyses][constant_propagator]")
 
     symbolt main_function_symbol;
     main_function_symbol.name = "main";
-    main_function_symbol.type = code_typet({}, void_typet());
+    main_function_symbol.type = code_typet({}, empty_typet());
     main_function_symbol.value = code;
     main_function_symbol.mode = ID_C;
 
@@ -145,7 +146,7 @@ SCENARIO("constant_propagator", "[core][analyses][constant_propagator]")
 
     symbolt main_function_symbol;
     main_function_symbol.name = "main";
-    main_function_symbol.type = code_typet({}, void_typet());
+    main_function_symbol.type = code_typet({}, empty_typet());
     main_function_symbol.value = code;
     main_function_symbol.mode = ID_C;
 
@@ -294,7 +295,7 @@ SCENARIO("constant_propagator", "[core][analyses][constant_propagator]")
 
     symbolt main_function_symbol;
     main_function_symbol.name = "main";
-    main_function_symbol.type = code_typet({}, void_typet());
+    main_function_symbol.type = code_typet({}, empty_typet());
     main_function_symbol.value = program;
     main_function_symbol.mode = ID_C;
 

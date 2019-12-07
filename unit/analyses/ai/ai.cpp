@@ -9,8 +9,8 @@ Author: Diffblue Ltd.
 /// \file
 /// Unit tests for ait
 
-#include <testing-utils/catch.hpp>
 #include <testing-utils/message.h>
+#include <testing-utils/use_catch.h>
 
 #include <analyses/ai.h>
 
@@ -111,9 +111,7 @@ public:
 
 static code_function_callt make_void_call(const symbol_exprt &function)
 {
-  code_function_callt ret;
-  ret.function() = function;
-  return ret;
+  return code_function_callt(function, {});
 }
 
 SCENARIO(
@@ -158,7 +156,7 @@ SCENARIO(
   symbolt g;
   g.name = "g";
   g.mode = ID_C;
-  g.type = code_typet({}, void_typet());
+  g.type = code_typet({}, empty_typet());
   g.value = code_assignt(gy.symbol_expr(), from_integer(0, signed_int_type()));
 
   // h:
@@ -171,7 +169,7 @@ SCENARIO(
   symbolt h;
   h.name = "h";
   h.mode = ID_C;
-  h.type = code_typet({}, void_typet());
+  h.type = code_typet({}, empty_typet());
   h.value = code_assignt(hy.symbol_expr(), from_integer(0, signed_int_type()));
 
   goto_model.symbol_table.add(g);
@@ -206,11 +204,6 @@ SCENARIO(
 
   f_body.copy_to_operands(make_void_call(h.symbol_expr()));
 
-  code_whilet loop;
-
-  loop.cond() =
-    notequal_exprt(x.symbol_expr(), from_integer(0, signed_int_type()));
-
   code_blockt loop_body;
   loop_body.copy_to_operands(
     code_assignt(
@@ -222,16 +215,18 @@ SCENARIO(
       minus_exprt(y.symbol_expr(), from_integer(1, signed_int_type()))));
   loop_body.copy_to_operands(make_void_call(g.symbol_expr()));
 
-  loop.body() = loop_body;
+  code_whilet loop(
+    notequal_exprt(x.symbol_expr(), from_integer(0, signed_int_type())),
+    loop_body);
 
-  f_body.move_to_operands(loop);
+  f_body.add_to_operands(std::move(loop));
 
   f_body.copy_to_operands(make_void_call(g.symbol_expr()));
 
   symbolt f;
   f.name = "f";
   f.mode = ID_C;
-  f.type = code_typet({}, void_typet());
+  f.type = code_typet({}, empty_typet());
   f.value = f_body;
 
   goto_model.symbol_table.add(f);
@@ -241,7 +236,7 @@ SCENARIO(
   symbolt start;
   start.name = goto_functionst::entry_point();
   start.mode = ID_C;
-  start.type = code_typet({}, void_typet());
+  start.type = code_typet({}, empty_typet());
   start.value = make_void_call(f.symbol_expr());
 
   goto_model.symbol_table.add(start);

@@ -10,6 +10,7 @@ Author: Daniel Kroening, kroening@kroening.com
 
 #include <util/config.h>
 #include <util/expr_initializer.h>
+#include <util/journalling_symbol_table.h>
 #include <util/string_constant.h>
 #include <util/suffix.h>
 
@@ -27,7 +28,20 @@ Author: Daniel Kroening, kroening@kroening.com
 
 #define JAVA_MAIN_METHOD "main:([Ljava/lang/String;)V"
 
-static void create_initialize(symbol_table_baset &symbol_table)
+static optionalt<codet> record_return_value(
+  const symbolt &function,
+  const symbol_table_baset &symbol_table);
+
+static code_blockt record_pointer_parameters(
+  const symbolt &function,
+  const std::vector<exprt> &arguments,
+  const symbol_table_baset &symbol_table);
+
+static codet record_exception(
+  const symbolt &function,
+  const symbol_table_baset &symbol_table);
+
+void create_java_initialize(symbol_table_baset &symbol_table)
 {
   // If __CPROVER_initialize already exists, replace it. It may already exist
   // if a GOTO binary provided it. This behaviour mirrors the ANSI-C frontend.
@@ -38,20 +52,7 @@ static void create_initialize(symbol_table_baset &symbol_table)
   initialize.base_name=INITIALIZE_FUNCTION;
   initialize.mode=ID_java;
 
-  initialize.type = java_method_typet({}, empty_typet());
-
-  code_blockt init_code;
-
-  namespacet ns(symbol_table);
-
-  symbol_exprt rounding_mode=
-    ns.lookup(CPROVER_PREFIX "rounding_mode").symbol_expr();
-
-  init_code.add(
-    code_assignt(rounding_mode, from_integer(0, rounding_mode.type())));
-
-  initialize.value=init_code;
-
+  initialize.type = java_method_typet({}, java_void_type());
   symbol_table.add(initialize);
 }
 
@@ -71,22 +72,6 @@ static bool should_init_symbol(const symbolt &sym)
   return is_java_string_literal_id(sym.name);
 }
 
-/// Get the symbol name of java.lang.Class' initializer method. This method
-/// should initialize a Class instance with known properties of the type it
-/// represents, such as its name, whether it is abstract, or an enumeration,
-/// etc. The method may or may not exist in any particular symbol table; it is
-/// up to the caller to check.
-/// The method's Java signature is:
-/// void cproverInitializeClassLiteral(
-///   String name,
-///   boolean isAnnotation,
-///   boolean isArray,
-///   boolean isInterface,
-///   boolean isSynthetic,
-///   boolean isLocalClass,
-///   boolean isMemberClass,
-///   boolean isEnum);
-/// \return Class initializer method's symbol name.
 irep_idt get_java_class_literal_initializer_signature()
 {
   static irep_idt signature =
@@ -118,7 +103,7 @@ static constant_exprt constant_bool(bool val)
   return from_integer(val ? 1 : 0, java_boolean_type());
 }
 
-static void java_static_lifetime_init(
+void java_static_lifetime_init(
   symbol_table_baset &symbol_table,
   const source_locationt &source_location,
   bool assume_init_pointers_not_null,
@@ -127,8 +112,16 @@ static void java_static_lifetime_init(
   bool string_refinement_enabled,
   message_handlert &message_handler)
 {
-  symbolt &initialize_symbol=*symbol_table.get_writeable(INITIALIZE_FUNCTION);
-  code_blockt &code_block=to_code_block(to_code(initialize_symbol.value));
+  symbolt &initialize_symbol =
+    symbol_table.get_writeable_ref(INITIALIZE_FUNCTION);
+  PRECONDITION(initialize_symbol.value.is_nil());
+  code_blockt code_block;
+
+  const symbol_exprt rounding_mode =
+    symbol_table.lookup_ref(CPROVER_PREFIX "rounding_mode").symbol_expr();
+  code_block.add(
+    code_assignt{rounding_mode, from_integer(0, rounding_mode.type())});
+
   object_factory_parameters.function_id = initialize_symbol.name;
 
   // If there are strings given using --string-input-value, we need to add
@@ -136,14 +129,10 @@ static void java_static_lifetime_init(
   // and we can refer to them later when we initialize input values.
   for(const auto &val : object_factory_parameters.string_input_values)
   {
-    exprt my_literal(ID_java_string_literal);
-    my_literal.set(ID_value, val);
     // We ignore the return value of the following call, we just need to
     // make sure the string is in the symbol table.
     get_or_create_string_literal_symbol(
-      my_literal,
-      symbol_table,
-      string_refinement_enabled);
+      val, symbol_table, string_refinement_enabled);
   }
 
   // We need to zero out all static variables, or nondet-initialize if they're
@@ -154,9 +143,15 @@ static void java_static_lifetime_init(
   for(const auto &entry : symbol_table.symbols)
     symbol_names.push_back(entry.first);
 
-  for(const auto &symname : symbol_names)
+  // Don't use a for-each loop here because the loop extends the list, and the
+  // for-each loop may only read `.end()` once.
+  for(
+    auto symbol_it = symbol_names.begin();
+    symbol_it != symbol_names.end();
+    ++symbol_it)
   {
-    const symbolt &sym=*symbol_table.lookup(symname);
+    const auto &symname = *symbol_it;
+    const symbolt &sym = symbol_table.lookup_ref(symname);
     if(should_init_symbol(sym))
     {
       if(const symbolt *class_literal_init_method =
@@ -169,17 +164,25 @@ static void java_static_lifetime_init(
 
         bool class_is_array = is_java_array_tag(sym.name);
 
-        exprt name_literal(ID_java_string_literal);
-        name_literal.set(ID_value, to_class_type(class_symbol.type).get_tag());
+        journalling_symbol_tablet journalling_table =
+          journalling_symbol_tablet::wrap(symbol_table);
 
-        symbol_exprt class_name_literal =
-          get_or_create_string_literal_symbol(
-            name_literal, symbol_table, string_refinement_enabled);
+        symbol_exprt class_name_literal = get_or_create_string_literal_symbol(
+          to_class_type(class_symbol.type).get_tag(),
+          journalling_table,
+          string_refinement_enabled);
+
+        // If that created any new symbols make sure we initialise those too:
+        const auto &new_symbols = journalling_table.get_inserted();
+        symbol_names.insert(
+          symbol_names.end(), new_symbols.begin(), new_symbols.end());
 
         // Call the literal initializer method instead of a nondet initializer:
 
         // For arguments we can't parse yet:
         side_effect_expr_nondett nondet_bool(java_boolean_type(), sym.location);
+
+        const auto &java_class_type = to_java_class_type(class_symbol.type);
 
         // Argument order is: name, isAnnotation, isArray, isInterface,
         // isSynthetic, isLocalClass, isMemberClass, isEnum
@@ -191,19 +194,19 @@ static void java_static_lifetime_init(
            // name:
            address_of_exprt(class_name_literal),
            // isAnnotation:
-           constant_bool(class_symbol.type.get_bool(ID_is_annotation)),
+           constant_bool(java_class_type.get_is_annotation()),
            // isArray:
            constant_bool(class_is_array),
            // isInterface:
-           constant_bool(class_symbol.type.get_bool(ID_interface)),
+           constant_bool(java_class_type.get_interface()),
            // isSynthetic:
-           constant_bool(class_symbol.type.get_bool(ID_synthetic)),
+           constant_bool(java_class_type.get_synthetic()),
            // isLocalClass:
            nondet_bool,
            // isMemberClass:
            nondet_bool,
            // isEnum:
-           constant_bool(class_symbol.type.get_bool(ID_enumeration))});
+           constant_bool(java_class_type.get_is_enumeration())});
 
         // First initialize the object as prior to a constructor:
         namespacet ns(symbol_table);
@@ -225,7 +228,7 @@ static void java_static_lifetime_init(
         // Then call the init function:
         code_block.add(std::move(initializer_call));
       }
-      else if(sym.value.is_nil() && sym.type!=empty_typet())
+      else if(sym.value.is_nil() && sym.type != java_void_type())
       {
         const bool is_class_model =
           has_suffix(id2string(sym.name), "@class_model");
@@ -246,7 +249,8 @@ static void java_static_lifetime_init(
           lifetimet::STATIC_GLOBAL,
           parameters,
           pointer_type_selector,
-          update_in_placet::NO_UPDATE_IN_PLACE);
+          update_in_placet::NO_UPDATE_IN_PLACE,
+          message_handler);
       }
       else if(sym.value.is_not_nil())
       {
@@ -256,6 +260,7 @@ static void java_static_lifetime_init(
       }
     }
   }
+  initialize_symbol.value = std::move(code_block);
 }
 
 /// Checks whether the given symbol is a valid java main method
@@ -267,38 +272,30 @@ bool is_java_main(const symbolt &function)
 {
   bool named_main = has_suffix(id2string(function.name), JAVA_MAIN_METHOD);
   const java_method_typet &function_type = to_java_method_type(function.type);
-  const typet &string_array_type = java_type_from_string("[Ljava/lang/String;");
+  const auto string_array_type = java_type_from_string("[Ljava/lang/String;");
   // checks whether the function is static and has a single String[] parameter
   bool is_static = !function_type.has_this();
   // this should be implied by the signature
   const java_method_typet::parameterst &parameters = function_type.parameters();
   bool has_correct_type = function_type.return_type().id() == ID_empty &&
                           parameters.size() == 1 &&
-                          parameters[0].type().full_eq(string_array_type);
+                          parameters[0].type().full_eq(*string_array_type);
   bool public_access = function_type.get(ID_access) == ID_public;
   return named_main && is_static && has_correct_type && public_access;
 }
 
-///  Extends \p init_code with code that allocates the objects used as test
-///  arguments for the function under test (\p function) and
-///  non-deterministically initializes them.
-///
-///  All the code generated by this function goes to __CPROVER__start, just
-///  before the call to the method under test.
-///
-///  \returns A std::vector of symbol_exprt, one per parameter of \p function,
-///  containing the objects that can be used as arguments for \p function.
-exprt::operandst java_build_arguments(
+std::pair<code_blockt, std::vector<exprt>> java_build_arguments(
   const symbolt &function,
-  code_blockt &init_code,
   symbol_table_baset &symbol_table,
   bool assume_init_pointers_not_null,
   java_object_factory_parameterst object_factory_parameters,
-  const select_pointer_typet &pointer_type_selector)
+  const select_pointer_typet &pointer_type_selector,
+  message_handlert &message_handler)
 {
-  const java_method_typet::parameterst &parameters =
-    to_java_method_type(function.type).parameters();
+  const java_method_typet &function_type = to_java_method_type(function.type);
+  const java_method_typet::parameterst &parameters = function_type.parameters();
 
+  code_blockt init_code;
   exprt::operandst main_arguments;
   main_arguments.resize(parameters.size());
 
@@ -309,7 +306,7 @@ exprt::operandst java_build_arguments(
 
   // we iterate through all the parameters of the function under test, allocate
   // an object for that parameter (recursively allocating other objects
-  // necessary to initialize it), and declare such object as an ID_input
+  // necessary to initialize it), and mark such object using `code_inputt`.
   for(std::size_t param_number=0;
       param_number<parameters.size();
       param_number++)
@@ -321,6 +318,22 @@ exprt::operandst java_build_arguments(
     // true iff this parameter is the `this` pointer of the method, which cannot
     // be null
     bool is_this=(param_number==0) && parameters[param_number].get_this();
+
+    if(is_this && function_type.get_is_constructor())
+    {
+      const symbol_exprt result = fresh_java_symbol(
+                                    p.type(),
+                                    "this_parameter",
+                                    function.location,
+                                    function.name,
+                                    symbol_table)
+                                    .symbol_expr();
+      main_arguments[param_number] = result;
+      init_code.add(code_declt{result});
+      init_code.add(
+        code_assignt{result, side_effect_exprt(ID_java_new, p.type())});
+      continue;
+    }
 
     java_object_factory_parameterst factory_parameters =
       object_factory_parameters;
@@ -349,16 +362,16 @@ exprt::operandst java_build_arguments(
         init_code,
         symbol_table,
         factory_parameters,
-        lifetimet::AUTOMATIC_LOCAL,
+        lifetimet::DYNAMIC,
         function.location,
-        pointer_type_selector);
+        pointer_type_selector,
+        message_handler);
     }
     else
     {
       INVARIANT(!is_this, "We cannot have different types for `this` here");
       // create a non-deterministic switch between all possible values for the
       // type of the parameter.
-      code_switcht code_switch;
 
       // the idea is to get a new symbol for the parameter value `tmp`
 
@@ -376,17 +389,18 @@ exprt::operandst java_build_arguments(
       // method(..., param, ...)
       //
 
-      const symbolt result_symbol = get_fresh_aux_symbol(
+      const symbolt result_symbol = fresh_java_symbol(
         p.type(),
-        id2string(function.name),
         "nondet_parameter_" + std::to_string(param_number),
         function.location,
-        ID_java,
+        function.name,
         symbol_table);
       main_arguments[param_number] = result_symbol.symbol_expr();
 
-      std::vector<codet> cases(alternatives.size());
-      const auto initialize_parameter = [&](const struct_tag_typet &type) {
+      std::vector<codet> cases;
+      cases.reserve(alternatives.size());
+      for(const auto &type : alternatives)
+      {
         code_blockt init_code_for_type;
         exprt init_expr_for_parameter = object_factory(
           java_reference_type(type),
@@ -397,19 +411,14 @@ exprt::operandst java_build_arguments(
           factory_parameters,
           lifetimet::DYNAMIC,
           function.location,
-          pointer_type_selector);
+          pointer_type_selector,
+          message_handler);
         init_code_for_type.add(
           code_assignt(
             result_symbol.symbol_expr(),
             typecast_exprt(init_expr_for_parameter, p.type())));
-        return init_code_for_type;
-      };
-
-      std::transform(
-        alternatives.begin(),
-        alternatives.end(),
-        cases.begin(),
-        initialize_parameter);
+        cases.push_back(init_code_for_type);
+      }
 
       init_code.add(
         generate_nondet_switch(
@@ -422,96 +431,84 @@ exprt::operandst java_build_arguments(
     }
 
     // record as an input
-    codet input(ID_input);
-    input.operands().resize(2);
-    input.op0()=
-      address_of_exprt(
-        index_exprt(
-          string_constantt(base_name),
-          from_integer(0, index_type())));
-    input.op1()=main_arguments[param_number];
-    input.add_source_location()=function.location;
-
-    init_code.add(std::move(input));
+    init_code.add(
+      code_inputt{base_name, main_arguments[param_number], function.location});
   }
 
-  return main_arguments;
+  return make_pair(init_code, main_arguments);
 }
 
-void java_record_outputs(
+/// Mark return value, pointer type parameters and the exception as outputs.
+static code_blockt java_record_outputs(
   const symbolt &function,
   const exprt::operandst &main_arguments,
-  code_blockt &init_code,
   symbol_table_baset &symbol_table)
+{
+  code_blockt init_code;
+
+  if(auto return_value = record_return_value(function, symbol_table))
+  {
+    init_code.add(std::move(*return_value));
+  }
+
+  init_code.append(
+    record_pointer_parameters(function, main_arguments, symbol_table));
+
+  init_code.add(record_exception(function, symbol_table));
+
+  return init_code;
+}
+
+static optionalt<codet> record_return_value(
+  const symbolt &function,
+  const symbol_table_baset &symbol_table)
+{
+  if(to_java_method_type(function.type).return_type() == java_void_type())
+    return {};
+
+  const symbolt &return_symbol =
+    symbol_table.lookup_ref(JAVA_ENTRY_POINT_RETURN_SYMBOL);
+
+  return code_outputt{
+    return_symbol.base_name, return_symbol.symbol_expr(), function.location};
+}
+
+static code_blockt record_pointer_parameters(
+  const symbolt &function,
+  const std::vector<exprt> &arguments,
+  const symbol_table_baset &symbol_table)
 {
   const java_method_typet::parameterst &parameters =
     to_java_method_type(function.type).parameters();
 
-  exprt::operandst result;
-  result.reserve(parameters.size()+1);
+  code_blockt init_code;
 
-  bool has_return_value =
-    to_java_method_type(function.type).return_type() != empty_typet();
-
-  if(has_return_value)
-  {
-    // record return value
-    codet output(ID_output);
-    output.operands().resize(2);
-
-    const symbolt &return_symbol=
-      *symbol_table.lookup(JAVA_ENTRY_POINT_RETURN_SYMBOL);
-
-    output.op0()=
-      address_of_exprt(
-        index_exprt(
-          string_constantt(return_symbol.base_name),
-          from_integer(0, index_type())));
-    output.op1()=return_symbol.symbol_expr();
-    output.add_source_location()=function.location;
-
-    init_code.add(std::move(output));
-  }
-
-  for(std::size_t param_number=0;
-      param_number<parameters.size();
+  for(std::size_t param_number = 0; param_number < parameters.size();
       param_number++)
   {
-    const symbolt &p_symbol=
-      *symbol_table.lookup(parameters[param_number].get_identifier());
+    const symbolt &p_symbol =
+      symbol_table.lookup_ref(parameters[param_number].get_identifier());
 
-    if(p_symbol.type.id()==ID_pointer)
-    {
-      // record as an output
-      codet output(ID_output);
-      output.operands().resize(2);
-      output.op0()=
-        address_of_exprt(
-          index_exprt(
-            string_constantt(p_symbol.base_name),
-            from_integer(0, index_type())));
-      output.op1()=main_arguments[param_number];
-      output.add_source_location()=function.location;
+    if(!can_cast_type<pointer_typet>(p_symbol.type))
+      continue;
 
-      init_code.add(std::move(output));
-    }
+    init_code.add(code_outputt{
+      p_symbol.base_name, arguments[param_number], function.location});
   }
+  return init_code;
+}
+
+static codet record_exception(
+  const symbolt &function,
+  const symbol_table_baset &symbol_table)
+{
+  // retrieve the exception variable
+  const symbolt &exc_symbol =
+    symbol_table.lookup_ref(JAVA_ENTRY_POINT_EXCEPTION_SYMBOL);
 
   // record exceptional return variable as output
-  codet output(ID_output);
-  output.operands().resize(2);
-
-  // retrieve the exception variable
-  const symbolt exc_symbol=*symbol_table.lookup(
-    JAVA_ENTRY_POINT_EXCEPTION_SYMBOL);
-
-  output.op0()=address_of_exprt(
-    index_exprt(string_constantt(exc_symbol.base_name),
-                from_integer(0, index_type())));
-  output.op1()=exc_symbol.symbol_expr();
-  output.add_source_location()=function.location;
-
-  init_code.add(std::move(output));
+  return code_outputt{
+    exc_symbol.base_name, exc_symbol.symbol_expr(), function.location};
 }
 
 main_function_resultt get_main_symbol(
@@ -522,16 +519,13 @@ main_function_resultt get_main_symbol(
   messaget message(message_handler);
 
   // find main symbol
-  if(config.main!="")
+  if(config.main.has_value())
   {
-    // Add java:: prefix
-    std::string main_identifier="java::"+config.main;
-
     std::string error_message;
-    irep_idt main_symbol_id=
-      resolve_friendly_method_name(config.main, symbol_table, error_message);
+    irep_idt main_symbol_id = resolve_friendly_method_name(
+      config.main.value(), symbol_table, error_message);
 
-    if(main_symbol_id==irep_idt())
+    if(main_symbol_id.empty())
     {
       message.error()
         << "main symbol resolution failed: " << error_message << messaget::eom;
@@ -547,9 +541,6 @@ main_function_resultt get_main_symbol(
   }
   else
   {
-    // no function given, we look for the main class
-    assert(config.main=="");
-
     // are we given a main class?
     if(main_class.empty())
     {
@@ -574,40 +565,6 @@ main_function_resultt get_main_symbol(
   }
 }
 
-/// Given the \p symbol_table and the \p main_class to test, this function
-/// generates a new function __CPROVER__start that calls the method under tests.
-///
-/// If __CPROVER__start is already in the `symbol_table`, it silently returns.
-/// Otherwise it finds the method under test using `get_main_symbol` and
-/// constructs a body for __CPROVER__start which does as follows:
-///
-/// 1. Allocates and initializes the parameters of the method under test.
-/// 2. Call it and save its return variable in the variable 'return'.
-/// 3. Declare variable 'return' as an output variable (codet with id
-///    ID_output), together with other objects possibly altered by the execution
-///    the method under test (in `java_record_outputs`)
-///
-/// When \p assume_init_pointers_not_null is false, the generated parameter
-/// initialization code will non-deterministically set input parameters to
-/// either null or a stack-allocated object. Observe that the null/non-null
-/// setting only applies to the parameter itself, and is not propagated to other
-/// pointers that it might be necessary to initialize in the object tree rooted
-/// at the parameter.
-/// Parameter \p max_nondet_array_length provides the maximum length for an
-/// array used as part of the input to the method under test, and
-/// \p max_nondet_tree_depth defines the maximum depth of the object tree
-/// created for such inputs. This maximum depth is used **in conjunction** with
-/// the so-called "recursive type set" (see field `recursive_set` in class
-/// java_object_factoryt) to bound the depth of the object tree for the
-/// parameter. Only when
-/// - the depth of the tree is >= max_nondet_tree_depth **AND**
-/// - the type of the object under initialization is already found in the
-///   recursive set
-/// then that object is not initalized and the reference pointing to it is
-/// (deterministically) set to null. This is a source of underapproximation in
-/// our approach to test generation, and should perhaps be fixed in the future.
-///
-/// \return true if error occurred on entry point search
 bool java_entry_point(
   symbol_table_baset &symbol_table,
   const irep_idt &main_class,
@@ -616,7 +573,8 @@ bool java_entry_point(
   bool assert_uncaught_exceptions,
   const java_object_factory_parameterst &object_factory_parameters,
   const select_pointer_typet &pointer_type_selector,
-  bool string_refinement_enabled)
+  bool string_refinement_enabled,
+  const build_argumentst &build_arguments)
 {
   // check if the entry point is already there
   if(symbol_table.symbols.find(goto_functionst::entry_point())!=
@@ -632,46 +590,24 @@ bool java_entry_point(
 
   assert(symbol.type.id()==ID_code);
 
-  create_initialize(symbol_table);
-
-  java_static_lifetime_init(
-    symbol_table,
-    symbol.location,
-    assume_init_pointers_not_null,
-    object_factory_parameters,
-    pointer_type_selector,
-    string_refinement_enabled,
-    message_handler);
-
   return generate_java_start_function(
     symbol,
     symbol_table,
     message_handler,
-    assume_init_pointers_not_null,
     assert_uncaught_exceptions,
     object_factory_parameters,
-    pointer_type_selector);
+    pointer_type_selector,
+    build_arguments);
 }
 
-/// Generate a _start function for a specific function. See
-/// java_entry_point for more details.
-/// \param symbol: The symbol representing the function to call
-/// \param symbol_table: Global symbol table
-/// \param message_handler: Where to write output to
-/// \param assume_init_pointers_not_null: When creating pointers, assume they
-///   always take a non-null value.
-/// \param assert_uncaught_exceptions: Add an uncaught-exception check
-/// \param object_factory_parameters: Parameters for creation of arguments
-/// \param pointer_type_selector: Logic for substituting types of pointers
-/// \return true if error occurred on entry point search, false otherwise
 bool generate_java_start_function(
   const symbolt &symbol,
   symbol_table_baset &symbol_table,
   message_handlert &message_handler,
-  bool assume_init_pointers_not_null,
   bool assert_uncaught_exceptions,
   const java_object_factory_parameterst &object_factory_parameters,
-  const select_pointer_typet &pointer_type_selector)
+  const select_pointer_typet &pointer_type_selector,
+  const build_argumentst &build_arguments)
 {
   messaget message(message_handler);
   code_blockt init_code;
@@ -710,13 +646,13 @@ bool generate_java_start_function(
 
   // if the method return type is not void, store return value in a new variable
   // named 'return'
-  if(to_java_method_type(symbol.type).return_type() != empty_typet())
+  if(to_java_method_type(symbol.type).return_type() != java_void_type())
   {
     auxiliary_symbolt return_symbol;
     return_symbol.mode=ID_java;
     return_symbol.is_static_lifetime=false;
     return_symbol.name=JAVA_ENTRY_POINT_RETURN_SYMBOL;
-    return_symbol.base_name="return";
+    return_symbol.base_name = "return'";
     return_symbol.type = to_java_method_type(symbol.type).return_type();
 
     symbol_table.add(return_symbol);
@@ -728,7 +664,7 @@ bool generate_java_start_function(
   exc_symbol.mode=ID_java;
   exc_symbol.name=JAVA_ENTRY_POINT_EXCEPTION_SYMBOL;
   exc_symbol.base_name=exc_symbol.name;
-  exc_symbol.type=java_reference_type(empty_typet());
+  exc_symbol.type = java_reference_type(java_void_type());
   symbol_table.add(exc_symbol);
 
   // Zero-initialise the top-level exception catch variable:
@@ -738,15 +674,10 @@ bool generate_java_start_function(
 
   // create code that allocates the objects used as test arguments and
   // non-deterministically initializes them
-  exprt::operandst main_arguments=
-    java_build_arguments(
-      symbol,
-      init_code,
-      symbol_table,
-      assume_init_pointers_not_null,
-      object_factory_parameters,
-      pointer_type_selector);
-  call_main.arguments()=main_arguments;
+  const std::pair<code_blockt, std::vector<exprt>> main_arguments =
+    build_arguments(symbol, symbol_table);
+  init_code.append(main_arguments.first);
+  call_main.arguments() = main_arguments.second;
 
   // Create target labels for the toplevel exception handler:
   code_labelt toplevel_catch("toplevel_catch", code_skipt());
@@ -785,8 +716,9 @@ bool generate_java_start_function(
   // Converge normal and exceptional return:
   init_code.add(std::move(after_catch));
 
-  // declare certain (which?) variables as test outputs
-  java_record_outputs(symbol, main_arguments, init_code, symbol_table);
+  // Mark return value, pointer type parameters and the exception as outputs.
+  init_code.append(
+    java_record_outputs(symbol, main_arguments.second, symbol_table));
 
   // add uncaught-exception check if requested
   if(assert_uncaught_exceptions)
@@ -800,7 +732,7 @@ bool generate_java_start_function(
   symbolt new_symbol;
 
   new_symbol.name=goto_functionst::entry_point();
-  new_symbol.type = java_method_typet({}, empty_typet());
+  new_symbol.type = java_method_typet({}, java_void_type());
   new_symbol.value.swap(init_code);
   new_symbol.mode=ID_java;
 

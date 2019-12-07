@@ -31,8 +31,8 @@ static bool parse_caller_callee(
   const std::string &callercallee,
   std::vector<std::string> &result)
 {
-  split_string(callercallee, ',', result);
-  return (result.size()!= 2);
+  result = split_string(callercallee, ',');
+  return result.size() != 2;
 }
 
 bool splice_call(
@@ -71,11 +71,10 @@ bool splice_call(
   }
   goto_programt::const_targett start=
     caller_fun->second.body.instructions.begin();
-  goto_programt::targett g=
-    caller_fun->second.body.insert_before(start);
   const code_function_callt splice_call(
     ns.lookup(callee_fun->first).symbol_expr());
-  g->make_function_call(splice_call);
+  caller_fun->second.body.insert_before(
+    start, goto_programt::make_function_call(splice_call));
 
   // update counters etc.
   goto_functions.update();

@@ -1,5 +1,15 @@
 Here a few minimalistic coding rules for the CPROVER source tree.
 
+# Interfaces
+- With any changes, consider the impact on other users of the code base. Users
+  frequently carry their own set of patches or build tools on top of the code
+  base. Large-scale changes negatively impact both scenarios.
+- Tools that link against the code base can reasonably expect a stable
+  interface. We consider as public interface any objects, procedures, or classes
+  (and their methods) that are meant to be used outside a single directory.
+- See below for how to document interfaces and how to mark parts of interfaces
+  as deprecated.
+
 # Whitespaces
 
 Formatting is enforced using clang-format. For more information about this, see
@@ -101,6 +111,18 @@ Formatting is enforced using clang-format. For more information about this, see
 - Use comments to explain the non-obvious
 - Use #if 0 for commenting out source code
 - Use #ifdef DEBUG to guard debug code
+- When deprecating interfaces, use the `DEPRECATED` macro, preferably together
+  with `SINCE`. For example,
+  ```
+  DEPRECATED(SINCE(2019, 1, 31, "use other_method() instead"))
+  void deprecated_method();
+  ```
+  marks `deprecated_method` as deprecated as of 2019-01-31. Any deprecated
+  functionality should remain in place for at least six months from the date of
+  deprecation. Before deprecating code, all in-tree uses should be replaced or
+  marked as deprecated.
+- In the brief of function descriptions, prefer imperatives such as
+  `Remove first element...` over `Removes first element...`.
 
 # Naming
 - Identifiers should make clear the purpose of the thing they are naming. 
@@ -165,7 +187,8 @@ Formatting is enforced using clang-format. For more information about this, see
 # C++ features
 - Do not use namespaces, except for anonymous namespaces.
 - Prefer use of `using` instead of `typedef`.
-- Prefer use of `class` instead of `struct`.
+- Prefer use of `class` instead of `struct` if there is an invariant between
+  members.
 - Write type modifiers before the type specifier.
 - Make references `const` whenever possible
 - Make member functions `const` whenever possible
@@ -215,6 +238,8 @@ Formatting is enforced using clang-format. For more information about this, see
   constructors, and `delete` in destructors. Never use `malloc` or `free`.
 - Prefer brace style initialisation (i.e. `type_name{arguments...}`) over
   parentheses for constructor calls
+- The [C++ Core Guidelines](http://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines)
+  are a useful reference for writing good modern C++.
 
 # CProver conventions
 - Avoid if at all possible using irept methods like `get(ID_name)`, instead cast
@@ -315,13 +340,13 @@ To avoid waiting until you've made a PR to find formatting issues, you can
 install clang-format locally and run it against your code as you are working.
 
 Different versions of clang-format have slightly different behaviors. CBMC uses
-clang-format-3.8 as it is available the repositories for Ubuntu 16.04 and
+clang-format-7 as it is available the repositories for Ubuntu 18.04 and
 Homebrew.
 To install on a Unix-like system, try installing using the system package
 manager:
 ```
-apt-get install clang-format-3.8  # Run this on Ubuntu, Debian etc.
-brew install clang-format@3.8     # Run this on a Mac with Homebrew installed
+apt-get install clang-format-7  # Run this on Ubuntu, Debian etc.
+brew install clang-format@7     # Run this on a Mac with Homebrew installed
 ```
 
 If your platform doesn't have a package for clang-format, you can download a
@@ -333,17 +358,22 @@ the [LLVM Snapshot Builds page](http://llvm.org/builds/).
 
 ### FORMATTING A RANGE OF COMMITS
 
-Clang-format is distributed with a driver script called git-clang-format-3.8.
+Clang-format is distributed with a driver script called git-clang-format-7.
 This script can be used to format git diffs (rather than entire files).
 
 After committing some code, it is recommended to run:
 ```
-git-clang-format-3.8 upstream/develop
+git-clang-format-7 upstream/develop
 ```
 *Important:* If your branch is based on a branch other than `upstream/develop`,
 use the name or checksum of that branch instead. It is strongly recommended to
 rebase your work onto the tip of the branch it's based on before running
 `git-clang-format` in this way.
+
+Note: By default, git-clang-format uses the git config variable
+`clangformat.binary`. If you have multiple versions of clang-format installed,
+you might need to update this, or explicitly specify the binary to use via
+`--binary clang-format-7`.
 
 ### RETROACTIVELY FORMATTING INDIVIDUAL COMMITS
 
@@ -355,7 +385,7 @@ The following command will stop at each commit in the range and run
 clang-format on the diff at that point.  This rewrites git history, so it's
 *unsafe*, and you should back up your branch before running this command:
 ```
-git filter-branch --tree-filter 'git-clang-format-3.8 upstream/develop' \
+git filter-branch --tree-filter 'git-clang-format-7 upstream/develop' \
   -- upstream/develop..HEAD
 ```
 *Important*: `upstream/develop` should be changed in *both* places in the

@@ -27,10 +27,25 @@ enum class synthetic_method_typet
   /// These are generated for both user and stub types, to ensure the actual
   /// static initializer is only run once on any given path.
   STATIC_INITIALIZER_WRAPPER,
+  /// Only exists if the `--static-values` option was used.
+  /// If a given type has an entry in the file given by this option, the "user
+  /// specified static initializer" contains a sequence of assignments from
+  /// static field expressions to values read from the file.
+  /// Otherwise, this function simply calls the regular clinit.
+  USER_SPECIFIED_STATIC_INITIALIZER,
   /// A generated (synthetic) static initializer function for a stub type.
   /// Because we don't have the bytecode for a stub type (by definition), we
   /// generate a static initializer function to initialize its static fields.
-  STUB_CLASS_STATIC_INITIALIZER
+  STUB_CLASS_STATIC_INITIALIZER,
+  /// A generated constructor for a class capturing the parameters of an
+  /// invokedynamic instruction
+  INVOKEDYNAMIC_CAPTURE_CONSTRUCTOR,
+  /// A generated method for a class capturing the parameters of an
+  /// invokedynamic instruction
+  INVOKEDYNAMIC_METHOD,
+  /// Our internal implementation of CProver.createArrayWithType, which needs to
+  /// access internal type-id fields
+  CREATE_ARRAY_WITH_TYPE
 };
 
 /// Maps method names on to a synthetic method kind.

@@ -655,7 +655,7 @@ exprt float_bvt::div(
     from_integer(0, unsignedbv_typet(div_width - fraction_width)),
     unsignedbv_typet(div_width));
 
-  // zero-extend fraction2 to match faction1
+  // zero-extend fraction2 to match fraction1
   const typecast_exprt fraction2(unpacked2.fraction, fraction1.type());
 
   // divide fractions
@@ -858,7 +858,7 @@ void float_bvt::normalization_shift(
 {
   // n-log-n alignment shifter.
   // The worst-case shift is the number of fraction
-  // bits minus one, in case the faction is one exactly.
+  // bits minus one, in case the fraction is one exactly.
   std::size_t fraction_bits=to_unsignedbv_type(fraction.type()).get_width();
   std::size_t exponent_bits=to_signedbv_type(exponent.type()).get_width();
   PRECONDITION(fraction_bits != 0);
@@ -893,7 +893,9 @@ void float_bvt::normalization_shift(
       if_exprt(prefix_is_zero, shifted, fraction);
 
     // add corresponding weight to exponent
-    INVARIANT(d < (signed int)exponent_bits, "");
+    INVARIANT(
+      d < (signed int)exponent_bits,
+      "depth must be smaller than exponent bits");
 
     exponent_delta=
       bitor_exprt(exponent_delta,

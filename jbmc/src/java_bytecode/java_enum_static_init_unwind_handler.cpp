@@ -10,6 +10,7 @@ Author: Chris Smowton, chris.smowton@diffblue.com
 /// Unwind loops in static initializers
 
 #include "java_enum_static_init_unwind_handler.h"
+#include "java_utils.h"
 
 #include <util/invariant.h>
 #include <util/suffix.h>
@@ -24,8 +25,7 @@ Author: Chris Smowton, chris.smowton@diffblue.com
 /// \param context: the current call stack
 /// \return the name of an enclosing function that may be defined on the
 ///   relevant enum type, or an empty string if we don't find one.
-static irep_idt
-find_enum_function_on_stack(const goto_symex_statet::call_stackt &context)
+static irep_idt find_enum_function_on_stack(const call_stackt &context)
 {
   static irep_idt reference_array_clone_id =
     "java::array[reference].clone:()Ljava/lang/Object;";
@@ -64,7 +64,7 @@ find_enum_function_on_stack(const goto_symex_statet::call_stackt &context)
 ///   unwind_count is <= the enumeration size, or unknown (defer / no decision)
 ///   otherwise.
 tvt java_enum_static_init_unwind_handler(
-  const goto_symex_statet::call_stackt &context,
+  const call_stackt &context,
   unsigned loop_number,
   unsigned unwind_count,
   unsigned &unwind_max,
@@ -77,11 +77,10 @@ tvt java_enum_static_init_unwind_handler(
     return tvt::unknown();
 
   const symbolt &function_symbol = symbol_table.lookup_ref(enum_function_id);
-  irep_idt class_id = function_symbol.type.get(ID_C_class);
-  INVARIANT(
-    !class_id.empty(), "functions should have their defining class annotated");
+  const auto class_id = declaring_class(function_symbol);
+  INVARIANT(class_id, "Java methods should have a defining class.");
 
-  const typet &class_type = symbol_table.lookup_ref(class_id).type;
+  const typet &class_type = symbol_table.lookup_ref(*class_id).type;
   size_t unwinds = class_type.get_size_t(ID_java_enum_static_unwind);
   if(unwinds != 0 && unwind_count < unwinds)
   {

@@ -8,6 +8,7 @@ Author: Daniel Kroening, kroening@kroening.com
 
 #include "cmdline.h"
 
+#include <util/exception_utils.h>
 #include <util/invariant.h>
 
 cmdlinet::cmdlinet()
@@ -46,25 +47,23 @@ std::string cmdlinet::get_value(char option) const
 {
   auto i=getoptnr(option);
 
-  if(i.has_value())
-  {
-    if(options[*i].values.empty())
-      return "";
-    else
-      return options[*i].values.front();
-  }
+  if(i.has_value() && !options[*i].values.empty())
+    return options[*i].values.front();
   else
     return "";
 }
 
-void cmdlinet::set(const std::string &option)
+void cmdlinet::set(const std::string &option, bool value)
 {
   auto i=getoptnr(option);
 
   if(i.has_value())
-    options[*i].isset=true;
-
-  // otherwise ignore
+    options[*i].isset = value;
+  else
+  {
+    throw invalid_command_line_argument_exceptiont(
+      "unknown command line option", option);
+  }
 }
 
 void cmdlinet::set(const std::string &option, const std::string &value)
@@ -76,8 +75,11 @@ void cmdlinet::set(const std::string &option, const std::string &value)
     options[*i].isset=true;
     options[*i].values.push_back(value);
   }
-
-  // otherwise ignore
+  else
+  {
+    throw invalid_command_line_argument_exceptiont(
+      "unknown command line option", option);
+  }
 }
 
 static std::list<std::string> immutable_empty_list;
@@ -96,13 +98,8 @@ std::string cmdlinet::get_value(const char *option) const
 {
   auto i=getoptnr(option);
 
-  if(i.has_value())
-  {
-    if(options[*i].values.empty())
-      return "";
-    else
-      return options[*i].values.front();
-  }
+  if(i.has_value() && !options[*i].values.empty())
+    return options[*i].values.front();
   else
     return "";
 }
@@ -169,7 +166,7 @@ bool cmdlinet::parse(int argc, const char **argv, const char *optstring)
       option.islong=true;
       option.optchar=0;
       option.isset=false;
-      option.optstring="";
+      option.optstring.clear();
 
       for(optstring++; optstring[0]!=')' && optstring[0]!=0; optstring++)
         option.optstring+=optstring[0];
@@ -181,7 +178,7 @@ bool cmdlinet::parse(int argc, const char **argv, const char *optstring)
     {
       option.islong=false;
       option.optchar=optstring[0];
-      option.optstring="";
+      option.optstring.clear();
       option.isset=false;
 
       optstring++;
@@ -246,4 +243,83 @@ bool cmdlinet::parse(int argc, const char **argv, const char *optstring)
   }
 
   return false;
+}
+
+cmdlinet::option_namest cmdlinet::option_names() const
+{
+  return option_namest{*this};
+}
+
+cmdlinet::option_namest::option_names_iteratort::option_names_iteratort(
+  const cmdlinet *command_line,
+  std::size_t index)
+  : command_line(command_line), index(index)
+{
+  goto_next_valid_index();
+}
+
+cmdlinet::option_namest::option_names_iteratort &
+cmdlinet::option_namest::option_names_iteratort::operator++()
+{
+  PRECONDITION(command_line != nullptr);
+  ++index;
+  goto_next_valid_index();
+  return *this;
+}
+bool cmdlinet::option_namest::option_names_iteratort::is_valid_index() const
+{
+  PRECONDITION(command_line != nullptr);
+  auto const &options = command_line->options;
+  return index < options.size() && options[index].isset &&
+         options[index].islong;
+}
+
+void cmdlinet::option_namest::option_names_iteratort::goto_next_valid_index()
+{
+  PRECONDITION(command_line != nullptr);
+  while(index < command_line->options.size() && !is_valid_index())
+  {
+    ++index;
+  }
+}
+
+const cmdlinet::option_namest::option_names_iteratort
+cmdlinet::option_namest::option_names_iteratort::operator++(int dummy)
+{
+  return ++option_names_iteratort(*this);
+}
+
+const std::string &cmdlinet::option_namest::option_names_iteratort::operator*()
+{
+  PRECONDITION(command_line != nullptr);
+  return command_line->options.at(index).optstring;
+}
+
+bool cmdlinet::option_namest::option_names_iteratort::
+operator==(const cmdlinet::option_namest::option_names_iteratort &other)
+{
+  PRECONDITION(command_line != nullptr && command_line == other.command_line);
+  return index == other.index;
+}
+
+bool cmdlinet::option_namest::option_names_iteratort::
+operator!=(const cmdlinet::option_namest::option_names_iteratort &other)
+{
+  PRECONDITION(command_line != nullptr && command_line == other.command_line);
+  return index != other.index;
+}
+
+cmdlinet::option_namest::option_namest(const cmdlinet &command_line)
+  : command_line(command_line)
+{
+}
+
+cmdlinet::option_namest::option_names_iteratort cmdlinet::option_namest::begin()
+{
+  return option_names_iteratort(&command_line, 0);
+}
+
+cmdlinet::option_namest::option_names_iteratort cmdlinet::option_namest::end()
+{
+  return option_names_iteratort(&command_line, command_line.options.size());
 }

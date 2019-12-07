@@ -8,7 +8,6 @@ Author: Daniel Kroening, kroening@kroening.com
 
 #include "ieee_float.h"
 
-#include <cstdint>
 #include <ostream>
 #include <cmath>
 #include <limits>
@@ -689,7 +688,8 @@ void ieee_floatt::divide_and_round(
         ++dividend;
       break;
 
-    default:
+    case NONDETERMINISTIC:
+    case UNKNOWN:
       UNREACHABLE;
     }
   }
@@ -1242,11 +1242,7 @@ float ieee_floatt::to_float() const
       return std::numeric_limits<float>::quiet_NaN();
   }
 
-  mp_integer i=pack();
-  CHECK_RETURN(i.is_ulong());
-  CHECK_RETURN(i <= std::numeric_limits<std::uint32_t>::max());
-
-  a.i=i.to_ulong();
+  a.i = numeric_cast_v<uint32_t>(pack());
   return a.f;
 }
 

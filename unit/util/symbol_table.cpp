@@ -2,7 +2,8 @@
 
 /// \file Tests for symbol_tablet
 
-#include <testing-utils/catch.hpp>
+#include <testing-utils/invariant.h>
+#include <testing-utils/use_catch.h>
 #include <util/exception_utils.h>
 #include <util/journalling_symbol_table.h>
 
@@ -58,8 +59,6 @@ SCENARIO(
           symbol_table.validate(validation_modet::EXCEPTION),
           incorrect_goto_program_exceptiont);
       }
-      // Reset symbol to a valid name after the previous test
-      transformed_symbol.name = symbol_name;
     }
     WHEN(
       "A symbol base_name is transformed without updating the base_name "
@@ -75,8 +74,6 @@ SCENARIO(
           symbol_table.validate(validation_modet::EXCEPTION),
           incorrect_goto_program_exceptiont);
       }
-      // Reset symbol to a valid base_name after the previous test
-      transformed_symbol.base_name = "TestBase";
     }
     WHEN(
       "A symbol module identifier is transformed without updating the module "
@@ -91,8 +88,58 @@ SCENARIO(
           symbol_table.validate(validation_modet::EXCEPTION),
           incorrect_goto_program_exceptiont);
       }
-      // Reset symbol to a valid module name
-      transformed_symbol.module = "TestModule";
+    }
+  }
+}
+
+SCENARIO(
+  "symbol_table_symbol_module_map",
+  "[core][utils][symbol_table_symbol_module_map]")
+{
+  GIVEN("A valid symbol table")
+  {
+    symbol_tablet symbol_table;
+    WHEN("Inserting a symbol with non-empty module")
+    {
+      symbolt symbol;
+      symbol.name = "TestName";
+      symbol.module = "TestModule";
+      symbol_table.insert(std::move(symbol));
+      THEN("The symbol module map contains an entry for the symbol")
+      {
+        REQUIRE(symbol_table.symbol_module_map.size() == 1);
+        const auto entry = symbol_table.symbol_module_map.begin();
+        REQUIRE(id2string(entry->first) == "TestModule");
+        REQUIRE(id2string(entry->second) == "TestName");
+      }
+      WHEN("Removing the symbol again")
+      {
+        symbol_table.remove("TestName");
+        THEN("The symbol module map no longer contains an entry for the symbol")
+        {
+          REQUIRE(symbol_table.symbol_module_map.size() == 0);
+        }
+      }
+    }
+    WHEN("Inserting a symbol with empty module")
+    {
+      symbolt symbol;
+      symbol.name = "TestName";
+      symbol_table.insert(std::move(symbol));
+      THEN("The symbol module map does not contain an entry for the symbol")
+      {
+        REQUIRE(symbol_table.symbol_module_map.size() == 0);
+      }
+      WHEN("Removing the symbol again")
+      {
+        symbol_table.remove("TestName");
+        THEN(
+          "The symbol module map still does not contain an entry for the "
+          "symbol")
+        {
+          REQUIRE(symbol_table.symbol_module_map.size() == 0);
+        }
+      }
     }
   }
 }
@@ -349,4 +396,18 @@ SCENARIO("journalling_symbol_table_writer",
       }
     }
   }
+}
+
+TEST_CASE("symbol_tablet::lookup_ref invariant", "[core][utils][symbol_tablet]")
+{
+  symbolt foo_symbol;
+  foo_symbol.name = "foo";
+  symbol_tablet symbol_table;
+  symbol_table.insert(foo_symbol);
+  const cbmc_invariants_should_throwt invariants_throw;
+  REQUIRE_NOTHROW(symbol_table.lookup_ref("foo"));
+  REQUIRE_THROWS_MATCHES(
+    symbol_table.lookup_ref("bar"),
+    invariant_failedt,
+    invariant_failure_containing("`bar' must exist in the symbol table."));
 }

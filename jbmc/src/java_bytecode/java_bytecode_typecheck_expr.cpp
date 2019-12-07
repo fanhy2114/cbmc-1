@@ -13,13 +13,15 @@ Author: Daniel Kroening, kroening@kroening.com
 
 #include <util/arith_tools.h>
 #include <util/expr_initializer.h>
+#include <util/prefix.h>
 #include <util/unicode.h>
 
 #include "java_pointer_casts.h"
-#include "java_types.h"
-#include "java_utils.h"
 #include "java_root_class.h"
 #include "java_string_library_preprocess.h"
+#include "java_string_literal_expr.h"
+#include "java_types.h"
+#include "java_utils.h"
 
 void java_bytecode_typecheckt::typecheck_expr(exprt &expr)
 {
@@ -38,7 +40,7 @@ void java_bytecode_typecheckt::typecheck_expr(exprt &expr)
     typecheck_expr(*it);
 
   INVARIANT(
-    expr.id() != ID_java_string_literal,
+    !can_cast_expr<java_string_literal_exprt>(expr),
     "String literals should have been converted to constant globals "
     "before typecheck_expr");
 
@@ -52,8 +54,6 @@ void java_bytecode_typecheckt::typecheck_expr(exprt &expr)
     else if(statement==ID_java_new_array)
       typecheck_expr_java_new_array(to_side_effect_expr(expr));
   }
-  else if(expr.id()==ID_member)
-    typecheck_expr_member(to_member_expr(expr));
 }
 
 void java_bytecode_typecheckt::typecheck_expr_java_new(side_effect_exprt &expr)
@@ -119,47 +119,4 @@ void java_bytecode_typecheckt::typecheck_expr_symbol(symbol_exprt &expr)
     // type the expression
     expr.type()=symbol.type;
   }
-}
-
-void java_bytecode_typecheckt::typecheck_expr_member(member_exprt &expr)
-{
-  // The member might be in a parent class or an opaque class, which we resolve
-  // here.
-  const irep_idt component_name=expr.get_component_name();
-
-  while(1)
-  {
-    typet base_type(ns.follow(expr.struct_op().type()));
-
-    if(base_type.id()!=ID_struct)
-      break; // give up
-
-    struct_typet &struct_type=
-      to_struct_type(base_type);
-
-    if(struct_type.has_component(component_name))
-      return; // done
-
-    // look at parent
-    struct_typet::componentst &components=
-      struct_type.components();
-
-    if(components.empty())
-      break;
-
-    const struct_typet::componentt &c=components.front();
-
-    member_exprt m(expr.struct_op(), c.get_name(), c.type());
-    m.add_source_location()=expr.source_location();
-
-    expr.struct_op()=m;
-  }
-
-  warning().source_location=expr.source_location();
-  warning() << "failed to find field `"
-            << component_name << "` in class hierarchy" << eom;
-
-  // We replace by a non-det of same type
-  side_effect_expr_nondett nondet(expr.type(), expr.source_location());
-  expr.swap(nondet);
 }

@@ -19,6 +19,13 @@ Author: Daniel Kroening, kroening@kroening.com
 java_class_loadert::parse_tree_with_overlayst &java_class_loadert::operator()(
   const irep_idt &class_name)
 {
+  debug() << "Classpath:";
+  for(const auto &entry : classpath_entries)
+  {
+    debug() << "\n  " << entry.path;
+  }
+  debug() << messaget::eom;
+
   std::stack<irep_idt> queue;
   // Always require java.lang.Object, as it is the base of
   // internal classes such as array types.
@@ -176,7 +183,7 @@ java_class_loadert::get_parse_tree(
     return parse_trees;
 
   // Not found or failed to load
-  warning() << "failed to load class `" << class_name << '\'' << eom;
+  warning() << "failed to load class " << class_name << eom;
   parse_trees.emplace_back(class_name);
   return parse_trees;
 }
@@ -211,10 +218,10 @@ java_class_loadert::read_jar_file(const std::string &jar_path)
   }
   catch(const std::runtime_error &)
   {
-    error() << "failed to open JAR file `" << jar_path << "'" << eom;
+    error() << "failed to open JAR file '" << jar_path << "'" << eom;
     return {};
   }
-  debug() << "Adding JAR file `" << jar_path << "'" << eom;
+  debug() << "Adding JAR file '" << jar_path << "'" << eom;
 
   // Create a new entry in the map and initialize using the list of file names
   // that are in jar_filet
@@ -223,9 +230,8 @@ java_class_loadert::read_jar_file(const std::string &jar_path)
   {
     if(has_suffix(file_name, ".class"))
     {
-      debug()
-        << "Found class file " << file_name << " in JAR `" << jar_path << "'"
-        << eom;
+      debug() << "Found class file " << file_name << " in JAR '" << jar_path
+              << "'" << eom;
       irep_idt class_name=file_to_class_name(file_name);
       classes.push_back(class_name);
     }

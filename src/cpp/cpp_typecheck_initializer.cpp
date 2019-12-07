@@ -31,8 +31,8 @@ void cpp_typecheckt::convert_initializer(symbolt &symbol)
     if(symbol.value.id()!=ID_type)
     {
       error().source_location=symbol.location;
-      error() << "expected type as initializer for `"
-              << symbol.base_name << "'" << eom;
+      error() << "expected type as initializer for '" << symbol.base_name << "'"
+              << eom;
       throw 0;
     }
 
@@ -48,9 +48,8 @@ void cpp_typecheckt::convert_initializer(symbolt &symbol)
     if(is_reference(symbol.type))
     {
       error().source_location=symbol.location;
-      error() << "`" << symbol.base_name
-              << "' is declared as reference but is not initialized"
-              << eom;
+      error() << "'" << symbol.base_name
+              << "' is declared as reference but is not initialized" << eom;
       throw 0;
     }
 
@@ -66,7 +65,7 @@ void cpp_typecheckt::convert_initializer(symbolt &symbol)
 
     if(has_auto(symbol.type))
     {
-      cpp_convert_auto(symbol.type, symbol.value.type());
+      cpp_convert_auto(symbol.type, symbol.value.type(), get_message_handler());
       typecheck_type(symbol.type);
       implicit_typecast(symbol.value, symbol.type);
     }
@@ -75,10 +74,10 @@ void cpp_typecheckt::convert_initializer(symbolt &symbol)
   }
   else if(cpp_is_pod(symbol.type))
   {
-    if(symbol.type.id() == ID_pointer &&
-       symbol.type.subtype().id() == ID_code &&
-       symbol.value.id() == ID_address_of &&
-       symbol.value.op0().id() == ID_cpp_name)
+    if(
+      symbol.type.id() == ID_pointer && symbol.type.subtype().id() == ID_code &&
+      symbol.value.id() == ID_address_of &&
+      to_address_of_expr(symbol.value).object().id() == ID_cpp_name)
     {
       // initialization of a function pointer with
       // the address of a function: use pointer type information
@@ -89,26 +88,25 @@ void cpp_typecheckt::convert_initializer(symbolt &symbol)
 
       const code_typet &code_type=to_code_type(symbol.type.subtype());
 
-      for(code_typet::parameterst::const_iterator
-          ait=code_type.parameters().begin();
-          ait!=code_type.parameters().end();
-          ait++)
+      for(const auto &parameter : code_type.parameters())
       {
-        exprt new_object(ID_new_object, ait->type());
+        exprt new_object(ID_new_object, parameter.type());
         new_object.set(ID_C_lvalue, true);
 
-        if(ait->get(ID_C_base_name)==ID_this)
+        if(parameter.get_this())
         {
           fargs.has_object = true;
-          new_object.type() = ait->type().subtype();
+          new_object.type() = parameter.type().subtype();
         }
 
         fargs.operands.push_back(new_object);
       }
 
-      exprt resolved_expr=resolve(
-        to_cpp_name(static_cast<irept &>(symbol.value.op0())),
-        cpp_typecheck_resolvet::wantt::BOTH, fargs);
+      exprt resolved_expr = resolve(
+        to_cpp_name(
+          static_cast<irept &>(to_address_of_expr(symbol.value).object())),
+        cpp_typecheck_resolvet::wantt::BOTH,
+        fargs);
 
       assert(symbol.type.subtype() == resolved_expr.type());
 
@@ -123,7 +121,8 @@ void cpp_typecheckt::convert_initializer(symbolt &symbol)
           address_of_exprt(
             lookup(resolved_expr.get(ID_component_name)).symbol_expr());
 
-        symbol.value.type().add(ID_to_member) = resolved_expr.op0().type();
+        symbol.value.type().add(ID_to_member) =
+          to_member_expr(resolved_expr).compound().type();
       }
       else
         UNREACHABLE;
@@ -131,9 +130,8 @@ void cpp_typecheckt::convert_initializer(symbolt &symbol)
       if(symbol.type != symbol.value.type())
       {
         error().source_location=symbol.location;
-        error() << "conversion from `"
-                << to_string(symbol.value.type()) << "' to `"
-                << to_string(symbol.type) << "' " << eom;
+        error() << "conversion from '" << to_string(symbol.value.type())
+                << "' to '" << to_string(symbol.type) << "' " << eom;
         throw 0;
       }
 
@@ -155,7 +153,7 @@ void cpp_typecheckt::convert_initializer(symbolt &symbol)
     }
     else if(has_auto(symbol.type))
     {
-      cpp_convert_auto(symbol.type, symbol.value.type());
+      cpp_convert_auto(symbol.type, symbol.value.type(), get_message_handler());
       typecheck_type(symbol.type);
       implicit_typecast(symbol.value, symbol.type);
     }
@@ -174,7 +172,7 @@ void cpp_typecheckt::convert_initializer(symbolt &symbol)
     // we need a constructor
 
     symbol_exprt expr_symbol(symbol.name, symbol.type);
-    already_typechecked(expr_symbol);
+    already_typechecked_exprt::make_already_typechecked(expr_symbol);
 
     exprt::operandst ops;
     ops.push_back(symbol.value);
@@ -234,7 +232,8 @@ void cpp_typecheckt::zero_initializer(
     if(size_expr.id()==ID_infinity)
       return; // don't initialize
 
-    const mp_integer size = numeric_cast_v<mp_integer>(size_expr);
+    const mp_integer size =
+      numeric_cast_v<mp_integer>(to_constant_expr(size_expr));
     CHECK_RETURN(size>=0);
 
     exprt::operandst empty_operands;
@@ -268,14 +267,15 @@ void cpp_typecheckt::zero_initializer(
       if(component.type().id()==ID_code)
         continue;
 
-      exprt component_size=size_of_expr(component.type(), *this);
+      auto component_size_opt = size_of_expr(component.type(), *this);
 
-      mp_integer size_int;
-      if(!to_integer(component_size, size_int))
+      const auto size_int =
+        numeric_cast<mp_integer>(component_size_opt.value_or(nil_exprt()));
+      if(size_int.has_value())
       {
-        if(size_int>max_comp_size)
+        if(*size_int > max_comp_size)
         {
-          max_comp_size=size_int;
+          max_comp_size = *size_int;
           comp=component;
         }
       }
@@ -296,9 +296,9 @@ void cpp_typecheckt::zero_initializer(
     const unsignedbv_typet enum_type(
       to_bitvector_type(final_type.subtype()).get_width());
 
-    exprt zero(from_integer(0, enum_type));
-    zero.make_typecast(type);
-    already_typechecked(zero);
+    exprt zero =
+      typecast_exprt::conditional_cast(from_integer(0, enum_type), type);
+    already_typechecked_exprt::make_already_typechecked(zero);
 
     code_assignt assign;
     assign.lhs()=object;
@@ -307,7 +307,7 @@ void cpp_typecheckt::zero_initializer(
 
     typecheck_expr(assign.lhs());
     assign.lhs().type().set(ID_C_constant, false);
-    already_typechecked(assign.lhs());
+    already_typechecked_exprt::make_already_typechecked(assign.lhs());
 
     typecheck_code(assign);
     ops.push_back(assign);
@@ -318,7 +318,7 @@ void cpp_typecheckt::zero_initializer(
     if(!value.has_value())
     {
       error().source_location = source_location;
-      error() << "cannot zero-initialize `" << to_string(final_type) << "'"
+      error() << "cannot zero-initialize '" << to_string(final_type) << "'"
               << eom;
       throw 0;
     }
@@ -326,9 +326,9 @@ void cpp_typecheckt::zero_initializer(
     code_assignt assign(object, *value);
     assign.add_source_location()=source_location;
 
-    typecheck_expr(assign.op0());
+    typecheck_expr(assign.lhs());
     assign.lhs().type().set(ID_C_constant, false);
-    already_typechecked(assign.lhs());
+    already_typechecked_exprt::make_already_typechecked(assign.lhs());
 
     typecheck_code(assign);
     ops.push_back(assign);

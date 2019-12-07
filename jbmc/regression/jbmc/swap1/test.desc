@@ -1,7 +1,7 @@
 CORE
-Swap.class
+Swap
 
-^EXIT=0
+^EXIT=0$
 ^SIGNAL=0$
 ^VERIFICATION SUCCESSFUL$
 --

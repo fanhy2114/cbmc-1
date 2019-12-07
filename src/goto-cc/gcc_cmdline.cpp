@@ -27,6 +27,7 @@ const char *goto_cc_options_with_separated_argument[]=
   "--native-compiler",
   "--native-linker",
   "--print-rejected-preprocessed-source",
+  "--mangle-suffix",
   nullptr
 };
 
@@ -49,7 +50,9 @@ const char *goto_cc_options_without_argument[]=
   "--big-endian",
   "--no-arch",
   "--partial-inlining",
+  "--validate-goto-model",
   "-?",
+  "--export-function-local-symbols",
   nullptr
 };
 
@@ -79,6 +82,7 @@ const char *gcc_options_with_argument[]=
 const char *gcc_options_with_separated_argument[]=
 {
   "-aux-info",
+  "-arch", // Apple only
   "--param", // Apple only
   "-imacros",
   "-iprefix",

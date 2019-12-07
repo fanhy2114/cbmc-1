@@ -8,16 +8,26 @@ Author: Daniel Kroening, kroening@kroening.com
 
 #include "boolbv.h"
 
-#include <iostream>
-
 #include <util/arith_tools.h>
 #include <util/byte_operators.h>
+#include <util/expr_util.h>
 #include <util/invariant.h>
+
+#include <solvers/lowering/expr_lowering.h>
 
 #include "bv_endianness_map.h"
 
 bvt boolbvt::convert_byte_update(const byte_update_exprt &expr)
 {
+  // if we update (from) an unbounded array, lower the expression as the array
+  // logic does not handle byte operators
+  if(
+    is_unbounded_array(expr.op().type()) ||
+    is_unbounded_array(expr.value().type()))
+  {
+    return convert_bv(lower_byte_update(expr, ns));
+  }
+
   const exprt &op = expr.op();
   const exprt &offset_expr=expr.offset();
   const exprt &value=expr.value();

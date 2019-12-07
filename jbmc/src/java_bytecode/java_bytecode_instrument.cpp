@@ -11,7 +11,6 @@ Date:   June 2017
 #include "java_bytecode_instrument.h"
 
 #include <util/arith_tools.h>
-#include <util/fresh_symbol.h>
 #include <util/std_code.h>
 #include <util/std_expr.h>
 #include <util/c_types.h>
@@ -20,6 +19,7 @@ Date:   June 2017
 
 #include "java_bytecode_convert_class.h"
 #include "java_entry_point.h"
+#include "java_expr.h"
 #include "java_utils.h"
 
 class java_bytecode_instrumentt:public messaget
@@ -62,8 +62,8 @@ protected:
     const source_locationt &original_loc);
 
   code_ifthenelset check_class_cast(
-    const exprt &class1,
-    const exprt &class2,
+    const exprt &tested_expr,
+    const struct_tag_typet &target_type,
     const source_locationt &original_loc);
 
   codet check_array_length(
@@ -112,14 +112,8 @@ code_ifthenelset java_bytecode_instrumentt::throw_exception(
 
   // Allocate and throw an instance of the exception class:
 
-  symbolt &new_symbol=
-    get_fresh_aux_symbol(
-      exc_ptr_type,
-      "new_exception",
-      "new_exception",
-      original_loc,
-      ID_java,
-      symbol_table);
+  symbolt &new_symbol = fresh_java_symbol(
+    exc_ptr_type, "new_exception", original_loc, "new_exception", symbol_table);
 
   side_effect_exprt new_instance(ID_java_new, exc_ptr_type, original_loc);
   code_assignt assign_new(new_symbol.symbol_expr(), new_instance);
@@ -210,26 +204,23 @@ codet java_bytecode_instrumentt::check_array_access(
 /// ClassCastException/generates an assertion when necessary;
 /// Exceptions are thrown when the `throw_runtime_exceptions` flag is set.
 /// Otherwise, assertions are emitted.
-/// \param class1: the subclass
-/// \param class2: the super class
+/// \param tested_expr: expression to test
+/// \param target_type: type to test for
 /// \param original_loc: source location in the original code
 /// \return Based on the value of the flag `throw_runtime_exceptions`,
 ///   it returns code that either throws an ClassCastException or emits an
 ///   assertion checking the subtype relation
 code_ifthenelset java_bytecode_instrumentt::check_class_cast(
-  const exprt &class1,
-  const exprt &class2,
+  const exprt &tested_expr,
+  const struct_tag_typet &target_type,
   const source_locationt &original_loc)
 {
-  binary_predicate_exprt class_cast_check(
-    class1, ID_java_instanceof, class2);
+  java_instanceof_exprt class_cast_check(tested_expr, target_type);
 
-  pointer_typet voidptr=pointer_type(empty_typet());
-  exprt null_check_op=class1;
-  if(null_check_op.type()!=voidptr)
-    null_check_op.make_typecast(voidptr);
+  pointer_typet voidptr = pointer_type(java_void_type());
+  exprt null_check_op = typecast_exprt::conditional_cast(tested_expr, voidptr);
 
-  codet check_code;
+  optionalt<codet> check_code;
   if(throw_runtime_exceptions)
   {
     check_code=
@@ -251,7 +242,7 @@ code_ifthenelset java_bytecode_instrumentt::check_class_cast(
 
   return code_ifthenelset(
     notequal_exprt(std::move(null_check_op), null_pointer_exprt(voidptr)),
-    std::move(check_code));
+    std::move(*check_code));
 }
 
 /// Checks whether \p expr is null and throws NullPointerException/
@@ -382,16 +373,12 @@ void java_bytecode_instrumentt::instrument_code(codet &code)
     if(code_assert.assertion().id()==ID_java_instanceof)
     {
       code_blockt block;
+      const auto & instanceof
+        = to_java_instanceof_expr(code_assert.assertion());
 
-      INVARIANT(
-        code_assert.assertion().operands().size()==2,
-        "Instanceof should have 2 operands");
-
-      code=
-        check_class_cast(
-          code_assert.assertion().op0(),
-          code_assert.assertion().op1(),
-          code_assert.source_location());
+      code = check_class_cast(instanceof.tested_expr(),
+                              instanceof
+                                .target_type(), code_assert.source_location());
     }
   }
   else if(statement==ID_block)
@@ -424,12 +411,10 @@ void java_bytecode_instrumentt::instrument_code(codet &code)
   }
   else if(statement==ID_return)
   {
-    if(code.operands().size()==1)
-    {
-      code_blockt block;
-      add_expr_instrumentation(block, code.op0());
-      prepend_instrumentation(code, block);
-    }
+    code_blockt block;
+    code_returnt &code_return = to_code_return(code);
+    add_expr_instrumentation(block, code_return.return_value());
+    prepend_instrumentation(code, block);
   }
   else if(statement==ID_function_call)
   {
@@ -484,10 +469,10 @@ optionalt<codet> java_bytecode_instrumentt::instrument_expr(const exprt &expr)
     if(plus_expr.op0().id()==ID_member)
     {
       const member_exprt &member_expr=to_member_expr(plus_expr.op0());
-      if(member_expr.op0().id()==ID_dereference)
+      if(member_expr.compound().id() == ID_dereference)
       {
-        const dereference_exprt &dereference_expr=
-          to_dereference_expr(member_expr.op0());
+        const dereference_exprt &dereference_expr =
+          to_dereference_expr(member_expr.compound());
         codet bounds_check=
           check_array_access(
             dereference_expr,
@@ -505,30 +490,31 @@ optionalt<codet> java_bytecode_instrumentt::instrument_expr(const exprt &expr)
     {
       // this corresponds to a throw and so we check that
       // we don't throw null
-      result.add(check_null_dereference(expr.op0(), expr.source_location()));
+      result.add(check_null_dereference(
+        to_unary_expr(expr).op(), expr.source_location()));
     }
     else if(statement==ID_java_new_array)
     {
       // this corresponds to new array so we check that
       // length is >=0
-      result.add(check_array_length(expr.op0(), expr.source_location()));
+      result.add(check_array_length(
+        to_multi_ary_expr(expr).op0(), expr.source_location()));
     }
   }
   else if((expr.id()==ID_div || expr.id()==ID_mod) &&
           expr.type().id()==ID_signedbv)
   {
     // check division by zero (for integer types only)
-    result.add(check_arithmetic_exception(expr.op1(), expr.source_location()));
+    result.add(check_arithmetic_exception(
+      to_binary_expr(expr).op1(), expr.source_location()));
   }
   else if(expr.id()==ID_dereference &&
           expr.get_bool(ID_java_member_access))
   {
     // Check pointer non-null before access:
     const dereference_exprt &dereference_expr = to_dereference_expr(expr);
-    codet null_dereference_check=
-      check_null_dereference(
-        dereference_expr.op0(),
-        dereference_expr.source_location());
+    codet null_dereference_check = check_null_dereference(
+      dereference_expr.pointer(), dereference_expr.source_location());
     result.add(std::move(null_dereference_check));
   }
 

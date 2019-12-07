@@ -42,7 +42,8 @@ exprt::operandst build_function_environment(
       base_name,
       p.type(),
       p.source_location(),
-      object_factory_parameters);
+      object_factory_parameters,
+      lifetimet::AUTOMATIC_LOCAL);
   }
 
   return main_arguments;
@@ -53,27 +54,16 @@ void record_function_outputs(
   code_blockt &init_code,
   symbol_tablet &symbol_table)
 {
-  bool has_return_value=
-    to_code_type(function.type).return_type()!=empty_typet();
+  bool has_return_value =
+    to_code_type(function.type).return_type() != void_type();
 
   if(has_return_value)
   {
+    const symbolt &return_symbol = symbol_table.lookup_ref("return'");
+
     // record return value
-    codet output(ID_output);
-    output.operands().resize(2);
-
-    const symbolt &return_symbol=*symbol_table.lookup("return'");
-
-    output.op0()=
-      address_of_exprt(
-        index_exprt(
-          string_constantt(return_symbol.base_name),
-          from_integer(0, index_type())));
-
-    output.op1()=return_symbol.symbol_expr();
-    output.add_source_location()=function.location;
-
-    init_code.add(std::move(output));
+    init_code.add(code_outputt{
+      return_symbol.base_name, return_symbol.symbol_expr(), function.location});
   }
 
   #if 0
@@ -121,12 +111,13 @@ bool ansi_c_entry_point(
 
   irep_idt main_symbol;
 
-  // find main symbol
-  if(config.main!="")
+  // find main symbol, if any is given
+  if(config.main.has_value())
   {
     std::list<irep_idt> matches;
 
-    forall_symbol_base_map(it, symbol_table.symbol_base_map, config.main)
+    forall_symbol_base_map(
+      it, symbol_table.symbol_base_map, config.main.value())
     {
       // look it up
       symbol_tablet::symbolst::const_iterator s_it=
@@ -142,15 +133,15 @@ bool ansi_c_entry_point(
     if(matches.empty())
     {
       messaget message(message_handler);
-      message.error() << "main symbol `" << config.main
-                      << "' not found" << messaget::eom;
+      message.error() << "main symbol '" << config.main.value() << "' not found"
+                      << messaget::eom;
       return true; // give up
     }
 
     if(matches.size()>=2)
     {
       messaget message(message_handler);
-      message.error() << "main symbol `" << config.main
+      message.error() << "main symbol '" << config.main.value()
                       << "' is ambiguous" << messaget::eom;
       return true;
     }
@@ -173,7 +164,7 @@ bool ansi_c_entry_point(
   if(symbol.value.is_nil())
   {
     messaget message(message_handler);
-    message.error() << "main symbol `" << id2string(main_symbol)
+    message.error() << "main symbol '" << id2string(main_symbol)
                     << "' has no body" << messaget::eom;
     return false; // give up
   }
@@ -231,13 +222,13 @@ bool generate_ansi_c_start_function(
   call_main.add_source_location()=symbol.location;
   call_main.function().add_source_location()=symbol.location;
 
-  if(to_code_type(symbol.type).return_type()!=empty_typet())
+  if(to_code_type(symbol.type).return_type() != void_type())
   {
     auxiliary_symbolt return_symbol;
     return_symbol.mode=ID_C;
     return_symbol.is_static_lifetime=false;
     return_symbol.name="return'";
-    return_symbol.base_name="return";
+    return_symbol.base_name = "return'";
     return_symbol.type=to_code_type(symbol.type).return_type();
 
     symbol_table.add(return_symbol);
@@ -260,17 +251,19 @@ bool generate_ansi_c_start_function(
       {
         symbolt argc_symbol;
 
-        argc_symbol.base_name = "argc";
+        argc_symbol.base_name = "argc'";
         argc_symbol.name = "argc'";
         argc_symbol.type = signed_int_type();
         argc_symbol.is_static_lifetime = true;
         argc_symbol.is_lvalue = true;
         argc_symbol.mode = ID_C;
 
-        if(!symbol_table.insert(std::move(argc_symbol)).second)
+        auto r = symbol_table.insert(argc_symbol);
+        if(!r.second && r.first != argc_symbol)
         {
           messaget message(message_handler);
-          message.error() << "failed to insert argc symbol" << messaget::eom;
+          message.error() << "argc already exists but is not usable"
+                          << messaget::eom;
           return true;
         }
       }
@@ -294,10 +287,12 @@ bool generate_ansi_c_start_function(
         argv_symbol.is_lvalue = true;
         argv_symbol.mode = ID_C;
 
-        if(!symbol_table.insert(std::move(argv_symbol)).second)
+        auto r = symbol_table.insert(argv_symbol);
+        if(!r.second && r.first != argv_symbol)
         {
           messaget message(message_handler);
-          message.error() << "failed to insert argv symbol" << messaget::eom;
+          message.error() << "argv already exists but is not usable"
+                          << messaget::eom;
           return true;
         }
       }
@@ -327,15 +322,8 @@ bool generate_ansi_c_start_function(
         init_code.add(code_assumet(std::move(le)));
       }
 
-      {
-        // record argc as an input
-        codet input(ID_input);
-        input.operands().resize(2);
-        input.op0()=address_of_exprt(
-          index_exprt(string_constantt("argc"), from_integer(0, index_type())));
-        input.op1()=argc_symbol.symbol_expr();
-        init_code.add(std::move(input));
-      }
+      // record argc as an input
+      init_code.add(code_inputt{"argc", argc_symbol.symbol_expr()});
 
       if(parameters.size()==3)
       {
@@ -376,18 +364,8 @@ bool generate_ansi_c_start_function(
         }
 
         // assume envp_size is INTMAX-1
-        mp_integer max;
-
-        if(envp_size_symbol.type.id()==ID_signedbv)
-        {
-          max=to_signedbv_type(envp_size_symbol.type).largest();
-        }
-        else if(envp_size_symbol.type.id()==ID_unsignedbv)
-        {
-          max=to_unsignedbv_type(envp_size_symbol.type).largest();
-        }
-        else
-          UNREACHABLE;
+        const mp_integer max =
+          to_integer_bitvector_type(envp_size_symbol.type).largest();
 
         exprt max_minus_one=from_integer(max-1, envp_size_symbol.type);
 
@@ -405,10 +383,10 @@ bool generate_ansi_c_start_function(
         zero_string.type().subtype()=char_type();
         zero_string.type().set(ID_size, "infinity");
         const index_exprt index(zero_string, from_integer(0, uint_type()));
-        exprt address_of=address_of_exprt(index, pointer_type(char_type()));
-
-        if(argv_symbol.type.subtype()!=address_of.type())
-          address_of.make_typecast(argv_symbol.type.subtype());
+        exprt address_of =
+          typecast_exprt::conditional_cast(
+            address_of_exprt(index, pointer_type(char_type())),
+            argv_symbol.type.subtype());
 
         // assign argv[*] to the address of a string-object
         array_of_exprt array_of(address_of, argv_symbol.type);
@@ -514,7 +492,7 @@ bool generate_ansi_c_start_function(
   symbolt new_symbol;
 
   new_symbol.name=goto_functionst::entry_point();
-  new_symbol.type = code_typet({}, empty_typet());
+  new_symbol.type = code_typet({}, void_type());
   new_symbol.value.swap(init_code);
   new_symbol.mode=symbol.mode;
 

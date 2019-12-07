@@ -32,11 +32,8 @@ void instrument_intervals(
 {
   std::set<symbol_exprt> symbols;
 
-  forall_goto_program_instructions(i_it, goto_function.body)
-  {
-    find_symbols(i_it->code, symbols);
-    find_symbols(i_it->guard, symbols);
-  }
+  for(const auto &i : goto_function.body.instructions)
+    i.apply([&symbols](const exprt &e) { find_symbols(e, symbols); });
 
   Forall_goto_program_instructions(i_it, goto_function.body)
   {
@@ -46,9 +43,9 @@ void instrument_intervals(
     }
     else
     {
-      goto_programt::const_targett previous=i_it;
-      previous--;
-      if(previous->is_goto() && !previous->guard.is_true())
+      goto_programt::const_targett previous = std::prev(i_it);
+
+      if(previous->is_goto() && !previous->get_condition().is_true())
       {
         // we follow a branch, instrument
       }
@@ -79,10 +76,9 @@ void instrument_intervals(
     {
       goto_programt::targett t=i_it;
       goto_function.body.insert_before_swap(i_it);
-      t->make_assumption(conjunction(assertion));
+      *t = goto_programt::make_assumption(conjunction(assertion));
       i_it++; // goes to original instruction
       t->source_location=i_it->source_location;
-      t->function=i_it->function;
     }
   }
 }

@@ -24,9 +24,9 @@ static exprt complex_member(const exprt &expr, irep_idt id)
   if(expr.id()==ID_struct && expr.operands().size()==2)
   {
     if(id==ID_real)
-      return expr.op0();
+      return to_binary_expr(expr).op0();
     else if(id==ID_imag)
-      return expr.op1();
+      return to_binary_expr(expr).op1();
     else
       UNREACHABLE;
   }
@@ -138,13 +138,13 @@ static void remove_complex(exprt &expr)
       // x+y -> complex(x.r+y.r,x.i+y.i)
       struct_exprt struct_expr(
         {binary_exprt(
-           complex_member(expr.op0(), ID_real),
+           complex_member(to_binary_expr(expr).op0(), ID_real),
            expr.id(),
-           complex_member(expr.op1(), ID_real)),
+           complex_member(to_binary_expr(expr).op1(), ID_real)),
          binary_exprt(
-           complex_member(expr.op0(), ID_imag),
+           complex_member(to_binary_expr(expr).op0(), ID_imag),
            expr.id(),
-           complex_member(expr.op1(), ID_imag))},
+           complex_member(to_binary_expr(expr).op1(), ID_imag))},
         expr.type());
 
       struct_expr.op0().add_source_location() = expr.source_location();
@@ -217,11 +217,11 @@ static void remove_complex(exprt &expr)
 
   if(expr.id()==ID_complex_real)
   {
-    expr = complex_member(to_complex_real_expr(expr).op0(), ID_real);
+    expr = complex_member(to_complex_real_expr(expr).op(), ID_real);
   }
   else if(expr.id()==ID_complex_imag)
   {
-    expr = complex_member(to_complex_imag_expr(expr).op0(), ID_imag);
+    expr = complex_member(to_complex_imag_expr(expr).op(), ID_imag);
   }
 
   remove_complex(expr.type());
@@ -257,15 +257,11 @@ static void remove_complex(typet &type)
 
     // Replace by a struct with two members.
     // The real part goes first.
-    struct_typet struct_type;
+    struct_typet struct_type(
+      {{ID_real, type.subtype()}, {ID_imag, type.subtype()}});
     struct_type.add_source_location()=type.source_location();
-    struct_type.components().resize(2);
-    struct_type.components()[0].type()=type.subtype();
-    struct_type.components()[0].set_name(ID_real);
-    struct_type.components()[1].type()=type.subtype();
-    struct_type.components()[1].set_name(ID_imag);
 
-    type=struct_type;
+    type = std::move(struct_type);
   }
 }
 
@@ -280,7 +276,7 @@ static void remove_complex(symbolt &symbol)
 void remove_complex(symbol_tablet &symbol_table)
 {
   for(const auto &named_symbol : symbol_table.symbols)
-    remove_complex(*symbol_table.get_writeable(named_symbol.first));
+    remove_complex(symbol_table.get_writeable_ref(named_symbol.first));
 }
 
 /// removes complex data type
@@ -289,11 +285,16 @@ static void remove_complex(
 {
   remove_complex(goto_function.type);
 
-  Forall_goto_program_instructions(it, goto_function.body)
-  {
-    remove_complex(it->code);
-    remove_complex(it->guard);
-  }
+  for(auto &i : goto_function.body.instructions)
+    i.transform([](exprt e) -> optionalt<exprt> {
+      if(have_to_remove_complex(e))
+      {
+        remove_complex(e);
+        return e;
+      }
+      else
+        return {};
+    });
 }
 
 /// removes complex data type

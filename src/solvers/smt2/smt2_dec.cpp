@@ -36,6 +36,8 @@ std::string smt2_dect::decision_procedure_text() const
 
 decision_proceduret::resultt smt2_dect::dec_solve()
 {
+  ++number_of_solver_calls;
+
   temporary_filet temp_file_problem("smt2_dec_problem_", ""),
     temp_file_stdout("smt2_dec_stdout_", ""),
     temp_file_stderr("smt2_dec_stderr_", "");
@@ -111,7 +113,7 @@ decision_proceduret::resultt smt2_dect::dec_solve()
     argv = {"z3", "-smt2", temp_file_problem()};
     break;
 
-  default:
+  case solvert::GENERIC:
     UNREACHABLE;
   }
 
@@ -141,15 +143,20 @@ decision_proceduret::resultt smt2_dect::read_result(std::istream &in)
 
   while(in)
   {
-    irept parsed = smt2irep(in, get_message_handler());
+    auto parsed_opt = smt2irep(in, get_message_handler());
+
+    if(!parsed_opt.has_value())
+      break;
+
+    const auto &parsed = parsed_opt.value();
 
     if(parsed.id()=="sat")
       res=resultt::D_SATISFIABLE;
     else if(parsed.id()=="unsat")
       res=resultt::D_UNSATISFIABLE;
-    else if(parsed.id()=="" &&
-            parsed.get_sub().size()==1 &&
-            parsed.get_sub().front().get_sub().size()==2)
+    else if(
+      parsed.id().empty() && parsed.get_sub().size() == 1 &&
+      parsed.get_sub().front().get_sub().size() == 2)
     {
       const irept &s0=parsed.get_sub().front().get_sub()[0];
       const irept &s1=parsed.get_sub().front().get_sub()[1];
@@ -162,9 +169,9 @@ decision_proceduret::resultt smt2_dect::read_result(std::istream &in)
 
       values[s0.id()]=s1;
     }
-    else if(parsed.id()=="" &&
-            parsed.get_sub().size()==2 &&
-            parsed.get_sub().front().id()=="error")
+    else if(
+      parsed.id().empty() && parsed.get_sub().size() == 2 &&
+      parsed.get_sub().front().id() == "error")
     {
       // We ignore errors after UNSAT because get-value after check-sat
       // returns unsat will give an error.

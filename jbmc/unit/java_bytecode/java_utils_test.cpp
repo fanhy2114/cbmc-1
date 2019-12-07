@@ -11,7 +11,7 @@ Author: Diffblue Ltd.
 #include <string>
 #include <vector>
 
-#include <testing-utils/catch.hpp>
+#include <testing-utils/use_catch.h>
 
 #include <java_bytecode/java_types.h>
 #include <java_bytecode/java_utils.h>
@@ -365,6 +365,31 @@ SCENARIO("Test pretty printing auxiliary function", "[core][java_util_test]")
       {
         REQUIRE(pretty_print_java_type(pair.first) == pair.second);
       }
+    }
+  }
+}
+
+SCENARIO("Test symbol declarers.", "[core][java_util_test]")
+{
+  WHEN("We have a new symbol.")
+  {
+    symbolt symbol;
+
+    THEN("The symbol has no declarer.")
+    {
+      REQUIRE(!declaring_class(symbol).has_value());
+    }
+  }
+
+  WHEN("The declaring class of a symbol is set.")
+  {
+    const auto declaring_class = "java::java.lang.object";
+    symbolt symbol;
+    set_declaring_class(symbol, declaring_class);
+
+    THEN("Getting the declaring class of a symbol returns the class set.")
+    {
+      REQUIRE(id2string(*::declaring_class(symbol)) == declaring_class);
     }
   }
 }

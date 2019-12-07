@@ -21,6 +21,7 @@ Author: Daniel Kroening, kroening@kroening.com
 
 #include <functional>
 
+class constant_exprt;
 class exprt;
 class symbol_exprt;
 class update_exprt;
@@ -95,5 +96,13 @@ protected:
   virtual bool is_constant(const exprt &) const;
   virtual bool is_constant_address_of(const exprt &) const;
 };
+
+/// returns true_exprt if given true and false_exprt otherwise
+constant_exprt make_boolean_expr(bool);
+
+/// Conjunction of two expressions. If the second is already an `and_exprt`
+/// add to its operands instead of creating a new expression. If one is `true`,
+/// return the other expression. If one is `false` returns `false`.
+exprt make_and(exprt a, exprt b);
 
 #endif // CPROVER_UTIL_EXPR_UTIL_H

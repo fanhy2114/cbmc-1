@@ -14,7 +14,7 @@ Author: Diffblue Ltd.
 
 #include "require_expr.h"
 
-#include <testing-utils/catch.hpp>
+#include <testing-utils/use_catch.h>
 #include <util/arith_tools.h>
 #include <util/std_code.h>
 
@@ -29,7 +29,7 @@ index_exprt require_expr::require_index(const exprt &expr, int expected_index)
   const index_exprt &index_expr=to_index_expr(expr);
   REQUIRE(index_expr.index().id()==ID_constant);
   const mp_integer index_integer_value =
-    numeric_cast_v<mp_integer>(index_expr.index());
+    numeric_cast_v<mp_integer>(to_constant_expr(index_expr.index()));
   REQUIRE(index_integer_value==expected_index);
 
   return index_expr;

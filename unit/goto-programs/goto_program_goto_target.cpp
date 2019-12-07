@@ -6,9 +6,11 @@ Author: Diffblue Ltd.
 
 \*******************************************************************/
 
-#include <goto-programs/goto_function.h>
-#include <testing-utils/catch.hpp>
+#include <testing-utils/use_catch.h>
+
 #include <util/arith_tools.h>
+
+#include <goto-programs/goto_function.h>
 
 SCENARIO(
   "Validation of well-formed goto codes",
@@ -31,13 +33,10 @@ SCENARIO(
 
     goto_functiont goto_function;
     auto &instructions = goto_function.body.instructions;
-    instructions.emplace_back(goto_program_instruction_typet::ASSERT);
-    instructions.back().make_assertion(x_le_10);
-    instructions.back().function = fun_name;
+    instructions.emplace_back(goto_programt::make_assertion(x_le_10));
 
-    instructions.emplace_back(goto_program_instruction_typet::GOTO);
-    instructions.back().make_goto(instructions.begin());
-    instructions.back().function = fun_name;
+    instructions.emplace_back(
+      goto_programt::make_goto(instructions.begin(), true_exprt()));
 
     symbol.type = type1;
     symbol_table.insert(symbol);

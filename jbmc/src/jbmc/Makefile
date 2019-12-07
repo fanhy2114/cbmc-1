@@ -20,6 +20,7 @@ OBJ += ../$(CPROVER_DIR)/src/ansi-c/ansi-c$(LIBEXT) \
       ../$(CPROVER_DIR)/src/goto-instrument/full_slicer$(OBJEXT) \
       ../$(CPROVER_DIR)/src/goto-instrument/reachability_slicer$(OBJEXT) \
       ../$(CPROVER_DIR)/src/goto-instrument/nondet_static$(OBJEXT) \
+      ../$(CPROVER_DIR)/src/goto-instrument/source_lines$(OBJEXT) \
       ../$(CPROVER_DIR)/src/goto-instrument/cover$(OBJEXT) \
       ../$(CPROVER_DIR)/src/goto-instrument/cover_basic_blocks$(OBJEXT) \
       ../$(CPROVER_DIR)/src/goto-instrument/cover_filter$(OBJEXT) \
@@ -38,11 +39,6 @@ OBJ += ../$(CPROVER_DIR)/src/ansi-c/ansi-c$(LIBEXT) \
       ../$(CPROVER_DIR)/src/util/util$(LIBEXT) \
       ../miniz/miniz$(OBJEXT) \
       ../$(CPROVER_DIR)/src/json/json$(LIBEXT) \
-      ../$(CPROVER_DIR)/src/cbmc/all_properties$(OBJEXT) \
-      ../$(CPROVER_DIR)/src/cbmc/bmc$(OBJEXT) \
-      ../$(CPROVER_DIR)/src/cbmc/bmc_cover$(OBJEXT) \
-      ../$(CPROVER_DIR)/src/cbmc/counterexample_beautification$(OBJEXT) \
-      ../$(CPROVER_DIR)/src/cbmc/fault_localization$(OBJEXT) \
       # Empty last line
 
 INCLUDES= -I .. -I ../$(CPROVER_DIR)/src

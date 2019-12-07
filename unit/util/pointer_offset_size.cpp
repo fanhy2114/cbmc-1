@@ -6,7 +6,7 @@ Author: Michael Tautschnig
 
 \*******************************************************************/
 
-#include <testing-utils/catch.hpp>
+#include <testing-utils/use_catch.h>
 
 #include <util/arith_tools.h>
 #include <util/byte_operators.h>
@@ -34,36 +34,48 @@ TEST_CASE("Build subexpression to access element at offset into array")
   symbol_exprt a("array", array_type);
 
   {
-    const exprt result = get_subexpression_at_offset(a, 0, t, ns);
-    REQUIRE(result == index_exprt(a, from_integer(0, index_type())));
+    const auto result = get_subexpression_at_offset(a, 0, t, ns);
+    REQUIRE(result.value() == index_exprt(a, from_integer(0, index_type())));
   }
 
   {
-    const exprt result = get_subexpression_at_offset(a, 32 / 8, t, ns);
-    REQUIRE(result == index_exprt(a, from_integer(1, index_type())));
+    const auto result = get_subexpression_at_offset(a, 32 / 8, t, ns);
+    REQUIRE(result.value() == index_exprt(a, from_integer(1, index_type())));
   }
 
   {
-    const exprt result =
+    const auto result =
       get_subexpression_at_offset(a, from_integer(0, size_type()), t, ns);
-    REQUIRE(result == index_exprt(a, from_integer(0, index_type())));
+    REQUIRE(result.value() == index_exprt(a, from_integer(0, index_type())));
   }
 
   {
-    const exprt result =
-      get_subexpression_at_offset(a, size_of_expr(t, ns), t, ns);
-    REQUIRE(result == index_exprt(a, from_integer(1, index_type())));
+    const auto result =
+      get_subexpression_at_offset(a, size_of_expr(t, ns).value(), t, ns);
+    REQUIRE(result.value() == index_exprt(a, from_integer(1, index_type())));
   }
 
   {
     const signedbv_typet small_t(8);
-    const exprt result = get_subexpression_at_offset(a, 1, small_t, ns);
+    const auto result = get_subexpression_at_offset(a, 1, small_t, ns);
     REQUIRE(
-      result == byte_extract_exprt(
-                  byte_extract_id(),
-                  index_exprt(a, from_integer(0, index_type())),
-                  from_integer(1, index_type()),
-                  small_t));
+      result.value() == byte_extract_exprt(
+                          byte_extract_id(),
+                          index_exprt(a, from_integer(0, index_type())),
+                          from_integer(1, index_type()),
+                          small_t));
+  }
+
+  {
+    const signedbv_typet int16_t(16);
+    const auto result = get_subexpression_at_offset(a, 3, int16_t, ns);
+    // At offset 3 there are only 8 bits remaining in an element of type t so
+    // not enough to fill a 16 bit int, so this cannot be transformed in an
+    // index_exprt.
+    REQUIRE(
+      result.value() ==
+      byte_extract_exprt(
+        byte_extract_id(), a, from_integer(3, index_type()), int16_t));
   }
 }
 
@@ -79,42 +91,40 @@ TEST_CASE("Build subexpression to access element at offset into struct")
 
   const signedbv_typet t(32);
 
-  struct_typet st;
-  st.components().emplace_back("foo", t);
-  st.components().emplace_back("bar", t);
+  struct_typet st({{"foo", t}, {"bar", t}});
 
   symbol_exprt s("struct", st);
 
   {
-    const exprt result = get_subexpression_at_offset(s, 0, t, ns);
-    REQUIRE(result == member_exprt(s, "foo", t));
+    const auto result = get_subexpression_at_offset(s, 0, t, ns);
+    REQUIRE(result.value() == member_exprt(s, "foo", t));
   }
 
   {
-    const exprt result = get_subexpression_at_offset(s, 32 / 8, t, ns);
-    REQUIRE(result == member_exprt(s, "bar", t));
+    const auto result = get_subexpression_at_offset(s, 32 / 8, t, ns);
+    REQUIRE(result.value() == member_exprt(s, "bar", t));
   }
 
   {
-    const exprt result =
+    const auto result =
       get_subexpression_at_offset(s, from_integer(0, size_type()), t, ns);
-    REQUIRE(result == member_exprt(s, "foo", t));
+    REQUIRE(result.value() == member_exprt(s, "foo", t));
   }
 
   {
-    const exprt result =
-      get_subexpression_at_offset(s, size_of_expr(t, ns), t, ns);
-    REQUIRE(result == member_exprt(s, "bar", t));
+    const auto result =
+      get_subexpression_at_offset(s, size_of_expr(t, ns).value(), t, ns);
+    REQUIRE(result.value() == member_exprt(s, "bar", t));
   }
 
   {
     const signedbv_typet small_t(8);
-    const exprt result = get_subexpression_at_offset(s, 1, small_t, ns);
+    const auto result = get_subexpression_at_offset(s, 1, small_t, ns);
     REQUIRE(
-      result == byte_extract_exprt(
-                  byte_extract_id(),
-                  member_exprt(s, "foo", t),
-                  from_integer(1, index_type()),
-                  small_t));
+      result.value() == byte_extract_exprt(
+                          byte_extract_id(),
+                          member_exprt(s, "foo", t),
+                          from_integer(1, index_type()),
+                          small_t));
   }
 }

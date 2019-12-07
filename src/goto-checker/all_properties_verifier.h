@@ -35,27 +35,25 @@ public:
 
   resultt operator()() override
   {
-    // have we got anything to check? otherwise we return PASS
-    if(!has_properties_to_check(properties))
-      return resultt::PASS;
-
-    while(incremental_goto_checker(properties) !=
-          incremental_goto_checkert::resultt::DONE)
+    while(incremental_goto_checker(properties).progress !=
+          incremental_goto_checkert::resultt::progresst::DONE)
     {
       // loop until we are done
+      ++iterations;
     }
     return determine_result(properties);
   }
 
   void report() override
   {
-    output_properties(properties, ui_message_handler);
+    output_properties(properties, iterations, ui_message_handler);
     output_overall_result(determine_result(properties), ui_message_handler);
   }
 
 protected:
   abstract_goto_modelt &goto_model;
   incremental_goto_checkerT incremental_goto_checker;
+  std::size_t iterations = 1;
 };
 
 #endif // CPROVER_GOTO_CHECKER_ALL_PROPERTIES_VERIFIER_H

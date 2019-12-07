@@ -11,9 +11,10 @@ Author: Diffblue Ltd.
 #include <java_bytecode/java_bytecode_convert_class.h>
 #include <java_bytecode/java_bytecode_parse_tree.h>
 #include <java_bytecode/java_types.h>
-#include <testing-utils/catch.hpp>
 #include <testing-utils/free_form_cmdline.h>
 #include <testing-utils/message.h>
+#include <testing-utils/use_catch.h>
+#include <util/config.h>
 #include <util/options.h>
 
 class test_java_bytecode_languaget : public java_bytecode_languaget
@@ -93,7 +94,7 @@ SCENARIO(
           to_symbol_expr(element_value_pair.value).get_identifier();
         const auto &java_type = java_type_from_string(id2string(id));
         const std::string &class_name =
-          id2string(to_struct_tag_type(java_type.subtype()).get_identifier());
+          id2string(to_struct_tag_type(java_type->subtype()).get_identifier());
         REQUIRE(id2string(class_name) == "java::java.lang.String");
       }
     }
@@ -117,7 +118,7 @@ SCENARIO(
         const auto &id =
           to_symbol_expr(element_value_pair.value).get_identifier();
         const auto &java_type = java_type_from_string(id2string(id));
-        REQUIRE(java_type == java_byte_type());
+        REQUIRE(*java_type == java_byte_type());
       }
     }
     WHEN("Parsing an annotation with Class value specified to void")
@@ -139,7 +140,7 @@ SCENARIO(
         const auto &id =
           to_symbol_expr(element_value_pair.value).get_identifier();
         const auto &java_type = java_type_from_string(id2string(id));
-        REQUIRE(java_type == void_type());
+        REQUIRE(*java_type == java_void_type());
       }
     }
     WHEN("Parsing an annotation with an array field.")
@@ -177,6 +178,7 @@ SCENARIO(
       optionst options;
       parse_java_language_options(command_line, options);
       language.set_language_options(options);
+      config.java.main_class = "AnnotationsEverywhere";
 
       std::istringstream java_code_stream("ignored");
       language.parse(java_code_stream, "AnnotationsEverywhere.class");

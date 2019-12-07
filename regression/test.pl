@@ -21,9 +21,24 @@ my $has_thread_pool = eval
 #
 # runs a test and check its output
 
+my $color_output_enabled;
+sub with_color {
+  my ($text, $color) = @_;
+  if ($color_output_enabled) {
+    colored($text, $color);
+  } else {
+    $text;
+  }
+}
+
 sub run($$$$$) {
   my ($name, $input, $cmd, $options, $output) = @_;
-  my $cmdline = "$cmd $options '$input' >'$output' 2>&1";
+  my $cmdline;
+  if(length($input)) {
+    $cmdline = "$cmd $options '$input' >'$output' 2>&1";
+  } else {
+    $cmdline = "$cmd $options >'$output' 2>&1";
+  }
 
   print LOG "Running $cmdline\n";
   system("bash", "-c", "cd '$name' ; $cmdline");
@@ -56,24 +71,29 @@ sub run($$$$$) {
   return $failed;
 }
 
-sub load($) {
-  my ($fname) = @_;
+sub load($$) {
+  my ($fname, $exit_signal_checks) = @_;
 
   open FILE, "<$fname";
   my @data = grep { !/^\/\// } <FILE>;
   close FILE;
 
   chomp @data;
+  if($exit_signal_checks) {
+    grep { /^\^EXIT=[\(\|\d]*\d+\)?\$$/ } @data or die "$fname: Missing EXIT test\n";
+    grep { /^\^SIGNAL=\d+\$$/ } @data or die "$fname: Missing SIGNAL test\n";
+  }
   return @data;
 }
 
-sub test($$$$$$$$$$) {
-  my ($name, $test, $t_level, $cmd, $ign, $dry_run, $defines, $include_tags, $exclude_tags, $output_suffix) = @_;
-  my ($level_and_tags, $input, $options, $grep_options, @results) = load("$test");
+sub test($$$$$$$$$$$) {
+  my ($name, $test, $t_level, $cmd, $ign, $dry_run, $defines, $include_tags, $exclude_tags, $output_suffix, $exit_signal_checks) = @_;
+  my ($level_and_tags, $input, $options, $grep_options, @results) = load("$test", $exit_signal_checks);
   my @keys = keys %{$defines};
   foreach my $key (@keys) {
     my $value = $defines->{$key};
     $options =~ s/(\$$key$|\$$key )/$value /g;
+    $options =~ s/\$$key([:;])/$value$1/g; # Variables in --classpath are separated by (semi)colons
   }
   if (scalar @keys) {
     foreach my $word (split(/\s/, $options)) {
@@ -264,6 +284,7 @@ Usage: test.pl -c CMD [OPTIONS] [DIRECTORIES ...]
   the current location will be used.
 
   -c CMD     run tests on CMD - required option
+  -e         require EXIT and SIGNAL patterns in test specifications
   -i <regex> options in test.desc matching the specified perl regex are ignored
   -j <num>   run <num> tests in parallel (requires Thread::Pool::Simple)
              if present, the environment variable TESTPL_JOBS is used as the default
@@ -283,6 +304,10 @@ Usage: test.pl -c CMD [OPTIONS] [DIRECTORIES ...]
              as runs with different suffixes will operate independently and keep
              independent logs.
   -f         forward the test name to CMD
+
+  --[no]color enable/disable color output; enabled by default unless
+              TESTPL_COLOR_OUTPUT is set to 0, in which case it is
+              disabled by default.
 
 test.pl expects a test.desc file in each subdirectory. The file test.desc
 follows the format specified below. Any line starting with // will be ignored.
@@ -306,6 +331,7 @@ where
                                   case then each of the rules will be matched over multiple lines (so can contain)
                                   the new line symbol (\\n) inside them.
   <required patterns>             one or more lines of regualar expressions that must occur in the output
+                                  if -e is set, the patterns ^EXIT=...\$ and ^SIGNAL=...\$ are mandatory
   <disallowed patterns>           one or more lines of expressions that must not occur in output
   <comment text>                  free form text
 
@@ -317,9 +343,17 @@ use Getopt::Std;
 use Getopt::Long qw(:config pass_through bundling);
 $main::VERSION = 0.1;
 $Getopt::Std::STANDARD_HELP_VERSION = 1;
-our ($opt_c, $opt_f, $opt_i, $opt_j, $opt_n, $opt_p, $opt_h, $opt_C, $opt_T, $opt_F, $opt_K, $opt_s, %defines, @include_tags, @exclude_tags); # the variables for getopt
-GetOptions("D=s" => \%defines, "X=s" => \@exclude_tags, "I=s" => \@include_tags);
-getopts('c:fi:j:nphCTFKs:') or &main::HELP_MESSAGE(\*STDOUT, "", $main::VERSION, "");
+our ($opt_c, $opt_e, $opt_f, $opt_i, $opt_j, $opt_n, $opt_p, $opt_h, $opt_C, $opt_T, $opt_F, $opt_K, $opt_s, $opt_S, %defines, @include_tags, @exclude_tags); # the variables for getopt
+
+# this needs to come before GetOptions to ensure the
+# default -> environment -> flag override priority
+$color_output_enabled = 1;
+if (exists $ENV{'TESTPL_COLOR_OUTPUT'}) {
+  $color_output_enabled = $ENV{'TESTPL_COLOR_OUTPUT'};
+}
+
+GetOptions("D=s" => \%defines, "X=s" => \@exclude_tags, "I=s" => \@include_tags, 'color!' => \$color_output_enabled);
+getopts('c:efi:j:nphCTFKs:S:') or &main::HELP_MESSAGE(\*STDOUT, "", $main::VERSION, "");
 $opt_c or &main::HELP_MESSAGE(\*STDOUT, "", $main::VERSION, "");
 $opt_j = $opt_j || $ENV{'TESTPL_JOBS'} || 0;
 if($opt_j && $opt_j != 1 && !$has_thread_pool) {
@@ -333,8 +367,10 @@ $t_level += 2 if($opt_T);
 $t_level += 4 if($opt_F);
 $t_level += 8 if($opt_K);
 $t_level += 1 if($opt_C || 0 == $t_level);
+
 my $dry_run = $opt_n;
 my $log_suffix = $opt_s;
+my $exit_signal_checks = defined($opt_e);
 
 my $logfile_name = "tests";
 if($log_suffix) {
@@ -369,7 +405,7 @@ sub do_test($)
     defined($pool) or print "  Running $files[$_]";
     my $start_time = time();
     $failed_skipped = test(
-      $test, $files[$_], $t_level, $opt_c, $opt_i, $dry_run, \%defines, \@include_tags, \@exclude_tags, $log_suffix);
+      $test, $files[$_], $t_level, $opt_c, $opt_i, $dry_run, \%defines, \@include_tags, \@exclude_tags, $log_suffix, $exit_signal_checks);
     my $runtime = time() - $start_time;
 
     lock($skips);
@@ -378,10 +414,10 @@ sub do_test($)
       $skips++;
       print "  [SKIPPED]\n";
     } elsif(0 == $failed_skipped) {
-      print "  [" . colored("OK", "green") . "] in $runtime seconds\n";
+      print "  [" . with_color("OK", "green") . "] in $runtime seconds\n";
     } else {
       $failures++;
-      print "  [" . colored("FAILED", "red") . "]\n";
+      print "  [" . with_color("FAILED", "red") . "]\n";
     }
   }
 }
@@ -419,9 +455,9 @@ defined($pool) and $pool->join();
 print "\n";
 
 if($failures == 0) {
-  print colored("All tests were successful", "green");
+  print with_color("All tests were successful", "green");
 } else {
-  print colored("Tests failed", "red") . "\n";
+  print with_color("Tests failed", "red") . "\n";
   print "  $failures of $count " . (1==$count?"test":"tests") . " failed";
 }
 print ", $skips " . (1==$skips?"test":"tests") . " skipped" if($skips > 0);

@@ -13,6 +13,7 @@ Author: Daniel Kroening, kroening@kroening.com
 
 #include "arith_tools.h"
 #include "c_types.h"
+#include "magic.h"
 #include "namespace.h"
 #include "pointer_offset_size.h"
 #include "std_code.h"
@@ -26,9 +27,8 @@ public:
   {
   }
 
-  exprt operator()(
-    const typet &type,
-    const source_locationt &source_location)
+  optionalt<exprt>
+  operator()(const typet &type, const source_locationt &source_location)
   {
     return expr_initializer_rec(type, source_location);
   }
@@ -36,13 +36,13 @@ public:
 protected:
   const namespacet &ns;
 
-  exprt expr_initializer_rec(
+  optionalt<exprt> expr_initializer_rec(
     const typet &type,
     const source_locationt &source_location);
 };
 
 template <bool nondet>
-exprt expr_initializert<nondet>::expr_initializer_rec(
+optionalt<exprt> expr_initializert<nondet>::expr_initializer_rec(
   const typet &type,
   const source_locationt &source_location)
 {
@@ -103,12 +103,12 @@ exprt expr_initializert<nondet>::expr_initializer_rec(
       result = side_effect_expr_nondett(type, source_location);
     else
     {
-      exprt sub_zero =
+      auto sub_zero =
         expr_initializer_rec(to_complex_type(type).subtype(), source_location);
-      if(sub_zero.is_nil())
-        return nil_exprt();
+      if(!sub_zero.has_value())
+        return {};
 
-      result = complex_exprt(sub_zero, sub_zero, to_complex_type(type));
+      result = complex_exprt(*sub_zero, *sub_zero, to_complex_type(type));
     }
 
     result.add_source_location()=source_location;
@@ -122,43 +122,36 @@ exprt expr_initializert<nondet>::expr_initializer_rec(
     {
       // we initialize this with an empty array
 
-      array_exprt value(array_type);
-      value.type().id(ID_array);
-      value.type().set(ID_size, from_integer(0, size_type()));
+      array_exprt value({}, array_type);
+      value.type().size() = from_integer(0, size_type());
       value.add_source_location()=source_location;
       return std::move(value);
     }
     else
     {
-      exprt tmpval =
-        expr_initializer_rec(array_type.subtype(), source_location);
-      if(tmpval.is_nil())
-        return nil_exprt();
+      auto tmpval = expr_initializer_rec(array_type.subtype(), source_location);
+      if(!tmpval.has_value())
+        return {};
 
-      if(array_type.size().id()==ID_infinity)
+      const auto array_size = numeric_cast<mp_integer>(array_type.size());
+      if(
+        array_type.size().id() == ID_infinity || !array_size.has_value() ||
+        *array_size > MAX_FLATTENED_ARRAY_SIZE)
       {
         if(nondet)
           return side_effect_expr_nondett(type, source_location);
 
-        array_of_exprt value(tmpval, array_type);
+        array_of_exprt value(*tmpval, array_type);
         value.add_source_location()=source_location;
         return std::move(value);
       }
 
-      const auto array_size = numeric_cast<mp_integer>(array_type.size());
-      if(!array_size.has_value())
-      {
-        if(nondet)
-          return side_effect_expr_nondett(type, source_location);
-        else
-          return nil_exprt();
-      }
-
       if(*array_size < 0)
-        return nil_exprt();
+        return {};
 
-      array_exprt value(array_type);
-      value.operands().resize(numeric_cast_v<std::size_t>(*array_size), tmpval);
+      array_exprt value({}, array_type);
+      value.operands().resize(
+        numeric_cast_v<std::size_t>(*array_size), *tmpval);
       value.add_source_location()=source_location;
       return std::move(value);
     }
@@ -167,18 +160,18 @@ exprt expr_initializert<nondet>::expr_initializer_rec(
   {
     const vector_typet &vector_type=to_vector_type(type);
 
-    exprt tmpval = expr_initializer_rec(vector_type.subtype(), source_location);
-    if(tmpval.is_nil())
-      return nil_exprt();
+    auto tmpval = expr_initializer_rec(vector_type.subtype(), source_location);
+    if(!tmpval.has_value())
+      return {};
 
     const mp_integer vector_size =
       numeric_cast_v<mp_integer>(vector_type.size());
 
     if(vector_size < 0)
-      return nil_exprt();
+      return {};
 
     vector_exprt value({}, vector_type);
-    value.operands().resize(numeric_cast_v<std::size_t>(vector_size), tmpval);
+    value.operands().resize(numeric_cast_v<std::size_t>(vector_size), *tmpval);
     value.add_source_location()=source_location;
 
     return std::move(value);
@@ -202,11 +195,11 @@ exprt expr_initializert<nondet>::expr_initializer_rec(
       }
       else
       {
-        const exprt member = expr_initializer_rec(c.type(), source_location);
-        if(member.is_nil())
-          return nil_exprt();
+        const auto member = expr_initializer_rec(c.type(), source_location);
+        if(!member.has_value())
+          return {};
 
-        value.add_to_operands(std::move(member));
+        value.add_to_operands(std::move(*member));
       }
     }
 
@@ -241,59 +234,65 @@ exprt expr_initializert<nondet>::expr_initializer_rec(
       }
     }
 
-    union_exprt value("", nil_exprt(), type);
-    value.add_source_location()=source_location;
-
     if(!found)
     {
       // stupid empty union
+      union_exprt value(irep_idt(), nil_exprt(), type);
+      value.add_source_location() = source_location;
+      return std::move(value);
     }
     else
     {
-      value.set_component_name(component.get_name());
-      value.op()=
+      auto component_value =
         expr_initializer_rec(component.type(), source_location);
-      if(value.op().is_nil())
-        return nil_exprt();
+
+      if(!component_value.has_value())
+        return {};
+
+      union_exprt value(component.get_name(), *component_value, type);
+      value.add_source_location() = source_location;
+
+      return std::move(value);
     }
-
-    return std::move(value);
-  }
-  else if(type_id == ID_symbol_type)
-  {
-    exprt result = expr_initializer_rec(ns.follow(type), source_location);
-    // we might have mangled the type for arrays, so keep that
-    if(ns.follow(type).id()!=ID_array)
-      result.type()=type;
-
-    return result;
   }
   else if(type_id==ID_c_enum_tag)
   {
-    return
-      expr_initializer_rec(
-        ns.follow_tag(to_c_enum_tag_type(type)),
-        source_location);
+    auto result = expr_initializer_rec(
+      ns.follow_tag(to_c_enum_tag_type(type)), source_location);
+
+    if(!result.has_value())
+      return {};
+
+    // use the tag type
+    result->type() = type;
+
+    return *result;
   }
   else if(type_id==ID_struct_tag)
   {
-    exprt result = expr_initializer_rec(
+    auto result = expr_initializer_rec(
       ns.follow_tag(to_struct_tag_type(type)), source_location);
 
-    // use the tag type
-    result.type() = type;
+    if(!result.has_value())
+      return {};
 
-    return result;
+    // use the tag type
+    result->type() = type;
+
+    return *result;
   }
   else if(type_id==ID_union_tag)
   {
-    exprt result = expr_initializer_rec(
+    auto result = expr_initializer_rec(
       ns.follow_tag(to_union_tag_type(type)), source_location);
 
-    // use the tag type
-    result.type() = type;
+    if(!result.has_value())
+      return {};
 
-    return result;
+    // use the tag type
+    result->type() = type;
+
+    return *result;
   }
   else if(type_id==ID_string)
   {
@@ -307,7 +306,7 @@ exprt expr_initializert<nondet>::expr_initializer_rec(
     return result;
   }
   else
-    return nil_exprt();
+    return {};
 }
 
 /// Create the equivalent of zero for type `type`.
@@ -321,12 +320,7 @@ optionalt<exprt> zero_initializer(
   const source_locationt &source_location,
   const namespacet &ns)
 {
-  expr_initializert<false> z_i(ns);
-  const exprt result = z_i(type, source_location);
-  if(result.is_nil())
-    return {};
-  else
-    return result;
+  return expr_initializert<false>(ns)(type, source_location);
 }
 
 /// Create a non-deterministic value for type `type`, with all subtypes
@@ -341,10 +335,5 @@ optionalt<exprt> nondet_initializer(
   const source_locationt &source_location,
   const namespacet &ns)
 {
-  expr_initializert<true> z_i(ns);
-  const exprt result = z_i(type, source_location);
-  if(result.is_nil())
-    return {};
-  else
-    return result;
+  return expr_initializert<true>(ns)(type, source_location);
 }

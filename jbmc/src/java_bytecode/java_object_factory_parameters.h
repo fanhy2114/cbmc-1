@@ -9,6 +9,7 @@ Author: Daniel Poetzl
 #ifndef CPROVER_JAVA_BYTECODE_JAVA_OBJECT_FACTORY_PARAMETERS_H
 #define CPROVER_JAVA_BYTECODE_JAVA_OBJECT_FACTORY_PARAMETERS_H
 
+#include <util/interval_union.h>
 #include <util/object_factory_parameters.h>
 
 struct java_object_factory_parameterst final : public object_factory_parameterst
@@ -21,6 +22,15 @@ struct java_object_factory_parameterst final : public object_factory_parameterst
     : object_factory_parameterst(options)
   {
   }
+
+  /// Force numerical primitive inputs to fall within the interval
+  interval_uniont assume_inputs_interval = interval_uniont::all_integers();
+
+  /// Force double and float inputs to be integral
+  bool assume_inputs_integral;
+
+  /// Assigns the parameters from given options
+  void set(const optionst &);
 };
 
 /// Parse the java object factory parameters from a given command line

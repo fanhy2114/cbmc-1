@@ -57,22 +57,20 @@ int linker_script_merget::add_linker_script_definitions()
     return fail;
   }
 
-  goto_modelt original_goto_model;
+  auto original_goto_model =
+    read_goto_binary(goto_binary, get_message_handler());
 
-  fail =
-    read_goto_binary(goto_binary, original_goto_model, get_message_handler());
-
-  if(fail!=0)
+  if(!original_goto_model.has_value())
   {
     error() << "Unable to read goto binary for linker script merging" << eom;
-    return fail;
+    return 1;
   }
 
   fail=1;
   linker_valuest linker_values;
   const auto &pair =
-    original_goto_model.goto_functions.function_map.find(INITIALIZE_FUNCTION);
-  if(pair == original_goto_model.goto_functions.function_map.end())
+    original_goto_model->goto_functions.function_map.find(INITIALIZE_FUNCTION);
+  if(pair == original_goto_model->goto_functions.function_map.end())
   {
     error() << "No " << INITIALIZE_FUNCTION << " found in goto_functions"
             << eom;
@@ -82,7 +80,7 @@ int linker_script_merget::add_linker_script_definitions()
     data,
     cmdline.get_value('T'),
     pair->second.body,
-    original_goto_model.symbol_table,
+    original_goto_model->symbol_table,
     linker_values);
   if(fail!=0)
   {
@@ -97,7 +95,7 @@ int linker_script_merget::add_linker_script_definitions()
   // The keys of linker_values are exactly the elements of
   // linker_defined_symbols, so iterate over linker_values from now on.
 
-  fail = pointerize_linker_defined_symbols(original_goto_model, linker_values);
+  fail = pointerize_linker_defined_symbols(*original_goto_model, linker_values);
 
   if(fail!=0)
   {
@@ -105,7 +103,7 @@ int linker_script_merget::add_linker_script_definitions()
     return fail;
   }
 
-  fail = compiler.write_bin_object_file(goto_binary, original_goto_model);
+  fail = compiler.write_bin_object_file(goto_binary, *original_goto_model);
 
   if(fail!=0)
     error() << "Could not write linkerscript-augmented binary" << eom;
@@ -128,45 +126,58 @@ linker_script_merget::linker_script_merget(
       {replacement_predicatet(
          "address of array's first member",
          [](const exprt &expr) -> const symbol_exprt & {
-           return to_symbol_expr(expr.op0().op0());
+           return to_symbol_expr(
+             to_index_expr(to_address_of_expr(expr).object()).index());
          },
          [](const exprt &expr) {
            return expr.id() == ID_address_of &&
                   expr.type().id() == ID_pointer &&
 
-                  expr.op0().id() == ID_index &&
-                  expr.op0().type().id() == ID_unsignedbv &&
+                  to_address_of_expr(expr).object().id() == ID_index &&
+                  to_address_of_expr(expr).object().type().id() ==
+                    ID_unsignedbv &&
 
-                  expr.op0().op0().id() == ID_symbol &&
-                  expr.op0().op0().type().id() == ID_array &&
+                  to_index_expr(to_address_of_expr(expr).object())
+                      .array()
+                      .id() == ID_symbol &&
+                  to_index_expr(to_address_of_expr(expr).object())
+                      .array()
+                      .type()
+                      .id() == ID_array &&
 
-                  expr.op0().op1().id() == ID_constant &&
-                  expr.op0().op1().type().id() == ID_signedbv;
+                  to_index_expr(to_address_of_expr(expr).object())
+                      .index()
+                      .id() == ID_constant &&
+                  to_index_expr(to_address_of_expr(expr).object())
+                      .index()
+                      .type()
+                      .id() == ID_signedbv;
          }),
        replacement_predicatet(
          "address of array",
          [](const exprt &expr) -> const symbol_exprt & {
-           return to_symbol_expr(expr.op0());
+           return to_symbol_expr(to_address_of_expr(expr).object());
          },
          [](const exprt &expr) {
            return expr.id() == ID_address_of &&
                   expr.type().id() == ID_pointer &&
 
-                  expr.op0().id() == ID_symbol &&
-                  expr.op0().type().id() == ID_array;
+                  to_address_of_expr(expr).object().id() == ID_symbol &&
+                  to_address_of_expr(expr).object().type().id() == ID_array;
          }),
        replacement_predicatet(
          "address of struct",
          [](const exprt &expr) -> const symbol_exprt & {
-           return to_symbol_expr(expr.op0());
+           return to_symbol_expr(to_address_of_expr(expr).object());
          },
          [](const exprt &expr) {
            return expr.id() == ID_address_of &&
                   expr.type().id() == ID_pointer &&
 
-                  expr.op0().id() == ID_symbol &&
-                  (expr.op0().type().id() == ID_struct ||
-                   expr.op0().type().id() == ID_struct_tag);
+                  to_address_of_expr(expr).object().id() == ID_symbol &&
+                  (to_address_of_expr(expr).object().type().id() == ID_struct ||
+                   to_address_of_expr(expr).object().type().id() ==
+                     ID_struct_tag);
          }),
        replacement_predicatet(
          "array variable",
@@ -442,8 +453,8 @@ int linker_script_merget::ls_data2instructions(
 
     // Linker-defined symbol_exprt pointing to start address
     symbol_exprt start_sym(d["start-symbol"].value, pointer_type(char_type()));
-    linker_values[d["start-symbol"].value]=std::make_pair(start_sym,
-        array_start);
+    linker_values.emplace(
+      d["start-symbol"].value, std::make_pair(start_sym, array_start));
 
     // Since the value of the pointer will be a random CBMC address, write a
     // note about the real address in the object file
@@ -471,9 +482,8 @@ int linker_script_merget::ls_data2instructions(
     // Instruction for start-address pointer in __CPROVER_initialize
     code_assignt start_assign(start_sym, array_start);
     start_assign.add_source_location()=start_loc;
-    goto_programt::instructiont start_assign_i;
-    start_assign_i.make_assignment(start_assign);
-    start_assign_i.source_location=start_loc;
+    goto_programt::instructiont start_assign_i =
+      goto_programt::make_assignment(start_assign, start_loc);
     initialize_instructions.push_front(start_assign_i);
 
     if(has_end) // Same for pointer to end of array
@@ -481,7 +491,8 @@ int linker_script_merget::ls_data2instructions(
       plus_exprt array_end(array_start, array_size_expr);
 
       symbol_exprt end_sym(d["end-symbol"].value, pointer_type(char_type()));
-      linker_values[d["end-symbol"].value]=std::make_pair(end_sym, array_end);
+      linker_values.emplace(
+        d["end-symbol"].value, std::make_pair(end_sym, array_end));
 
       auto entry = std::find_if(
         to_json_array(data["addresses"]).begin(),
@@ -506,9 +517,8 @@ int linker_script_merget::ls_data2instructions(
 
       code_assignt end_assign(end_sym, array_end);
       end_assign.add_source_location()=end_loc;
-      goto_programt::instructiont end_assign_i;
-      end_assign_i.make_assignment(end_assign);
-      end_assign_i.source_location=end_loc;
+      goto_programt::instructiont end_assign_i =
+        goto_programt::make_assignment(end_assign, end_loc);
       initialize_instructions.push_front(end_assign_i);
     }
 
@@ -531,9 +541,8 @@ int linker_script_merget::ls_data2instructions(
     CHECK_RETURN(zi.has_value());
     code_assignt array_assign(array_expr, *zi);
     array_assign.add_source_location()=array_loc;
-    goto_programt::instructiont array_assign_i;
-    array_assign_i.make_assignment(array_assign);
-    array_assign_i.source_location=array_loc;
+    goto_programt::instructiont array_assign_i =
+      goto_programt::make_assignment(array_assign, array_loc);
     initialize_instructions.push_front(array_assign_i);
   }
 
@@ -577,16 +586,15 @@ int linker_script_merget::ls_data2instructions(
         unsigned_int_type().get_width()),
       unsigned_int_type());
 
-    exprt rhs_tc(rhs);
-    rhs_tc.make_typecast(pointer_type(char_type()));
+    typecast_exprt rhs_tc(rhs, pointer_type(char_type()));
 
-    linker_values[irep_idt(d["sym"].value)]=std::make_pair(lhs, rhs_tc);
+    linker_values.emplace(
+      irep_idt(d["sym"].value), std::make_pair(lhs, rhs_tc));
 
     code_assignt assign(lhs, rhs_tc);
     assign.add_source_location()=loc;
-    goto_programt::instructiont assign_i;
-    assign_i.make_assignment(assign);
-    assign_i.source_location=loc;
+    goto_programt::instructiont assign_i =
+      goto_programt::make_assignment(assign, loc);
     initialize_instructions.push_front(assign_i);
   }
   return 0;
@@ -640,10 +648,11 @@ int linker_script_merget::ls_data2instructions(
       string2integer(d["val"].value), unsigned_int_type().get_width()));
     rhs.type()=unsigned_int_type();
 
-    exprt rhs_tc(rhs);
-    rhs_tc.make_typecast(pointer_type(char_type()));
+    exprt rhs_tc =
+      typecast_exprt::conditional_cast(rhs, pointer_type(char_type()));
 
-    linker_values[irep_idt(d["sym"].value)]=std::make_pair(lhs, rhs_tc);
+    linker_values.emplace(
+      irep_idt(d["sym"].value), std::make_pair(lhs, rhs_tc));
 
     code_assignt assign(lhs, rhs_tc);
     assign.add_source_location()=loc;

@@ -9,8 +9,12 @@ Author: Daniel Kroening, kroening@kroening.com
 #include "java_utils.h"
 
 #include "java_root_class.h"
+#include "java_string_library_preprocess.h"
 
+#include <util/fresh_symbol.h>
 #include <util/invariant.h>
+#include <util/mathematical_expr.h>
+#include <util/mathematical_types.h>
 #include <util/message.h>
 #include <util/prefix.h>
 #include <util/std_types.h>
@@ -24,6 +28,28 @@ bool java_is_array_type(const typet &type)
   if(type.id() != ID_struct)
     return false;
   return is_java_array_tag(to_struct_type(type).get_tag());
+}
+
+bool is_java_string_type(const struct_typet &struct_type)
+{
+  return java_string_library_preprocesst::implements_java_char_sequence(
+           struct_type) &&
+         struct_type.has_component("length") &&
+         struct_type.has_component("data");
+}
+
+bool is_primitive_wrapper_type_name(const std::string &type_name)
+{
+  static const std::unordered_set<std::string> primitive_wrapper_type_names = {
+    "java.lang.Boolean",
+    "java.lang.Byte",
+    "java.lang.Character",
+    "java.lang.Double",
+    "java.lang.Float",
+    "java.lang.Integer",
+    "java.lang.Long",
+    "java.lang.Short"};
+  return primitive_wrapper_type_names.count(type_name) > 0;
 }
 
 unsigned java_local_variable_slots(const typet &t)
@@ -171,9 +197,21 @@ irep_idt resolve_friendly_method_name(
   }
 }
 
-dereference_exprt checked_dereference(const exprt &expr, const typet &type)
+pointer_typet pointer_to_replacement_type(
+  const pointer_typet &given_pointer_type,
+  const java_class_typet &replacement_class_type)
 {
-  dereference_exprt result(expr, type);
+  if(can_cast_type<struct_tag_typet>(given_pointer_type.subtype()))
+  {
+    struct_tag_typet struct_tag_subtype{replacement_class_type.get_name()};
+    return pointer_type(struct_tag_subtype);
+  }
+  return pointer_type(replacement_class_type);
+}
+
+dereference_exprt checked_dereference(const exprt &expr)
+{
+  dereference_exprt result(expr);
   // tag it so it's easy to identify during instrumentation
   result.set(ID_java_member_access, true);
   return result;
@@ -239,53 +277,59 @@ void java_add_components_to_class(
   PRECONDITION(class_symbol.type.id()==ID_struct);
   struct_typet &struct_type=to_struct_type(class_symbol.type);
   struct_typet::componentst &components=struct_type.components();
-
-  for(const struct_union_typet::componentt &component : components_to_add)
-  {
-    components.push_back(component);
-  }
+  components.insert(
+    components.end(), components_to_add.begin(), components_to_add.end());
 }
 
 /// Declare a function with the given name and type.
 /// \param function_name: a name
 /// \param type: a type
 /// \param symbol_table: symbol table
-void declare_function(
-  irep_idt function_name,
-  const typet &type,
+/// \return newly created symbol
+static auxiliary_symbolt declare_function(
+  const irep_idt &function_name,
+  const mathematical_function_typet &type,
   symbol_table_baset &symbol_table)
 {
   auxiliary_symbolt func_symbol;
   func_symbol.base_name=function_name;
   func_symbol.pretty_name=function_name;
   func_symbol.is_static_lifetime=false;
+  func_symbol.is_state_var = false;
   func_symbol.mode=ID_java;
   func_symbol.name=function_name;
   func_symbol.type=type;
   symbol_table.add(func_symbol);
+
+  return func_symbol;
 }
 
-/// Create a function application expression.
+/// Create a (mathematical) function application expression.
+/// The application has the type of the codomain (range) of the function.
 /// \param function_name: the name of the function
-/// \param arguments: a list of arguments
-/// \param type: return type of the function
+/// \param arguments: a list of arguments (an element of the domain)
+/// \param range: return type (codomain) of the function
 /// \param symbol_table: a symbol table
 /// \return a function application expression representing:
 ///   `function_name(arguments)`
 exprt make_function_application(
   const irep_idt &function_name,
   const exprt::operandst &arguments,
-  const typet &type,
+  const typet &range,
   symbol_table_baset &symbol_table)
 {
-  // Names of function to call
-  std::string fun_name=id2string(function_name);
+  std::vector<typet> argument_types;
+  for(const auto &arg : arguments)
+    argument_types.push_back(arg.type());
 
   // Declaring the function
-  declare_function(fun_name, type, symbol_table);
+  const auto symbol = declare_function(
+    function_name,
+    mathematical_function_typet(std::move(argument_types), range),
+    symbol_table);
 
   // Function application
-  return function_application_exprt(symbol_exprt(fun_name), arguments, type);
+  return function_application_exprt(symbol.symbol_expr(), arguments, range);
 }
 
 /// Strip java:: prefix from given identifier
@@ -327,36 +371,34 @@ std::string pretty_print_java_type(const std::string &fqn_java_type)
 /// \param component_name: component basename to search for. If searching for
 ///   A.b, this is "b".
 /// \param symbol_table: global symbol table.
-/// \param class_hierarchy: global class hierarchy.
 /// \param include_interfaces: if true, search for the given component in all
 ///   ancestors including interfaces, rather than just parents.
 /// \return the concrete component referred to if any is found, or an invalid
 ///   resolve_inherited_componentt::inherited_componentt otherwise.
-resolve_inherited_componentt::inherited_componentt get_inherited_component(
+optionalt<resolve_inherited_componentt::inherited_componentt>
+get_inherited_component(
   const irep_idt &component_class_id,
   const irep_idt &component_name,
   const symbol_tablet &symbol_table,
-  const class_hierarchyt &class_hierarchy,
   bool include_interfaces)
 {
-  resolve_inherited_componentt component_resolver(
-    symbol_table, class_hierarchy);
-  const resolve_inherited_componentt::inherited_componentt resolved_component =
+  resolve_inherited_componentt component_resolver{symbol_table};
+  const auto resolved_component =
     component_resolver(component_class_id, component_name, include_interfaces);
 
   // resolved_component is a pair (class-name, component-name) found by walking
   // the chain of class inheritance (not interfaces!) and stopping on the first
   // class that contains a component of equal name and type to `component_name`
 
-  if(resolved_component.is_valid())
+  if(resolved_component)
   {
     // Directly defined on the class referred to?
-    if(component_class_id == resolved_component.get_class_identifier())
-      return resolved_component;
+    if(component_class_id == resolved_component->get_class_identifier())
+      return *resolved_component;
 
     // No, may be inherited from some parent class; check it is visible:
-    const symbolt &component_symbol=
-      *symbol_table.lookup(resolved_component.get_full_component_identifier());
+    const symbolt &component_symbol = symbol_table.lookup_ref(
+      resolved_component->get_full_component_identifier());
 
     irep_idt access = component_symbol.type.get(ID_access);
     if(access.empty())
@@ -365,7 +407,7 @@ resolve_inherited_componentt::inherited_componentt get_inherited_component(
     if(access==ID_public || access==ID_protected)
     {
       // since the component is public, it is inherited
-      return resolved_component;
+      return *resolved_component;
     }
 
     // components with the default access modifier are only
@@ -374,14 +416,12 @@ resolve_inherited_componentt::inherited_componentt get_inherited_component(
     {
       const std::string &class_package=
         java_class_to_package(id2string(component_class_id));
-      const std::string &component_package=
-        java_class_to_package(
-          id2string(
-            resolved_component.get_class_identifier()));
+      const std::string &component_package = java_class_to_package(
+        id2string(resolved_component->get_class_identifier()));
       if(component_package == class_package)
-        return resolved_component;
+        return *resolved_component;
       else
-        return resolve_inherited_componentt::inherited_componentt();
+        return {};
     }
 
     if(access==ID_private)
@@ -393,14 +433,14 @@ resolve_inherited_componentt::inherited_componentt get_inherited_component(
       // to `classname`, a component can only become "more accessible". So, if
       // the last occurrence is private, all others before must be private as
       // well, and none is inherited in `classname`.
-      return resolve_inherited_componentt::inherited_componentt();
+      return {};
     }
 
     UNREACHABLE; // Unexpected access modifier
   }
   else
   {
-    return resolve_inherited_componentt::inherited_componentt();
+    return {};
   }
 }
 
@@ -436,3 +476,34 @@ const std::unordered_set<std::string> cprover_methods_to_ignore
   "endThread",
   "getCurrentThreadID"
 };
+
+/// \param type: type of new symbol
+/// \param basename_prefix: new symbol will be named
+///   function_name::basename_prefix$num
+/// \param source_location: new symbol source loc
+/// \param function_name: name of the function in which the symbol is defined
+/// \param symbol_table: table to add the new symbol to
+/// \return fresh-named symbol with the requested name pattern
+symbolt &fresh_java_symbol(
+  const typet &type,
+  const std::string &basename_prefix,
+  const source_locationt &source_location,
+  const irep_idt &function_name,
+  symbol_table_baset &symbol_table)
+{
+  PRECONDITION(!function_name.empty());
+  const std::string name_prefix = id2string(function_name);
+  return get_fresh_aux_symbol(
+    type, name_prefix, basename_prefix, source_location, ID_java, symbol_table);
+}
+
+optionalt<irep_idt> declaring_class(const symbolt &symbol)
+{
+  const irep_idt &class_id = symbol.type.get(ID_C_class);
+  return class_id.empty() ? optionalt<irep_idt>{} : class_id;
+}
+
+void set_declaring_class(symbolt &symbol, const irep_idt &declaring_class)
+{
+  symbol.type.set(ID_C_class, declaring_class);
+}

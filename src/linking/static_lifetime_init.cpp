@@ -53,19 +53,11 @@ static_lifetime_init(const irep_idt &identifier, symbol_tablet &symbol_table)
   if(type.id() == ID_code || type.id() == ID_empty)
     return {};
 
-  // We won't try to initialize any symbols that have
-  // remained incomplete.
-
-  if(symbol.value.is_nil() && symbol.is_extern)
-    // Compilers would usually complain about these
-    // symbols being undefined.
-    return {};
-
   if(type.id() == ID_array && to_array_type(type).size().is_nil())
   {
     // C standard 6.9.2, paragraph 5
     // adjust the type to an array of size 1
-    symbolt &writable_symbol = *symbol_table.get_writeable(identifier);
+    symbolt &writable_symbol = symbol_table.get_writeable_ref(identifier);
     writable_symbol.type = type;
     writable_symbol.type.set(ID_size, from_integer(1, size_type()));
   }
@@ -77,14 +69,18 @@ static_lifetime_init(const irep_idt &identifier, symbol_tablet &symbol_table)
     return {}; // do not initialize
   }
 
-  if(symbol.value.id() == ID_nondet)
-  {
-    return {}; // do not initialize
-  }
-
   exprt rhs;
 
-  if(symbol.value.is_nil())
+  if((symbol.value.is_nil() && symbol.is_extern) ||
+     symbol.value.id() == ID_nondet)
+  {
+    // Nondet initialise if not linked, or if explicitly requested.
+    // Compilers would usually complain about the unlinked symbol case.
+    const auto nondet = nondet_initializer(symbol.type, symbol.location, ns);
+    CHECK_RETURN(nondet.has_value());
+    rhs = *nondet;
+  }
+  else if(symbol.value.is_nil())
   {
     const auto zero = zero_initializer(symbol.type, symbol.location, ns);
     CHECK_RETURN(zero.has_value());

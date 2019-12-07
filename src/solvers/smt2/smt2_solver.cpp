@@ -28,12 +28,13 @@ public:
   smt2_solvert(std::istream &_in, decision_proceduret &_solver)
     : smt2_parsert(_in), solver(_solver), status(NOT_SOLVED)
   {
+    setup_commands();
   }
 
 protected:
   decision_proceduret &solver;
 
-  void command(const std::string &) override;
+  void setup_commands();
   void define_constants();
   void expand_function_applications(exprt &);
 
@@ -81,57 +82,56 @@ void smt2_solvert::expand_function_applications(exprt &expr)
   {
     auto &app=to_function_application_expr(expr);
 
-    // look it up
-    irep_idt identifier=app.function().get_identifier();
-    auto f_it=id_map.find(identifier);
-
-    if(f_it!=id_map.end())
+    if(app.function().id() == ID_symbol)
     {
-      const auto &f=f_it->second;
+      // look up the symbol
+      auto identifier = to_symbol_expr(app.function()).get_identifier();
+      auto f_it = id_map.find(identifier);
 
-      DATA_INVARIANT(f.type.id()==ID_mathematical_function,
-        "type of function symbol must be mathematical_function_type");
-
-      const auto f_type=
-        to_mathematical_function_type(f.type);
-
-      const auto &domain = f_type.domain();
-
-      DATA_INVARIANT(
-        domain.size() == app.arguments().size(),
-        "number of function parameters");
-
-      replace_symbolt replace_symbol;
-
-      std::map<irep_idt, exprt> parameter_map;
-      for(std::size_t i = 0; i < domain.size(); i++)
+      if(f_it != id_map.end())
       {
-        const symbol_exprt s(f.parameters[i], domain[i]);
-        replace_symbol.insert(s, app.arguments()[i]);
-      }
+        const auto &f = f_it->second;
 
-      exprt body=f.definition;
-      replace_symbol(body);
-      expand_function_applications(body);
-      expr=body;
+        DATA_INVARIANT(
+          f.type.id() == ID_mathematical_function,
+          "type of function symbol must be mathematical_function_type");
+
+        const auto &domain = to_mathematical_function_type(f.type).domain();
+
+        DATA_INVARIANT(
+          domain.size() == app.arguments().size(),
+          "number of parameters must match number of arguments");
+
+        replace_symbolt replace_symbol;
+
+        for(std::size_t i = 0; i < domain.size(); i++)
+        {
+          replace_symbol.insert(
+            symbol_exprt(f.parameters[i], domain[i]), app.arguments()[i]);
+        }
+
+        exprt body = f.definition;
+        replace_symbol(body);
+        expand_function_applications(body);
+        expr = body;
+      }
     }
   }
 }
 
-void smt2_solvert::command(const std::string &c)
+void smt2_solvert::setup_commands()
 {
   {
-    if(c == "assert")
-    {
+    commands["assert"] = [this]() {
       exprt e = expression();
       if(e.is_not_nil())
       {
         expand_function_applications(e);
         solver.set_to_true(e);
       }
-    }
-    else if(c == "check-sat")
-    {
+    };
+
+    commands["check-sat"] = [this]() {
       // add constant definitions as constraints
       define_constants();
 
@@ -151,20 +151,20 @@ void smt2_solvert::command(const std::string &c)
         std::cout << "error\n";
         status = NOT_SOLVED;
       }
-    }
-    else if(c == "check-sat-assuming")
-    {
+    };
+
+    commands["check-sat-assuming"] = [this]() {
       throw error("not yet implemented");
-    }
-    else if(c == "display")
-    {
+    };
+
+    commands["display"] = [this]() {
       // this is a command that Z3 appears to implement
       exprt e = expression();
       if(e.is_not_nil())
         std::cout << smt2_format(e) << '\n';
-    }
-    else if(c == "get-value")
-    {
+    };
+
+    commands["get-value"] = [this]() {
       std::vector<exprt> ops;
 
       if(next_token() != smt2_tokenizert::OPEN)
@@ -195,12 +195,12 @@ void smt2_solvert::command(const std::string &c)
         const auto id_map_it = id_map.find(identifier);
 
         if(id_map_it == id_map.end())
-          throw error() << "unexpected symbol `" << identifier << '\'';
+          throw error() << "unexpected symbol '" << identifier << '\'';
 
         const exprt value = solver.get(op);
 
         if(value.is_nil())
-          throw error() << "no value for `" << identifier << '\'';
+          throw error() << "no value for '" << identifier << '\'';
 
         values.push_back(value);
       }
@@ -217,18 +217,18 @@ void smt2_solvert::command(const std::string &c)
       }
 
       std::cout << ")\n";
-    }
-    else if(c == "echo")
-    {
+    };
+
+    commands["echo"] = [this]() {
       if(next_token() != smt2_tokenizert::STRING_LITERAL)
         throw error("expected string literal");
 
       std::cout << smt2_format(constant_exprt(
                      smt2_tokenizer.get_buffer(), string_typet()))
                 << '\n';
-    }
-    else if(c == "get-assignment")
-    {
+    };
+
+    commands["get-assignment"] = [this]() {
       // print satisfying assignment for all named expressions
 
       if(status != SAT)
@@ -256,9 +256,9 @@ void smt2_solvert::command(const std::string &c)
         }
       }
       std::cout << ')' << '\n';
-    }
-    else if(c == "get-model")
-    {
+    };
+
+    commands["get-model"] = [this]() {
       // print a model for all identifiers
 
       if(status != SAT)
@@ -293,9 +293,9 @@ void smt2_solvert::command(const std::string &c)
         }
       }
       std::cout << ')' << '\n';
-    }
-    else if(c == "simplify")
-    {
+    };
+
+    commands["simplify"] = [this]() {
       // this is a command that Z3 appears to implement
       exprt e = expression();
       if(e.is_not_nil())
@@ -305,7 +305,9 @@ void smt2_solvert::command(const std::string &c)
         exprt e_simplified = simplify_expr(e, ns);
         std::cout << smt2_format(e) << '\n';
       }
-    }
+    };
+  }
+
 #if 0
     // TODO:
     | ( declare-const hsymboli hsorti )
@@ -330,9 +332,6 @@ void smt2_solvert::command(const std::string &c)
     | ( set-info hattributei )
     | ( set-option hoptioni )
 #endif
-    else
-      smt2_parsert::command(c);
-  }
 }
 
 class smt2_message_handlert : public message_handlert
@@ -373,12 +372,10 @@ int solver(std::istream &in)
   // this is our default verbosity
   message_handler.set_verbosity(messaget::M_STATISTICS);
 
-  satcheckt satcheck;
-  boolbvt boolbv(ns, satcheck);
-  satcheck.set_message_handler(message_handler);
-  boolbv.set_message_handler(message_handler);
+  satcheckt satcheck{message_handler};
+  boolbvt boolbv{ns, satcheck, message_handler};
 
-  smt2_solvert smt2_solver(in, boolbv);
+  smt2_solvert smt2_solver{in, boolbv};
   bool error_found = false;
 
   while(!smt2_solver.exit)

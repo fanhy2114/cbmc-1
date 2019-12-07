@@ -7,9 +7,9 @@ Author: Diffblue Limited.
 
 \*******************************************************************/
 
-#include <testing-utils/catch.hpp>
-#include <testing-utils/message.h>
 #include <java-testing-utils/load_java_class.h>
+#include <testing-utils/message.h>
+#include <testing-utils/use_catch.h>
 
 #include <analyses/local_safe_pointers.h>
 #include <goto-programs/goto_convert_functions.h>
@@ -24,7 +24,7 @@ static bool is_expected_virtualmethod_call(
     return false;
   const auto &virtual_call = to_code_function_call(instruction.code);
   const auto &called_function = virtual_call.function();
-  if(called_function.id() != ID_virtual_function)
+  if(!can_cast_expr<class_method_descriptor_exprt>(called_function))
     return false;
   if(called_function.get(ID_identifier) != "java::B.virtualmethod:()V")
     return false;
@@ -33,7 +33,7 @@ static bool is_expected_virtualmethod_call(
   const auto &this_argument = virtual_call.arguments()[0];
   if(this_argument.id() != ID_member)
     return false;
-  if(this_argument.op0().id() != ID_dereference)
+  if(to_member_expr(this_argument).compound().id() != ID_dereference)
     return false;
 
   return true;
@@ -74,7 +74,7 @@ SCENARIO(
         // This analysis checks that any usage of a pointer is preceded by an
         // assumption that it is non-null
         // (e.g. assume(x != nullptr); y = x->...)
-        local_safe_pointerst safe_pointers(ns);
+        local_safe_pointerst safe_pointers;
         safe_pointers(main_function.body);
 
         for(auto instrit = main_function.body.instructions.begin(),

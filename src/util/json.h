@@ -16,6 +16,7 @@ Author: Daniel Kroening, kroening@kroening.com
 #include <string>
 
 #include "irep.h"
+#include "range.h"
 
 class json_objectt;
 class json_arrayt;
@@ -58,6 +59,11 @@ public:
   bool is_array() const
   {
     return kind==kindt::J_ARRAY;
+  }
+
+  bool is_boolean() const
+  {
+    return kind == kindt::J_TRUE || kind == kindt::J_FALSE;
   }
 
   bool is_true() const
@@ -160,8 +166,29 @@ public:
   {
   }
 
-  explicit json_arrayt(arrayt &&entries)
-    : jsont(kindt::J_ARRAY, std::move(entries))
+  explicit json_arrayt(std::initializer_list<jsont> &&initializer_list)
+    : jsont(kindt::J_ARRAY, arrayt{initializer_list})
+  {
+  }
+
+  template <typename begin_iteratort, typename end_iteratort>
+  json_arrayt(begin_iteratort &&begin_iterator, end_iteratort &&end_iterator)
+    : jsont(
+        kindt::J_ARRAY,
+        arrayt(
+          std::forward<begin_iteratort>(begin_iterator),
+          std::forward<end_iteratort>(end_iterator)))
+  {
+    static_assert(
+      std::is_same<
+        typename std::decay<begin_iteratort>::type,
+        typename std::decay<end_iteratort>::type>::value,
+      "The iterators must be of the same type.");
+  }
+
+  template <typename iteratort>
+  explicit json_arrayt(ranget<iteratort> &&range)
+    : jsont(kindt::J_ARRAY, arrayt{range.begin(), range.end()})
   {
   }
 
@@ -278,8 +305,30 @@ public:
   {
   }
 
-  explicit json_objectt(objectt &&objects)
-    : jsont(kindt::J_OBJECT, std::move(objects))
+  explicit json_objectt(
+    std::initializer_list<typename objectt::value_type> &&initializer_list)
+    : jsont(kindt::J_OBJECT, objectt{initializer_list})
+  {
+  }
+
+  template <typename begin_iteratort, typename end_iteratort>
+  json_objectt(begin_iteratort &&begin_iterator, end_iteratort &&end_iterator)
+    : jsont(
+        kindt::J_OBJECT,
+        objectt(
+          std::forward<begin_iteratort>(begin_iterator),
+          std::forward<end_iteratort>(end_iterator)))
+  {
+    static_assert(
+      std::is_same<
+        typename std::decay<begin_iteratort>::type,
+        typename std::decay<end_iteratort>::type>::value,
+      "The iterators must be of the same type.");
+  }
+
+  template <typename iteratort>
+  explicit json_objectt(ranget<iteratort> &&range)
+    : jsont(kindt::J_OBJECT, objectt{range.begin(), range.end()})
   {
   }
 
@@ -310,6 +359,11 @@ public:
   const_iterator find(const std::string &key) const
   {
     return object.find(key);
+  }
+
+  std::size_t size() const
+  {
+    return object.size();
   }
 
   iterator begin()
@@ -396,5 +450,19 @@ inline const json_objectt &to_json_object(const jsont &json)
   PRECONDITION(json.kind == jsont::kindt::J_OBJECT);
   return static_cast<const json_objectt &>(json);
 }
+
+inline json_stringt &to_json_string(jsont &json)
+{
+  PRECONDITION(json.kind == jsont::kindt::J_STRING);
+  return static_cast<json_stringt &>(json);
+}
+
+inline const json_stringt &to_json_string(const jsont &json)
+{
+  PRECONDITION(json.kind == jsont::kindt::J_STRING);
+  return static_cast<const json_stringt &>(json);
+}
+
+bool operator==(const jsont &left, const jsont &right);
 
 #endif // CPROVER_UTIL_JSON_H

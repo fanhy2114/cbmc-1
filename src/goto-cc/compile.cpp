@@ -21,18 +21,22 @@ Date: June 2006
 #include <util/config.h>
 #include <util/file_util.h>
 #include <util/get_base_name.h>
+#include <util/prefix.h>
+#include <util/run.h>
 #include <util/suffix.h>
 #include <util/symbol_table_builder.h>
 #include <util/tempdir.h>
+#include <util/tempfile.h>
 #include <util/unicode.h>
 #include <util/version.h>
 
-#include <ansi-c/ansi_c_language.h>
 #include <ansi-c/ansi_c_entry_point.h>
 
 #include <goto-programs/goto_convert.h>
 #include <goto-programs/goto_convert_functions.h>
+#include <goto-programs/name_mangler.h>
 #include <goto-programs/read_goto_binary.h>
+#include <goto-programs/validate_goto_model.h>
 #include <goto-programs/write_goto_binary.h>
 
 #include <langapi/language_file.h>
@@ -46,21 +50,6 @@ Date: June 2006
                           "compound=true;"\
                           "size=\"30,40\";"\
                           "ratio=compress;"
-
-#ifdef _WIN32
-#include <util/pragma_push.def>
-#ifdef _MSC_VER
-#pragma warning(disable:4668)
-  // using #if/#elif on undefined macro
-#pragma warning(disable : 5039)
-// pointer or reference to potentially throwing function passed to extern C
-#endif
-#include <direct.h>
-#include <windows.h>
-#define popen _popen
-#define pclose _pclose
-#include <util/pragma_pop.def>
-#endif
 
 /// reads and source and object files, compiles and links them into goto program
 /// objects.
@@ -138,7 +127,9 @@ enum class file_typet
   ELF_OBJECT
 };
 
-static file_typet detect_file_type(const std::string &file_name)
+static file_typet detect_file_type(
+  const std::string &file_name,
+  message_handlert &message_handler)
 {
   // first of all, try to open the file
   std::ifstream in(file_name);
@@ -166,7 +157,7 @@ static file_typet detect_file_type(const std::string &file_name)
   if(ext == "a")
     return file_typet::NORMAL_ARCHIVE;
 
-  if(is_goto_binary(file_name))
+  if(is_goto_binary(file_name, message_handler))
     return file_typet::GOTO_BINARY;
 
   if(hdr[0] == 0x7f && memcmp(hdr + 1, "ELF", 3) == 0)
@@ -179,21 +170,21 @@ static file_typet detect_file_type(const std::string &file_name)
 /// \return false on success, true on error.
 bool compilet::add_input_file(const std::string &file_name)
 {
-  switch(detect_file_type(file_name))
+  switch(detect_file_type(file_name, get_message_handler()))
   {
   case file_typet::FAILED_TO_OPEN_FILE:
-    warning() << "failed to open file `" << file_name
+    warning() << "failed to open file '" << file_name
               << "': " << std::strerror(errno) << eom;
     return warning_is_fatal; // generously ignore unless -Werror
 
   case file_typet::UNKNOWN:
     // unknown extension, not a goto binary, will silently ignore
-    debug() << "unknown file type in `" << file_name << "'" << eom;
+    debug() << "unknown file type in '" << file_name << "'" << eom;
     return false;
 
   case file_typet::ELF_OBJECT:
     // ELF file without goto-cc section, silently ignore
-    debug() << "ELF object without goto-cc section: `" << file_name << "'"
+    debug() << "ELF object without goto-cc section: '" << file_name << "'"
             << eom;
     return false;
 
@@ -221,9 +212,6 @@ bool compilet::add_files_from_archive(
   const std::string &file_name,
   bool thin_archive)
 {
-  std::stringstream cmd;
-  FILE *stream;
-
   std::string tstr = working_directory;
 
   if(!thin_archive)
@@ -234,44 +222,40 @@ bool compilet::add_files_from_archive(
     set_current_path(tmp_dirs.back());
 
     // unpack now
-    cmd << "ar x " << concat_dir_file(working_directory, file_name);
-
-    stream=popen(cmd.str().c_str(), "r");
-    pclose(stream);
-
-    cmd.clear();
-    cmd.str("");
+    int ret =
+      run("ar", {"ar", "x", concat_dir_file(working_directory, file_name)});
+    if(ret != 0)
+    {
+      error() << "Failed to extract archive " << file_name << eom;
+      return true;
+    }
   }
 
   // add the files from "ar t"
-  cmd << "ar t " << concat_dir_file(working_directory, file_name);
-
-  stream = popen(cmd.str().c_str(), "r");
-
-  if(stream != nullptr)
+  temporary_filet tmp_file_out("", "");
+  int ret = run(
+    "ar",
+    {"ar", "t", concat_dir_file(working_directory, file_name)},
+    "",
+    tmp_file_out(),
+    "");
+  if(ret != 0)
   {
-    std::string line;
-    int ch; // fgetc returns an int, not char
-    while((ch = fgetc(stream)) != EOF)
-    {
-      if(ch != '\n')
-      {
-        line += static_cast<char>(ch);
-      }
-      else
-      {
-        std::string t = concat_dir_file(tstr, line);
+    error() << "Failed to list archive " << file_name << eom;
+    return true;
+  }
 
-        if(is_goto_binary(t))
-          object_files.push_back(t);
-        else
-          debug() << "Object file is not a goto binary: " << line << eom;
+  std::ifstream in(tmp_file_out());
+  std::string line;
 
-        line = "";
-      }
-    }
+  while(!in.fail() && std::getline(in, line))
+  {
+    std::string t = concat_dir_file(tstr, line);
 
-    pclose(stream);
+    if(is_goto_binary(t, get_message_handler()))
+      object_files.push_back(t);
+    else
+      debug() << "Object file is not a goto binary: " << line << eom;
   }
 
   if(!thin_archive)
@@ -299,7 +283,7 @@ bool compilet::find_library(const std::string &name)
     {
       library_file_name = concat_dir_file(library_path, "lib" + name + ".so");
 
-      switch(detect_file_type(library_file_name))
+      switch(detect_file_type(library_file_name, get_message_handler()))
       {
       case file_typet::GOTO_BINARY:
         return !add_input_file(library_file_name);
@@ -309,7 +293,11 @@ bool compilet::find_library(const std::string &name)
                   << eom;
         return warning_is_fatal;
 
-      default:
+      case file_typet::THIN_ARCHIVE:
+      case file_typet::NORMAL_ARCHIVE:
+      case file_typet::SOURCE_FILE:
+      case file_typet::FAILED_TO_OPEN_FILE:
+      case file_typet::UNKNOWN:
         break;
       }
     }
@@ -405,7 +393,7 @@ bool compilet::compile()
 
       std::string cfn;
 
-      if(output_file_object=="")
+      if(output_file_object.empty())
       {
         const std::string file_name_with_obj_ext =
           get_base_name(file_name, true) + "." + object_file_extension;
@@ -417,6 +405,13 @@ bool compilet::compile()
       }
       else
         cfn = output_file_object;
+
+      if(keep_file_local)
+      {
+        function_name_manglert<file_name_manglert> mangler(
+          get_message_handler(), goto_model, file_local_mangle_suffix);
+        mangler.mangle();
+      }
 
       if(write_bin_object_file(cfn, goto_model))
         return true;
@@ -437,43 +432,43 @@ bool compilet::parse(
   const std::string &file_name,
   language_filest &language_files)
 {
-  if(file_name=="-")
-    return parse_stdin();
-
-  #ifdef _MSC_VER
-  std::ifstream infile(widen(file_name));
-  #else
-  std::ifstream infile(file_name);
-  #endif
-
-  if(!infile)
-  {
-    error() << "failed to open input file `" << file_name << "'" << eom;
-    return true;
-  }
-
   std::unique_ptr<languaget> languagep;
 
   // Using '-x', the type of a file can be overridden;
   // otherwise, it's guessed from the extension.
 
-  if(override_language!="")
+  if(!override_language.empty())
   {
     if(override_language=="c++" || override_language=="c++-header")
       languagep = get_language_from_mode(ID_cpp);
     else
       languagep = get_language_from_mode(ID_C);
   }
-  else
+  else if(file_name != "-")
     languagep=get_language_from_filename(file_name);
 
   if(languagep==nullptr)
   {
-    error() << "failed to figure out type of file `" << file_name << "'" << eom;
+    error() << "failed to figure out type of file '" << file_name << "'" << eom;
     return true;
   }
 
   languagep->set_message_handler(get_message_handler());
+
+  if(file_name == "-")
+    return parse_stdin(*languagep);
+
+#ifdef _MSC_VER
+  std::ifstream infile(widen(file_name));
+#else
+  std::ifstream infile(file_name);
+#endif
+
+  if(!infile)
+  {
+    error() << "failed to open input file '" << file_name << "'" << eom;
+    return true;
+  }
 
   language_filet &lf=language_files.add_file(file_name);
   lf.language=std::move(languagep);
@@ -492,8 +487,8 @@ bool compilet::parse(
 
       if(!ofs.is_open())
       {
-        error() << "failed to open output file `"
-                << cmdline.get_value('o') << "'" << eom;
+        error() << "failed to open output file '" << cmdline.get_value('o')
+                << "'" << eom;
         return true;
       }
     }
@@ -516,13 +511,10 @@ bool compilet::parse(
 }
 
 /// parses a source file (low-level parsing)
+/// \param language: source language processor
 /// \return true on error, false otherwise
-bool compilet::parse_stdin()
+bool compilet::parse_stdin(languaget &language)
 {
-  ansi_c_languaget language;
-
-  language.set_message_handler(get_message_handler());
-
   statistics() << "Parsing: (stdin)" << eom;
 
   if(mode==PREPROCESS_ONLY)
@@ -537,8 +529,8 @@ bool compilet::parse_stdin()
 
       if(!ofs.is_open())
       {
-        error() << "failed to open output file `"
-                << cmdline.get_value('o') << "'" << eom;
+        error() << "failed to open output file '" << cmdline.get_value('o')
+                << "'" << eom;
         return true;
       }
     }
@@ -566,8 +558,13 @@ bool compilet::write_bin_object_file(
   const std::string &file_name,
   const goto_modelt &src_goto_model)
 {
-  statistics() << "Writing binary format object `"
-               << file_name << "'" << eom;
+  if(validate_goto_model)
+  {
+    status() << "Validating goto model" << eom;
+    src_goto_model.validate();
+  }
+
+  statistics() << "Writing binary format object '" << file_name << "'" << eom;
 
   // symbols
   statistics() << "Symbols in table: "
@@ -577,7 +574,7 @@ bool compilet::write_bin_object_file(
 
   if(!outfile.is_open())
   {
-    error() << "Error opening file `" << file_name << "'" << eom;
+    error() << "Error opening file '" << file_name << "'" << eom;
     return true;
   }
 
@@ -607,7 +604,7 @@ bool compilet::parse_source(const std::string &file_name)
     return true;
 
   // we just typecheck one file here
-  if(language_files.typecheck(goto_model.symbol_table))
+  if(language_files.typecheck(goto_model.symbol_table, keep_file_local))
   {
     error() << "CONVERSION ERROR" << eom;
     return true;
@@ -628,7 +625,10 @@ compilet::compilet(cmdlinet &_cmdline, message_handlert &mh, bool Werror)
   : messaget(mh),
     ns(goto_model.symbol_table),
     cmdline(_cmdline),
-    warning_is_fatal(Werror)
+    warning_is_fatal(Werror),
+    keep_file_local(cmdline.isset("export-function-local-symbols")),
+    file_local_mangle_suffix(
+      cmdline.isset("mangle-suffix") ? cmdline.get_value("mangle-suffix") : "")
 {
   mode=COMPILE_LINK_EXECUTABLE;
   echo_file_name=false;

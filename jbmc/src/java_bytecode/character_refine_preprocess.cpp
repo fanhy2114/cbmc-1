@@ -321,15 +321,6 @@ exprt character_refine_preprocesst::expr_of_high_surrogate(
   return std::move(high_surrogate);
 }
 
-/// Converts function call to an assignment of an expression corresponding to
-/// the java method Character.highSurrogate:(C)Z
-codet character_refine_preprocesst::convert_high_surrogate(
-  conversion_inputt &target)
-{
-  return convert_char_function(
-    &character_refine_preprocesst::expr_of_high_surrogate, target);
-}
-
 /// Determines if the specified character is an ASCII lowercase character.
 /// \param chr: An expression of type character
 /// \param type: A type for the output
@@ -1141,16 +1132,6 @@ exprt character_refine_preprocesst::expr_of_low_surrogate(
   return plus_exprt(uDC00, mod_exprt(chr, u0400));
 }
 
-/// Converts function call to an assignment of an expression corresponding to
-/// the java method Character.lowSurrogate:(I)C
-/// \param target: a position in a goto program
-codet character_refine_preprocesst::convert_low_surrogate(
-  conversion_inputt &target)
-{
-  return convert_char_function(
-    &character_refine_preprocesst::expr_of_low_surrogate, target);
-}
-
 /// Returns the value obtained by reversing the order of the bytes in the
 /// specified char value.
 /// \param chr: An expression of type character
@@ -1172,66 +1153,6 @@ codet character_refine_preprocesst::convert_reverse_bytes(
 {
   return convert_char_function(
     &character_refine_preprocesst::expr_of_reverse_bytes, target);
-}
-
-/// Converts the specified character (Unicode code point) to its UTF-16
-/// representation stored in a char array. If the specified code point is a BMP
-/// (Basic Multilingual Plane or Plane 0) value, the resulting char array has
-/// the same value as codePoint. If the specified code point is a supplementary
-/// code point, the resulting char array has the corresponding surrogate pair.
-/// \param chr: An expression of type character
-/// \param type: A type for the output
-/// \return A character array expression of the given type
-exprt character_refine_preprocesst::expr_of_to_chars(
-  const exprt &chr, const typet &type)
-{
-  array_typet array_type=to_array_type(type);
-  const typet &char_type=array_type.subtype();
-  array_exprt case1(array_type);
-  array_exprt case2(array_type);
-  exprt low_surrogate=expr_of_low_surrogate(chr, char_type);
-  case1.copy_to_operands(low_surrogate);
-  case2.move_to_operands(low_surrogate);
-  exprt high_surrogate=expr_of_high_surrogate(chr, char_type);
-  case2.move_to_operands(high_surrogate);
-  return if_exprt(expr_of_is_bmp_code_point(chr, type), case1, case2);
-}
-
-/// Converts function call to an assignment of an expression corresponding to
-/// the java method Character.toChars:(I)[C
-/// \param target: a position in a goto program
-codet character_refine_preprocesst::convert_to_chars(conversion_inputt &target)
-{
-  return convert_char_function(
-    &character_refine_preprocesst::expr_of_to_chars, target);
-}
-
-/// Converts function call to an assignment of an expression corresponding to
-/// the java method Character.toCodePoint:(CC)I
-/// \param target: a position in a goto program
-codet character_refine_preprocesst::convert_to_code_point(
-  conversion_inputt &target)
-{
-  const code_function_callt &function_call=target;
-  assert(function_call.arguments().size()==2);
-  const exprt &arg0=function_call.arguments()[0];
-  const exprt &arg1=function_call.arguments()[1];
-  const exprt &result=function_call.lhs();
-  const typet &type=result.type();
-
-  // These operations implement the decoding of a unicode symbol encoded
-  // in UTF16 for the supplementary planes (above U+10000).
-  // The low ten bits of the first character give the bits 10 to 19 of
-  // code point and the low ten bits of the second give the bits 0 to 9,
-  // then 0x10000 is added to the result. For more explenations see:
-  //   https://en.wikipedia.org/wiki/UTF-16
-
-  exprt u010000=from_integer(0x010000, type);
-  exprt mask10bit=from_integer(0x03FF, type);
-  shl_exprt m1(bitand_exprt(arg0, mask10bit), from_integer(10, type));
-  bitand_exprt m2(arg1, mask10bit);
-  bitor_exprt pair_value(u010000, bitor_exprt(m1, m2));
-  return code_assignt(result, pair_value);
 }
 
 /// Converts the character argument to lowercase.
@@ -1434,8 +1355,6 @@ void character_refine_preprocesst::initialize_conversion_table()
       &character_refine_preprocesst::convert_get_type_int;
   conversion_table["java::java.lang.Character.hashCode:()I"]=
       &character_refine_preprocesst::convert_hash_code;
-  conversion_table["java::java.lang.Character.highSurrogate:(I)C"]=
-      &character_refine_preprocesst::convert_high_surrogate;
   conversion_table["java::java.lang.Character.isAlphabetic:(I)Z"]=
       &character_refine_preprocesst::convert_is_alphabetic;
   conversion_table["java::java.lang.Character.isBmpCodePoint:(I)Z"]=
@@ -1524,8 +1443,6 @@ void character_refine_preprocesst::initialize_conversion_table()
       &character_refine_preprocesst::convert_is_whitespace_char;
   conversion_table["java::java.lang.Character.isWhitespace:(I)Z"]=
       &character_refine_preprocesst::convert_is_whitespace_int;
-  conversion_table["java::java.lang.Character.lowSurrogate:(I)C"]=
-      &character_refine_preprocesst::convert_is_low_surrogate;
 
   // Not supported "java::java.lang.Character.offsetByCodePoints:([CIIII)I"
   // Not supported "java::java.lang.Character.offsetByCodePoints:"
@@ -1533,13 +1450,9 @@ void character_refine_preprocesst::initialize_conversion_table()
 
   conversion_table["java::java.lang.Character.reverseBytes:(C)C"]=
       &character_refine_preprocesst::convert_reverse_bytes;
-  conversion_table["java::java.lang.Character.toChars:(I)[C"]=
-      &character_refine_preprocesst::convert_to_chars;
 
   // Not supported "java::java.lang.Character.toChars:(I[CI)I"
 
-  conversion_table["java::java.lang.Character.toCodePoint:(CC)I"]=
-      &character_refine_preprocesst::convert_to_code_point;
   conversion_table["java::java.lang.Character.toLowerCase:(C)C"]=
       &character_refine_preprocesst::convert_to_lower_case_char;
   conversion_table["java::java.lang.Character.toLowerCase:(I)I"]=

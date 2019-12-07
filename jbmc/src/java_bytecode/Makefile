@@ -1,12 +1,17 @@
-SRC = bytecode_info.cpp \
+SRC = assignments_from_json.cpp \
+      bytecode_info.cpp \
       character_refine_preprocess.cpp \
       ci_lazy_methods.cpp \
       ci_lazy_methods_needed.cpp \
+      code_with_references.cpp \
       convert_java_nondet.cpp \
+      create_array_with_type_intrinsic.cpp \
       expr2java.cpp \
+      generic_parameter_specialization_map.cpp \
       generic_parameter_specialization_map_keys.cpp \
       jar_file.cpp \
       jar_pool.cpp \
+      java_bmc_util.cpp \
       java_bytecode_convert_class.cpp \
       java_bytecode_convert_method.cpp \
       java_bytecode_concurrency_instrumentation.cpp \
@@ -25,16 +30,22 @@ SRC = bytecode_info.cpp \
       java_enum_static_init_unwind_handler.cpp \
       java_entry_point.cpp \
       java_local_variable_table.cpp \
+      java_multi_path_symex_checker.cpp \
       java_object_factory.cpp \
       java_object_factory_parameters.cpp \
       java_pointer_casts.cpp \
       java_qualifiers.cpp \
       java_root_class.cpp \
+      java_single_path_symex_checker.cpp \
       java_static_initializers.cpp \
       java_string_library_preprocess.cpp \
       java_string_literals.cpp \
+      java_trace_validation.cpp \
       java_types.cpp \
       java_utils.cpp \
+      lambda_synthesis.cpp \
+      lazy_goto_model.cpp \
+      lift_clinit_calls.cpp \
       load_method_by_regex.cpp \
       mz_zip_archive.cpp \
       remove_exceptions.cpp \

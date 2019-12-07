@@ -3,7 +3,7 @@ set(test_pl_path "${CMAKE_CURRENT_SOURCE_DIR}/test.pl")
 macro(add_test_pl_profile name cmdline flag profile)
     add_test(
         NAME "${name}-${profile}"
-        COMMAND ${test_pl_path} -p -c ${cmdline} ${flag} ${ARGN}
+        COMMAND ${test_pl_path} -e -p -c ${cmdline} ${flag} ${ARGN}
         WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
     )
     set_tests_properties("${name}-${profile}" PROPERTIES
@@ -29,9 +29,11 @@ add_subdirectory(goto-analyzer)
 add_subdirectory(ansi-c)
 add_subdirectory(goto-instrument)
 add_subdirectory(cpp)
+add_subdirectory(cbmc-concurrency)
 add_subdirectory(cbmc-cover)
 add_subdirectory(goto-instrument-typedef)
 add_subdirectory(smt2_solver)
+add_subdirectory(smt2_strings)
 add_subdirectory(strings)
 add_subdirectory(invariants)
 add_subdirectory(goto-diff)
@@ -45,5 +47,15 @@ endif()
 add_subdirectory(goto-cc-cbmc)
 add_subdirectory(cbmc-cpp)
 add_subdirectory(goto-cc-goto-analyzer)
+add_subdirectory(statement-list)
 add_subdirectory(systemc)
 add_subdirectory(contracts)
+add_subdirectory(goto-harness)
+add_subdirectory(goto-cc-file-local)
+add_subdirectory(linking-goto-binaries)
+add_subdirectory(symtab2gb)
+
+if(WITH_MEMORY_ANALYZER)
+  add_subdirectory(snapshot-harness)
+  add_subdirectory(memory-analyzer)
+endif()

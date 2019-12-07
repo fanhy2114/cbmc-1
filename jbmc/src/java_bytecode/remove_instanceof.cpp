@@ -10,13 +10,15 @@ Author: Chris Smowton, chris.smowton@diffblue.com
 /// Remove Instance-of Operators
 
 #include "remove_instanceof.h"
+#include "java_utils.h"
 
 #include <goto-programs/class_hierarchy.h>
 #include <goto-programs/class_identifier.h>
 #include <goto-programs/goto_convert.h>
 
-#include <util/fresh_symbol.h>
 #include <java_bytecode/java_types.h>
+
+#include <util/arith_tools.h>
 
 #include <sstream>
 
@@ -35,10 +37,13 @@ public:
   }
 
   // Lower instanceof for a single function
-  bool lower_instanceof(goto_programt &);
+  bool lower_instanceof(const irep_idt &function_identifier, goto_programt &);
 
   // Lower instanceof for a single instruction
-  bool lower_instanceof(goto_programt &, goto_programt::targett);
+  bool lower_instanceof(
+    const irep_idt &function_identifier,
+    goto_programt &,
+    goto_programt::targett);
 
 protected:
   symbol_table_baset &symbol_table;
@@ -47,17 +52,57 @@ protected:
   message_handlert &message_handler;
 
   bool lower_instanceof(
-    exprt &, goto_programt &, goto_programt::targett);
+    const irep_idt &function_identifier,
+    exprt &,
+    goto_programt &,
+    goto_programt::targett);
 };
+
+/// Produce an expression of the form
+/// `classid_field == "A" || classid_field == "B" || ...`
+/// where A, B, ... are the possible subtypes of \p target_type.
+/// \param classid_field: field to compare, usually a `@class_identifier` field
+///   denoting an object's runtime type
+/// \param target_type: the type all of whose subtypes (including itself) should
+///   be accepted
+/// \param class_hierarchy: class hierarchy
+/// \return disjunction of the possible matched subtypes
+static exprt subtype_expr(
+  const exprt &classid_field,
+  const irep_idt &target_type,
+  const class_hierarchyt &class_hierarchy)
+{
+  std::vector<irep_idt> children =
+    class_hierarchy.get_children_trans(target_type);
+  children.push_back(target_type);
+  // Sort alphabetically to make order of generated disjuncts
+  // independent of class loading order
+  std::sort(
+    children.begin(), children.end(), [](const irep_idt &a, const irep_idt &b) {
+      return a.compare(b) < 0;
+    });
+
+  exprt::operandst or_ops;
+  for(const auto &class_name : children)
+  {
+    constant_exprt class_expr(class_name, string_typet());
+    equal_exprt test(classid_field, class_expr);
+    or_ops.push_back(test);
+  }
+
+  return disjunction(or_ops);
+}
 
 /// Replaces an expression like e instanceof A with e.\@class_identifier == "A"
 /// or a big-or of similar expressions if we know of subtypes that also satisfy
 /// the given test.
+/// \param function_identifier: name of the goto function \p goto_program
 /// \param expr: Expression to lower (the code or the guard of an instruction)
 /// \param goto_program: program the expression belongs to
 /// \param this_inst: instruction the expression is found at
 /// \return true if any instanceof instructionw was replaced
 bool remove_instanceoft::lower_instanceof(
+  const irep_idt &function_identifier,
   exprt &expr,
   goto_programt &goto_program,
   goto_programt::targett this_inst)
@@ -66,7 +111,8 @@ bool remove_instanceoft::lower_instanceof(
   {
     bool changed = false;
     Forall_operands(it, expr)
-      changed |= lower_instanceof(*it, goto_program, this_inst);
+      changed |=
+        lower_instanceof(function_identifier, *it, goto_program, this_inst);
     return changed;
   }
 
@@ -74,99 +120,100 @@ bool remove_instanceoft::lower_instanceof(
     expr.operands().size()==2,
     "java_instanceof should have two operands");
 
-  const exprt &check_ptr=expr.op0();
+  const exprt &check_ptr = to_binary_expr(expr).op0();
   INVARIANT(
     check_ptr.type().id()==ID_pointer,
     "instanceof first operand should be a pointer");
 
-  const exprt &target_arg=expr.op1();
+  const exprt &target_arg = to_binary_expr(expr).op1();
   INVARIANT(
     target_arg.id()==ID_type,
     "instanceof second operand should be a type");
-  const typet &target_type=target_arg.type();
 
-  // Find all types we know about that satisfy the given requirement:
   INVARIANT(
-    target_type.id() == ID_struct_tag,
+    target_arg.type().id() == ID_struct_tag,
     "instanceof second operand should have a simple type");
-  const irep_idt &target_name =
-    to_struct_tag_type(target_type).get_identifier();
-  std::vector<irep_idt> children=
-    class_hierarchy.get_children_trans(target_name);
-  children.push_back(target_name);
-  // Sort alphabetically to make order of generated disjuncts
-  // independent of class loading order
-  std::sort(
-    children.begin(), children.end(), [](const irep_idt &a, const irep_idt &b) {
-      return a.compare(b) < 0;
-    });
 
-  // Make temporaries to store the class identifier (avoids repeated derefs) and
-  // the instanceof result:
+  const auto &target_type = to_struct_tag_type(target_arg.type());
+
+  const auto underlying_type_and_dimension =
+    java_array_dimension_and_element_type(target_type);
+
+  bool target_type_is_reference_array =
+    underlying_type_and_dimension.second >= 1 &&
+    can_cast_type<java_reference_typet>(underlying_type_and_dimension.first);
+
+  // If we're casting to a reference array type, check
+  //   @class_identifier == "java::array[reference]" &&
+  //   @array_dimension == target_array_dimension &&
+  //   @array_element_type (subtype of) target_array_element_type
+  // Otherwise just check
+  //   @class_identifier (subtype of) target_type
+
+  // Exception: when the target type is Object, nothing needs checking; when
+  // it is Object[], Object[][] etc, then we check that
+  // @array_dimension >= target_array_dimension (because
+  // String[][] (subtype of) Object[] for example) and don't check the element
+  // type.
+
+  // All tests are made directly against a pointer to the object whose type is
+  // queried. By operating directly on a pointer rather than using a temporary
+  // (x->@clsid == "A" rather than id = x->@clsid; id == "A") we enable symex's
+  // value-set filtering to discard no-longer-viable candidates for "x" (in the
+  // case where 'x' is a symbol, not a general expression like x->y->@clsid).
+  // This means there are more clean dereference operations (ones where there
+  // is no possibility of reading a null, invalid or incorrectly-typed object),
+  // and less pessimistic aliasing assumptions possibly causing goto-symex to
+  // explore in-fact-unreachable paths.
+
+  // In all cases require the input pointer is not null for any cast to succeed:
+
+  std::vector<exprt> test_conjuncts;
+  test_conjuncts.push_back(notequal_exprt(
+    check_ptr, null_pointer_exprt(to_pointer_type(check_ptr.type()))));
 
   auto jlo = to_struct_tag_type(java_lang_object_type().subtype());
-  exprt object_clsid = get_class_identifier_field(check_ptr, jlo, ns);
 
-  symbolt &clsid_tmp_sym = get_fresh_aux_symbol(
-    object_clsid.type(),
-    id2string(this_inst->function),
-    "class_identifier_tmp",
-    source_locationt(),
-    ID_java,
-    symbol_table);
+  exprt object_class_identifier_field =
+    get_class_identifier_field(check_ptr, jlo, ns);
 
-  symbolt &instanceof_result_sym = get_fresh_aux_symbol(
-    bool_typet(),
-    id2string(this_inst->function),
-    "instanceof_result_tmp",
-    source_locationt(),
-    ID_java,
-    symbol_table);
-
-  // Create
-  // if(expr == null)
-  //   instanceof_result = false;
-  // else
-  //   string clsid = expr->@class_identifier
-  //   instanceof_result = clsid == "A" || clsid == "B" || ...
-
-  // According to the Java specification, null instanceof T is false for all
-  // possible values of T.
-  // (http://docs.oracle.com/javase/specs/jls/se7/html/jls-15.html#jls-15.20.2)
-
-  code_blockt else_block;
-  else_block.add(code_declt(clsid_tmp_sym.symbol_expr()));
-  else_block.add(code_assignt(clsid_tmp_sym.symbol_expr(), object_clsid));
-
-  exprt::operandst or_ops;
-  for(const auto &clsname : children)
+  if(target_type_is_reference_array)
   {
-    constant_exprt clsexpr(clsname, string_typet());
-    equal_exprt test(clsid_tmp_sym.symbol_expr(), clsexpr);
-    or_ops.push_back(test);
+    const auto &underlying_type =
+      to_struct_tag_type(underlying_type_and_dimension.first.subtype());
+
+    test_conjuncts.push_back(equal_exprt(
+      object_class_identifier_field,
+      constant_exprt(JAVA_REFERENCE_ARRAY_CLASSID, string_typet())));
+
+    exprt object_array_dimension = get_array_dimension_field(check_ptr);
+    constant_exprt target_array_dimension = from_integer(
+      underlying_type_and_dimension.second, object_array_dimension.type());
+
+    if(underlying_type == jlo)
+    {
+      test_conjuncts.push_back(binary_relation_exprt(
+        object_array_dimension, ID_ge, target_array_dimension));
+    }
+    else
+    {
+      test_conjuncts.push_back(
+        equal_exprt(object_array_dimension, target_array_dimension));
+      test_conjuncts.push_back(subtype_expr(
+        get_array_element_type_field(check_ptr),
+        underlying_type.get_identifier(),
+        class_hierarchy));
+    }
   }
-  else_block.add(
-    code_assignt(instanceof_result_sym.symbol_expr(), disjunction(or_ops)));
+  else if(target_type != jlo)
+  {
+    test_conjuncts.push_back(subtype_expr(
+      get_class_identifier_field(check_ptr, jlo, ns),
+      target_type.get_identifier(),
+      class_hierarchy));
+  }
 
-  const code_ifthenelset is_null_branch(
-    equal_exprt(
-      check_ptr, null_pointer_exprt(to_pointer_type(check_ptr.type()))),
-    code_assignt(instanceof_result_sym.symbol_expr(), false_exprt()),
-    std::move(else_block));
-
-  // Replace the instanceof construct with instanceof_result:
-  expr = instanceof_result_sym.symbol_expr();
-
-  // Insert the new test block before it:
-  goto_programt new_check_program;
-  goto_convert(
-    is_null_branch,
-    symbol_table,
-    new_check_program,
-    message_handler,
-    ID_java);
-
-  goto_program.destructive_insert(this_inst, new_check_program);
+  expr = conjunction(test_conjuncts);
 
   return true;
 }
@@ -188,10 +235,12 @@ static bool contains_instanceof(const exprt &e)
 /// Replaces expressions like e instanceof A with e.\@class_identifier == "A"
 /// or a big-or of similar expressions if we know of subtypes that also satisfy
 /// the given test. Does this for the code or guard at a specific instruction.
+/// \param function_identifier: name of the goto function \p goto_program
 /// \param goto_program: program to process
 /// \param target: instruction to check for instanceof expressions
 /// \return true if an instanceof has been replaced
 bool remove_instanceoft::lower_instanceof(
+  const irep_idt &function_identifier,
   goto_programt &goto_program,
   goto_programt::targett target)
 {
@@ -202,21 +251,26 @@ bool remove_instanceoft::lower_instanceof(
     // GOTO programs before the target instruction without inserting into the
     // wrong basic block.
     goto_program.insert_before_swap(target);
-    target->make_skip();
+    target->turn_into_skip();
     // Actually alter the now-moved instruction:
     ++target;
   }
 
-  return lower_instanceof(target->code, goto_program, target) |
-    lower_instanceof(target->guard, goto_program, target);
+  return lower_instanceof(
+           function_identifier, target->code, goto_program, target) |
+         lower_instanceof(
+           function_identifier, target->guard, goto_program, target);
 }
 
 /// Replace every instanceof in the passed function body with an explicit
 /// class-identifier test.
 /// Extra auxiliary variables may be introduced into symbol_table.
+/// \param function_identifier: name of the goto function \p goto_program
 /// \param goto_program: The function body to work on.
 /// \return true if one or more instanceof expressions have been replaced
-bool remove_instanceoft::lower_instanceof(goto_programt &goto_program)
+bool remove_instanceoft::lower_instanceof(
+  const irep_idt &function_identifier,
+  goto_programt &goto_program)
 {
   bool changed=false;
   for(goto_programt::instructionst::iterator target=
@@ -224,7 +278,8 @@ bool remove_instanceoft::lower_instanceof(goto_programt &goto_program)
     target!=goto_program.instructions.end();
     ++target)
   {
-    changed=lower_instanceof(goto_program, target) || changed;
+    changed =
+      lower_instanceof(function_identifier, goto_program, target) || changed;
   }
   if(!changed)
     return false;
@@ -235,12 +290,14 @@ bool remove_instanceoft::lower_instanceof(goto_programt &goto_program)
 /// Replace an instanceof in the expression or guard of the passed instruction
 /// of the given function body with an explicit class-identifier test.
 /// \remarks Extra auxiliary variables may be introduced into symbol_table.
+/// \param function_identifier: name of the goto function \p goto_program
 /// \param target: The instruction to work on.
 /// \param goto_program: The function body containing the instruction.
 /// \param symbol_table: The symbol table to add symbols to.
 /// \param class_hierarchy: class hierarchy analysis of symbol_table
 /// \param message_handler: logging output
 void remove_instanceof(
+  const irep_idt &function_identifier,
   goto_programt::targett target,
   goto_programt &goto_program,
   symbol_table_baset &symbol_table,
@@ -248,24 +305,26 @@ void remove_instanceof(
   message_handlert &message_handler)
 {
   remove_instanceoft rem(symbol_table, class_hierarchy, message_handler);
-  rem.lower_instanceof(goto_program, target);
+  rem.lower_instanceof(function_identifier, goto_program, target);
 }
 
 /// Replace every instanceof in the passed function with an explicit
 /// class-identifier test.
 /// \remarks Extra auxiliary variables may be introduced into symbol_table.
+/// \param function_identifier: name of the goto function \p function
 /// \param function: The function to work on.
 /// \param symbol_table: The symbol table to add symbols to.
 /// \param class_hierarchy: class hierarchy analysis of symbol_table
 /// \param message_handler: logging output
 void remove_instanceof(
+  const irep_idt &function_identifier,
   goto_functionst::goto_functiont &function,
   symbol_table_baset &symbol_table,
   const class_hierarchyt &class_hierarchy,
   message_handlert &message_handler)
 {
   remove_instanceoft rem(symbol_table, class_hierarchy, message_handler);
-  rem.lower_instanceof(function.body);
+  rem.lower_instanceof(function_identifier, function.body);
 }
 
 /// Replace every instanceof in every function with an explicit
@@ -284,7 +343,7 @@ void remove_instanceof(
   remove_instanceoft rem(symbol_table, class_hierarchy, message_handler);
   bool changed=false;
   for(auto &f : goto_functions.function_map)
-    changed=rem.lower_instanceof(f.second.body) || changed;
+    changed = rem.lower_instanceof(f.first, f.second.body) || changed;
   if(changed)
     goto_functions.compute_location_numbers();
 }

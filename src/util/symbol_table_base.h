@@ -24,8 +24,17 @@ public:
   typedef std::unordered_map<irep_idt, symbolt> symbolst;
 
 public:
+  /// Read-only field, used to look up symbols given their names.
+  /// Typically a subclass will have its own corresponding writeable field, and
+  /// the read-only fields declared here function as "getters" for them.
   const symbolst &symbols;
+  /// Read-only field, used to look up symbol names given their base names.
+  /// See \ref symbols.
   const symbol_base_mapt &symbol_base_map;
+  /// Read-only field, used to look up symbol names given their modules.
+  /// See \ref symbols.
+  /// Note that symbols whose module is empty are not recorded in this map.
+  /// Currently only used in EBMC.
   const symbol_module_mapt &symbol_module_map;
 
 public:
@@ -92,10 +101,12 @@ public:
   /// Find a symbol in the symbol table for read-only access.
   /// \param name: The name of the symbol to look for
   /// \return A reference to the symbol
-  /// \throw `std::out_of_range` if no such symbol exists
   const symbolt &lookup_ref(const irep_idt &name) const
   {
-    return symbols.at(name);
+    const symbolt *const symbol = lookup(name);
+    INVARIANT(
+      symbol, "`" + id2string(name) + "' must exist in the symbol table.");
+    return *symbol;
   }
 
   /// Find a symbol in the symbol table for read-write access.
@@ -135,6 +146,10 @@ public:
   virtual void clear() = 0;
 
   void show(std::ostream &out) const;
+
+  /// Build and return a lexicographically sorted vector of symbol names from
+  /// all symbols stored in this symbol table.
+  std::vector<irep_idt> sorted_symbol_names() const;
 
   class iteratort
   {

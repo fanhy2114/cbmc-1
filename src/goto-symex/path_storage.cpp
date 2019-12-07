@@ -13,6 +13,14 @@ Author: Kareem Khazem <karkhaz@karkhaz.com>
 #include <util/exit_codes.h>
 #include <util/make_unique.h>
 
+nondet_symbol_exprt symex_nondet_generatort::
+operator()(typet type, source_locationt location)
+{
+  return nondet_symbol_exprt{"symex::nondet" + std::to_string(nondet_count++),
+                             std::move(type),
+                             std::move(location)};
+}
+
 // _____________________________________________________________________________
 // path_lifot
 
@@ -23,12 +31,9 @@ path_storaget::patht &path_lifot::private_peek()
   return paths.back();
 }
 
-void path_lifot::push(
-  const path_storaget::patht &next_instruction,
-  const path_storaget::patht &jump_target)
+void path_lifot::push(const path_storaget::patht &path)
 {
-  paths.push_back(next_instruction);
-  paths.push_back(jump_target);
+  paths.push_back(path);
 }
 
 void path_lifot::private_pop()
@@ -56,12 +61,9 @@ path_storaget::patht &path_fifot::private_peek()
   return paths.front();
 }
 
-void path_fifot::push(
-  const path_storaget::patht &next_instruction,
-  const path_storaget::patht &jump_target)
+void path_fifot::push(const path_storaget::patht &path)
 {
-  paths.push_back(next_instruction);
-  paths.push_back(jump_target);
+  paths.push_back(path);
 }
 
 void path_fifot::private_pop()

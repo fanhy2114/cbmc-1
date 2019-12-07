@@ -22,7 +22,9 @@ Author: Daniel Kroening, kroening@cs.cmu.edu
 #include <ansi-c/c_misc.h>
 #include <ansi-c/expr2c_class.h>
 
+#include "java_expr.h"
 #include "java_qualifiers.h"
+#include "java_string_literal_expr.h"
 #include "java_types.h"
 
 std::string expr2javat::convert(const typet &src)
@@ -149,7 +151,10 @@ std::string expr2javat::convert_struct(
 
       dest+=sep;
       dest+='.';
-      dest += id2string(c.get_pretty_name());
+      irep_idt field_name = c.get_pretty_name();
+      if(field_name.empty())
+        field_name = c.get_name();
+      dest += id2string(field_name);
       dest+='=';
       dest+=tmp;
     }
@@ -245,8 +250,7 @@ std::string expr2javat::convert_rec(
   qualifierst &new_qualifiers = *clone;
   new_qualifiers.read(src);
 
-  const std::string d=
-    declarator==""?declarator:(" "+declarator);
+  const std::string d = declarator.empty() ? declarator : (" " + declarator);
 
   const std::string q=
     new_qualifiers.as_string();
@@ -277,7 +281,7 @@ std::string expr2javat::convert_rec(
     // so we make one up, loosely inspired by the syntax
     // of lambda expressions.
 
-    std::string dest="";
+    std::string dest;
 
     dest+='(';
     const java_method_typet::parameterst &parameters = method_type.parameters();
@@ -310,29 +314,25 @@ std::string expr2javat::convert_rec(
     return expr2ct::convert_rec(src, qualifiers, declarator);
 }
 
-std::string expr2javat::convert_java_this(
-  const exprt &src,
-  unsigned precedence)
+std::string expr2javat::convert_java_this()
 {
-  return "this";
+  return id2string(ID_this);
 }
 
-std::string expr2javat::convert_java_instanceof(
-  const exprt &src,
-  unsigned precedence)
+std::string expr2javat::convert_java_instanceof(const exprt &src)
 {
-  if(src.operands().size()!=2)
-  {
-    unsigned precedence;
-    return convert_norep(src, precedence);
-  }
+  const auto &instanceof_expr = to_java_instanceof_expr(src);
 
-  return convert(src.op0())+" instanceof "+convert(src.op1().type());
+  return convert(instanceof_expr.tested_expr()) + " instanceof " +
+         convert(instanceof_expr.target_type());
 }
 
-std::string expr2javat::convert_java_new(
-  const exprt &src,
-  unsigned precedence)
+std::string expr2javat::convert_code_java_new(const exprt &src, unsigned indent)
+{
+  return indent_str(indent) + convert_java_new(src) + ";\n";
+}
+
+std::string expr2javat::convert_java_new(const exprt &src)
 {
   std::string dest;
 
@@ -368,7 +368,7 @@ std::string expr2javat::convert_code_java_delete(
     return convert_norep(src, precedence);
   }
 
-  std::string tmp=convert(src.op0());
+  std::string tmp = convert(to_unary_expr(src).op());
 
   dest+=tmp+";\n";
 
@@ -380,17 +380,29 @@ std::string expr2javat::convert_with_precedence(
   unsigned &precedence)
 {
   if(src.id()=="java-this")
-    return convert_java_this(src, precedence=15);
+  {
+    precedence = 15;
+    return convert_java_this();
+  }
   if(src.id()==ID_java_instanceof)
-    return convert_java_instanceof(src, precedence=15);
+  {
+    precedence = 15;
+    return convert_java_instanceof(src);
+  }
   else if(src.id()==ID_side_effect &&
           (src.get(ID_statement)==ID_java_new ||
            src.get(ID_statement)==ID_java_new_array ||
            src.get(ID_statement)==ID_java_new_array_data))
-    return convert_java_new(src, precedence=15);
+  {
+    precedence = 15;
+    return convert_java_new(src);
+  }
   else if(src.id()==ID_side_effect &&
           src.get(ID_statement)==ID_throw)
-    return convert_function(src, "throw", precedence=16);
+  {
+    precedence = 16;
+    return convert_function(src, "throw");
+  }
   else if(src.id()==ID_code &&
           to_code(src).get_statement()==ID_exception_landingpad)
   {
@@ -408,14 +420,16 @@ std::string expr2javat::convert_with_precedence(
     return "pod_constructor";
   else if(src.id()==ID_virtual_function)
   {
-    return "VIRTUAL_FUNCTION(" +
-      id2string(src.get(ID_C_class)) +
-      "." +
-      id2string(src.get(ID_component_name)) +
-      ")";
+    const class_method_descriptor_exprt &virtual_function =
+      to_class_method_descriptor_expr(src);
+    return "CLASS_METHOD_DESCRIPTOR(" + id2string(virtual_function.class_id()) +
+           "." + id2string(virtual_function.mangled_method_name()) + ")";
   }
-  else if(src.id()==ID_java_string_literal)
-    return '"'+MetaString(src.get_string(ID_value))+'"';
+  else if(
+    const auto &literal = expr_try_dynamic_cast<java_string_literal_exprt>(src))
+  {
+    return '"' + MetaString(id2string(literal->value())) + '"';
+  }
   else if(src.id()==ID_constant)
     return convert_constant(to_constant_expr(src), precedence=16);
   else
@@ -430,7 +444,7 @@ std::string expr2javat::convert_code(
 
   if(statement==ID_java_new ||
      statement==ID_java_new_array)
-    return convert_java_new(src, indent);
+    return convert_code_java_new(src, indent);
 
   if(statement==ID_function_call)
     return convert_code_function_call(to_code_function_call(src), indent);

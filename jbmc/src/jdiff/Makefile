@@ -14,6 +14,7 @@ OBJ += ../$(CPROVER_DIR)/src/ansi-c/ansi-c$(LIBEXT) \
       ../$(CPROVER_DIR)/src/goto-diff/unified_diff$(OBJEXT) \
       ../$(CPROVER_DIR)/src/goto-diff/change_impact$(OBJEXT) \
       ../$(CPROVER_DIR)/src/goto-diff/goto_diff_base$(OBJEXT) \
+      ../$(CPROVER_DIR)/src/goto-instrument/source_lines$(OBJEXT) \
       ../$(CPROVER_DIR)/src/goto-instrument/cover$(OBJEXT) \
       ../$(CPROVER_DIR)/src/goto-instrument/cover_basic_blocks$(OBJEXT) \
       ../$(CPROVER_DIR)/src/goto-instrument/cover_filter$(OBJEXT) \
@@ -27,6 +28,7 @@ OBJ += ../$(CPROVER_DIR)/src/ansi-c/ansi-c$(LIBEXT) \
       ../$(CPROVER_DIR)/src/analyses/analyses$(LIBEXT) \
       ../$(CPROVER_DIR)/src/langapi/langapi$(LIBEXT) \
       ../$(CPROVER_DIR)/src/xmllang/xmllang$(LIBEXT) \
+      ../$(CPROVER_DIR)/src/solvers/solvers$(LIBEXT) \
       ../$(CPROVER_DIR)/src/util/util$(LIBEXT) \
       ../miniz/miniz$(OBJEXT) \
       ../$(CPROVER_DIR)/src/json/json$(LIBEXT) \

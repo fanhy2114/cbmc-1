@@ -40,7 +40,7 @@ void cpp_typecheckt::typecheck_enum_body(symbolt &enum_symbol)
       typecheck_expr(value);
       implicit_typecast(value, c_enum_type.subtype());
       make_constant(value);
-      if(to_integer(value, i))
+      if(to_integer(to_constant_expr(value), i))
       {
         error().source_location=value.find_source_location();
         error() << "failed to produce integer for enum constant" << eom;
@@ -63,6 +63,8 @@ void cpp_typecheckt::typecheck_enum_body(symbolt &enum_symbol)
     symbol.type=enum_tag_type;
     symbol.is_type=false;
     symbol.is_macro=true;
+    symbol.is_file_local = true;
+    symbol.is_thread_local = true;
 
     symbolt *new_symbol;
     if(symbol_table.move(symbol, new_symbol))
@@ -133,10 +135,9 @@ void cpp_typecheckt::typecheck_enum_type(typet &type)
     if(has_body)
     {
       error().source_location=type.source_location();
-      error() << "error: enum symbol `" << base_name
+      error() << "error: enum symbol '" << base_name
               << "' declared previously\n"
-              << "location of previous definition: "
-              << symbol.location << eom;
+              << "location of previous definition: " << symbol.location << eom;
       throw 0;
     }
   }
@@ -207,8 +208,8 @@ void cpp_typecheckt::typecheck_enum_type(typet &type)
   else
   {
     error().source_location=type.source_location();
-    error() << "use of enum `" << base_name
-            << "' without previous declaration" << eom;
+    error() << "use of enum '" << base_name << "' without previous declaration"
+            << eom;
     throw 0;
   }
 

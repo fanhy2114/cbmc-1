@@ -21,6 +21,7 @@ Date: June 2006
 #include <goto-programs/goto_model.h>
 
 class language_filest;
+class languaget;
 
 class compilet : public messaget
 {
@@ -33,6 +34,7 @@ public:
   bool echo_file_name;
   std::string working_directory;
   std::string override_language;
+  bool validate_goto_model = false;
 
   enum { PREPROCESS_ONLY, // gcc -E
          COMPILE_ONLY, // gcc -c
@@ -64,7 +66,7 @@ public:
   bool add_files_from_archive(const std::string &file_name, bool thin_archive);
 
   bool parse(const std::string &filename, language_filest &);
-  bool parse_stdin();
+  bool parse_stdin(languaget &);
   bool doit();
   bool compile();
   bool link();
@@ -93,6 +95,12 @@ public:
 protected:
   cmdlinet &cmdline;
   bool warning_is_fatal;
+
+  /// \brief Whether to keep implementations of file-local symbols
+  const bool keep_file_local;
+
+  /// \brief String to include in all mangled names
+  const std::string file_local_mangle_suffix;
 
   std::size_t function_body_count(const goto_functionst &) const;
 

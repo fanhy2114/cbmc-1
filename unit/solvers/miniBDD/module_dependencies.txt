@@ -1,4 +1,0 @@
-solvers/miniBDD
-solvers/prop
-testing-utils
-util

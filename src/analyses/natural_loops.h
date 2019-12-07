@@ -27,6 +27,7 @@ Author: Georg Weissenbacher, georg@weissenbacher.name
 #include <goto-programs/goto_model.h>
 
 #include "cfg_dominators.h"
+#include "loop_analysis.h"
 
 /// Main driver for working out if a class (normally goto_programt) has any natural loops.
 /// \ref compute takes an entire goto_programt, iterates over the instructions and for
@@ -42,23 +43,18 @@ Author: Georg Weissenbacher, georg@weissenbacher.name
 ///   * [function] is_backwards_goto() returning a bool.
 ///   * [function] get_target() which returns an object that needs:
 ///     * [field] location_number which is an unsigned int.
-template<class P, class T>
-class natural_loops_templatet
+template <class P, class T>
+class natural_loops_templatet : public loop_analysist<T>
 {
+  typedef loop_analysist<T> parentt;
+
 public:
-  typedef std::set<T> natural_loopt;
-
-  // map loop headers to loops
-  typedef std::map<T, natural_loopt> loop_mapt;
-
-  loop_mapt loop_map;
+  typedef typename parentt::loopt natural_loopt;
 
   void operator()(P &program)
   {
     compute(program);
   }
-
-  void output(std::ostream &) const;
 
   const cfg_dominators_templatet<P, T, false> &get_dominator_info() const
   {
@@ -93,9 +89,10 @@ class natural_loopst:
 typedef natural_loops_templatet<goto_programt, goto_programt::targett>
     natural_loops_mutablet;
 
-void show_natural_loops(
-  const goto_modelt &,
-  std::ostream &out);
+inline void show_natural_loops(const goto_modelt &goto_model, std::ostream &out)
+{
+  show_loops<natural_loopst>(goto_model, out);
+}
 
 #ifdef DEBUG
 #include <iostream>
@@ -122,16 +119,13 @@ void natural_loops_templatet<P, T>::compute(P &program)
 
       if(target->location_number<=m_it->location_number)
       {
-        const nodet &node=
-          cfg_dominators.cfg[cfg_dominators.cfg.entry_map[m_it]];
-
         #ifdef DEBUG
         std::cout << "Computing loop for "
                   << m_it->location_number << " -> "
                   << target->location_number << "\n";
         #endif
 
-        if(node.dominators.find(target)!=node.dominators.end())
+        if(cfg_dominators.dominates(target, m_it))
           compute_natural_loop(m_it, target);
       }
     }
@@ -146,10 +140,17 @@ void natural_loops_templatet<P, T>::compute_natural_loop(T m, T n)
 
   std::stack<T> stack;
 
-  natural_loopt &loop=loop_map[n];
+  auto insert_result = parentt::loop_map.emplace(n, natural_loopt{});
+  // Note the emplace *may* access a loop that already exists: this happens when
+  // a given header has more than one incoming edge, such as
+  // head: if(x) goto head; else goto head;
+  // In this case this compute routine is run twice, one for each backedge, with
+  // each adding whatever instructions can reach this 'm' (the program point
+  // that branches to the loop header, 'n').
+  natural_loopt &loop = insert_result.first->second;
 
-  loop.insert(n);
-  loop.insert(m);
+  loop.insert_instruction(n);
+  loop.insert_instruction(m);
 
   if(n!=m)
     stack.push(m);
@@ -159,37 +160,14 @@ void natural_loops_templatet<P, T>::compute_natural_loop(T m, T n)
     T p=stack.top();
     stack.pop();
 
-    const nodet &node=
-      cfg_dominators.cfg[cfg_dominators.cfg.entry_map[p]];
+    const nodet &node = cfg_dominators.get_node(p);
 
     for(const auto &edge : node.in)
     {
       T q=cfg_dominators.cfg[edge.first].PC;
-      std::pair<typename natural_loopt::const_iterator, bool> result=
-          loop.insert(q);
-      if(result.second)
+      if(loop.insert_instruction(q))
         stack.push(q);
     }
-  }
-}
-
-/// Print all natural loops that were found
-template<class P, class T>
-void natural_loops_templatet<P, T>::output(std::ostream &out) const
-{
-  for(const auto &loop : loop_map)
-  {
-    unsigned n=loop.first->location_number;
-
-    out << n << " is head of { ";
-    for(typename natural_loopt::const_iterator l_it=loop.second.begin();
-        l_it!=loop.second.end(); ++l_it)
-    {
-      if(l_it!=loop.second.begin())
-        out << ", ";
-      out << (*l_it)->location_number;
-    }
-    out << " }\n";
   }
 }
 

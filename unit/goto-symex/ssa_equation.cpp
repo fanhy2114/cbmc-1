@@ -6,9 +6,12 @@ Author: Diffblue Ltd.
 
 \*******************************************************************/
 
-#include <goto-symex/symex_target_equation.h>
-#include <testing-utils/catch.hpp>
+#include <testing-utils/message.h>
+#include <testing-utils/use_catch.h>
+
 #include <util/arith_tools.h>
+
+#include <goto-symex/symex_target_equation.h>
 
 SCENARIO("Validation of well-formed SSA steps", "[core][goto-symex][validate]")
 {
@@ -23,10 +26,13 @@ SCENARIO("Validation of well-formed SSA steps", "[core][goto-symex][validate]")
     fun_symbol.name = fun_name;
     symbol_exprt fun_foo(fun_name, code_type);
 
-    symex_target_equationt equation;
-    equation.SSA_steps.push_back(symex_target_equationt::SSA_stept());
+    goto_programt goto_program;
+    goto_program.add_instruction(END_FUNCTION);
+    symex_target_equationt equation(null_message_handler);
+    symex_targett::sourcet at_end_function(fun_name, goto_program);
+    equation.SSA_steps.emplace_back(
+      at_end_function, goto_trace_stept::typet::FUNCTION_RETURN);
     auto &step = equation.SSA_steps.back();
-    step.type = goto_trace_stept::typet::FUNCTION_RETURN;
     step.called_function = fun_name;
 
     WHEN("Called function is in symbol table")

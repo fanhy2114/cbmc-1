@@ -27,7 +27,7 @@ void cpp_typecheckt::typecheck_type(typet &type)
 
   try
   {
-    cpp_convert_plain_type(type);
+    cpp_convert_plain_type(type, get_message_handler());
   }
 
   catch(const char *err)
@@ -103,15 +103,15 @@ void cpp_typecheckt::typecheck_type(typet &type)
       // there may be parameters if this is a pointer to member function
       if(type.subtype().id()==ID_code)
       {
-        irept::subt &parameters=type.subtype().add(ID_parameters).get_sub();
+        code_typet::parameterst &parameters =
+          to_code_type(type.subtype()).parameters();
 
-        if(parameters.empty() ||
-           parameters.front().get(ID_C_base_name)!=ID_this)
+        if(parameters.empty() || !parameters.front().get_this())
         {
           // Add 'this' to the parameters
-          exprt a0(ID_parameter);
-          a0.set(ID_C_base_name, ID_this);
-          a0.type()=pointer_type(class_object);
+          code_typet::parametert a0(pointer_type(class_object));
+          a0.set_base_name(ID_this);
+          a0.set_this();
           parameters.insert(parameters.begin(), a0);
         }
       }
@@ -142,7 +142,11 @@ void cpp_typecheckt::typecheck_type(typet &type)
   }
   else if(type.id()==ID_vector)
   {
-    typecheck_vector_type(to_vector_type(type));
+    // already done
+  }
+  else if(type.id() == ID_frontend_vector)
+  {
+    typecheck_vector_type(type);
   }
   else if(type.id()==ID_code)
   {

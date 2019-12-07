@@ -20,13 +20,12 @@ Date:   March 2017
 #ifndef CPROVER_JAVA_BYTECODE_CHARACTER_REFINE_PREPROCESS_H
 #define CPROVER_JAVA_BYTECODE_CHARACTER_REFINE_PREPROCESS_H
 
-#include <util/ui_message.h>
 #include <util/std_code.h>
 #include <util/mp_arith.h>
 
 #include <unordered_map>
 
-class character_refine_preprocesst:public messaget
+class character_refine_preprocesst
 {
 public:
   void initialize_conversion_table();
@@ -134,7 +133,6 @@ private:
   static codet convert_reverse_bytes(conversion_inputt &target);
   static exprt expr_of_to_chars(const exprt &chr, const typet &type);
   static codet convert_to_chars(conversion_inputt &target);
-  static codet convert_to_code_point(conversion_inputt &target);
   static exprt expr_of_to_lower_case(const exprt &chr, const typet &type);
   static codet convert_to_lower_case_char(conversion_inputt &target);
   static codet convert_to_lower_case_int(conversion_inputt &target);

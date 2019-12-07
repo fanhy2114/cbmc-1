@@ -21,10 +21,13 @@ Author: Daniel Kroening, kroening@kroening.com
 #include "java_bytecode_language.h"
 #include "java_utils.h"
 
+#include <goto-programs/class_identifier.h>
+
 #include <util/arith_tools.h>
 #include <util/c_types.h>
 #include <util/expr_initializer.h>
 #include <util/namespace.h>
+#include <util/prefix.h>
 #include <util/std_expr.h>
 #include <util/suffix.h>
 
@@ -69,7 +72,7 @@ public:
     const java_bytecode_parse_treet &parse_tree = parse_trees.front();
 
     // Add array types to the symbol table
-    add_array_types(symbol_table);
+    add_java_array_types(symbol_table);
 
     const bool loading_success =
       parse_tree.loading_successful &&
@@ -115,9 +118,6 @@ private:
   void convert(const classt &c, const overlay_classest &overlay_classes);
   void convert(symbolt &class_symbol, const fieldt &f);
 
-  // see definition below for more info
-  static void add_array_types(symbol_tablet &symbol_table);
-
   /// Check if a method is an overlay method by searching for
   /// `ID_overlay_method` in its list of annotations.
   ///
@@ -138,12 +138,13 @@ private:
     return method.has_annotation(ID_overlay_method);
   }
 
-  /// Check if a method is an ignored method by searching for
-  /// `ID_ignored_method` in its list of annotations.
+  /// Check if a method is an ignored method, by one of two mechanisms:
   ///
-  /// An ignored method is a method with the annotation
-  /// \@IgnoredMethodImplementation. They will be ignored by JBMC. They are
-  /// intended for use in
+  /// 1. If the class under consideration is org.cprover.CProver, and the method
+  /// is listed as ignored.
+  ///
+  /// 2. If it has the annotation\@IgnoredMethodImplementation.
+  /// This kind of ignord method is intended for use in
   /// [overlay classes](\ref java_class_loader.cpp::is_overlay_class), in
   /// particular for methods which must exist in the overlay class so that
   /// it will compile, e.g. default constructors, but which we do not want
@@ -154,11 +155,17 @@ private:
   /// [overlay method](\ref java_bytecode_convert_classt::is_overlay_method)
   /// or an ignored method.
   ///
+  /// \param class_name: class the method is declared on
   /// \param method: a `methodt` object from a java bytecode parse tree
   /// \return true if the method is an ignored method, else false
-  static bool is_ignored_method(const methodt &method)
+  static bool is_ignored_method(
+    const irep_idt &class_name, const methodt &method)
   {
-    return method.has_annotation(ID_ignored_method);
+    static irep_idt org_cprover_CProver_name = "org.cprover.CProver";
+    return
+      (class_name == org_cprover_CProver_name &&
+       cprover_methods_to_ignore.count(id2string(method.name)) != 0) ||
+      method.has_annotation(ID_ignored_method);
   }
 
   bool check_field_exists(
@@ -304,10 +311,10 @@ void java_bytecode_convert_classt::convert(
 
   class_type.set_tag(c.name);
   class_type.set_inner_name(c.inner_name);
-  class_type.set(ID_abstract, c.is_abstract);
-  class_type.set(ID_is_annotation, c.is_annotation);
-  class_type.set(ID_interface, c.is_interface);
-  class_type.set(ID_synthetic, c.is_synthetic);
+  class_type.set_abstract(c.is_abstract);
+  class_type.set_is_annotation(c.is_annotation);
+  class_type.set_interface(c.is_interface);
+  class_type.set_synthetic(c.is_synthetic);
   class_type.set_final(c.is_final);
   class_type.set_is_inner_class(c.is_inner_class);
   class_type.set_is_static_class(c.is_static_class);
@@ -325,7 +332,7 @@ void java_bytecode_convert_classt::convert(
     class_type.set(
       ID_java_enum_static_unwind,
       std::to_string(c.enum_elements+1));
-    class_type.set(ID_enumeration, true);
+    class_type.set_is_enumeration(true);
   }
 
   if(c.is_public)
@@ -368,7 +375,7 @@ void java_bytecode_convert_classt::convert(
     {
       class_type.add_base(base);
     }
-    class_typet::componentt base_class_field;
+    java_class_typet::componentt base_class_field;
     base_class_field.type() = class_type.bases().at(0).type();
     base_class_field.set_name("@" + id2string(c.super_class));
     base_class_field.set_base_name("@" + id2string(c.super_class));
@@ -504,7 +511,7 @@ void java_bytecode_convert_classt::convert(
       const irep_idt method_identifier =
         qualified_classname + "." + id2string(method.name)
           + ":" + method.descriptor;
-      if(is_ignored_method(method))
+      if(is_ignored_method(c.name, method))
       {
         debug()
           << "Ignoring method:  '" << method_identifier << "'"
@@ -552,7 +559,7 @@ void java_bytecode_convert_classt::convert(
     const irep_idt method_identifier=
       qualified_classname + "." + id2string(method.name)
         + ":" + method.descriptor;
-    if(is_ignored_method(method))
+    if(is_ignored_method(c.name, method))
     {
       debug()
         << "Ignoring method:  '" << method_identifier << "'"
@@ -637,10 +644,8 @@ void java_bytecode_convert_classt::convert(
   typet field_type;
   if(f.signature.has_value())
   {
-    field_type=java_type_from_string_with_exception(
-      f.descriptor,
-      f.signature,
-      id2string(class_symbol.name));
+    field_type = *java_type_from_string_with_exception(
+      f.descriptor, f.signature, id2string(class_symbol.name));
 
     /// this is for a free type variable, e.g., a field of the form `T f;`
     if(is_java_generic_parameter(field_type))
@@ -670,12 +675,39 @@ void java_bytecode_convert_classt::convert(
     }
   }
   else
-    field_type=java_type_from_string(f.descriptor);
+    field_type = *java_type_from_string(f.descriptor);
+
+  // determine access
+  irep_idt access;
+
+  if(f.is_private)
+    access = ID_private;
+  else if(f.is_protected)
+    access = ID_protected;
+  else if(f.is_public)
+    access = ID_public;
+  else
+    access = ID_default;
+
+  auto &class_type = to_java_class_type(class_symbol.type);
 
   // is this a static field?
   if(f.is_static)
   {
-    // Create the symbol; we won't add to the struct type.
+    const irep_idt field_identifier =
+      id2string(class_symbol.name) + "." + id2string(f.name);
+
+    class_type.static_members().emplace_back();
+    auto &component = class_type.static_members().back();
+
+    component.set_name(field_identifier);
+    component.set_base_name(f.name);
+    component.set_pretty_name(f.name);
+    component.set_access(access);
+    component.set_is_final(f.is_final);
+    component.type() = field_type;
+
+    // Create the symbol
     symbolt new_symbol;
 
     new_symbol.is_static_lifetime=true;
@@ -684,10 +716,9 @@ void java_bytecode_convert_classt::convert(
     new_symbol.name=id2string(class_symbol.name)+"."+id2string(f.name);
     new_symbol.base_name=f.name;
     new_symbol.type=field_type;
-    // Annotating the type with ID_C_class to provide a static field -> class
-    // link matches the method used by java_bytecode_convert_method::convert
-    // for methods.
-    new_symbol.type.set(ID_C_class, class_symbol.name);
+    // Provide a static field -> class link, like
+    // java_bytecode_convert_method::convert does for method -> class.
+    set_declaring_class(new_symbol, class_symbol.name);
     new_symbol.type.set(ID_C_field, f.name);
     new_symbol.type.set(ID_C_constant, f.is_final);
     new_symbol.pretty_name=id2string(class_symbol.pretty_name)+
@@ -736,26 +767,15 @@ void java_bytecode_convert_classt::convert(
   }
   else
   {
-    class_typet &class_type=to_class_type(class_symbol.type);
-
     class_type.components().emplace_back();
-    class_typet::componentt &component=class_type.components().back();
+    auto &component = class_type.components().back();
 
     component.set_name(f.name);
     component.set_base_name(f.name);
     component.set_pretty_name(f.name);
-    component.type()=field_type;
-
-    if(f.is_private)
-      component.set_access(ID_private);
-    else if(f.is_protected)
-      component.set_access(ID_protected);
-    else if(f.is_public)
-      component.set_access(ID_public);
-    else
-      component.set_access(ID_default);
-
+    component.set_access(access);
     component.set_is_final(f.is_final);
+    component.type() = field_type;
 
     // Load annotations
     if(!f.annotations.empty())
@@ -767,9 +787,7 @@ void java_bytecode_convert_classt::convert(
   }
 }
 
-/// Register in the \p symbol_table new symbols for the objects
-/// java::array[X] where X is byte, float, int, char...
-void java_bytecode_convert_classt::add_array_types(symbol_tablet &symbol_table)
+void add_java_array_types(symbol_tablet &symbol_table)
 {
   const std::string letters="ijsbcfdza";
 
@@ -794,22 +812,42 @@ void java_bytecode_convert_classt::add_array_types(symbol_tablet &symbol_table)
     class_type.set_name(struct_tag_type_identifier);
 
     class_type.components().reserve(3);
-    class_typet::componentt base_class_component(
+    java_class_typet::componentt base_class_component(
       "@java.lang.Object", struct_tag_typet("java::java.lang.Object"));
     base_class_component.set_pretty_name("@java.lang.Object");
     base_class_component.set_base_name("@java.lang.Object");
     class_type.components().push_back(base_class_component);
 
-    class_typet::componentt length_component("length", java_int_type());
+    java_class_typet::componentt length_component("length", java_int_type());
     length_component.set_pretty_name("length");
     length_component.set_base_name("length");
     class_type.components().push_back(length_component);
 
-    class_typet::componentt data_component(
+    java_class_typet::componentt data_component(
       "data", java_reference_type(java_type_from_char(l)));
     data_component.set_pretty_name("data");
     data_component.set_base_name("data");
     class_type.components().push_back(data_component);
+
+    if(l == 'a')
+    {
+      // This is a reference array (java::array[reference]). Add extra fields to
+      // carry the innermost element type and array dimension.
+      java_class_typet::componentt array_element_classid_component(
+        JAVA_ARRAY_ELEMENT_CLASSID_FIELD_NAME, string_typet());
+      array_element_classid_component.set_pretty_name(
+        JAVA_ARRAY_ELEMENT_CLASSID_FIELD_NAME);
+      array_element_classid_component.set_base_name(
+        JAVA_ARRAY_ELEMENT_CLASSID_FIELD_NAME);
+      class_type.components().push_back(array_element_classid_component);
+
+      java_class_typet::componentt array_dimension_component(
+        JAVA_ARRAY_DIMENSION_FIELD_NAME, java_int_type());
+      array_dimension_component.set_pretty_name(
+        JAVA_ARRAY_DIMENSION_FIELD_NAME);
+      array_dimension_component.set_base_name(JAVA_ARRAY_DIMENSION_FIELD_NAME);
+      class_type.components().push_back(array_dimension_component);
+    }
 
     class_type.add_base(struct_tag_typet("java::java.lang.Object"));
 
@@ -831,11 +869,11 @@ void java_bytecode_convert_classt::add_array_types(symbol_tablet &symbol_table)
 
     const irep_idt clone_name =
       id2string(struct_tag_type_identifier) + ".clone:()Ljava/lang/Object;";
-    java_method_typet::parametert this_param;
+    java_method_typet::parametert this_param(
+      java_reference_type(struct_tag_type));
     this_param.set_identifier(id2string(clone_name)+"::this");
-    this_param.set_base_name("this");
+    this_param.set_base_name(ID_this);
     this_param.set_this();
-    this_param.type() = java_reference_type(struct_tag_type);
     const java_method_typet clone_type({this_param}, java_lang_object_type());
 
     parameter_symbolt this_symbol;
@@ -855,7 +893,7 @@ void java_bytecode_convert_classt::add_array_types(symbol_tablet &symbol_table)
     local_symbol.type = java_reference_type(struct_tag_type);
     local_symbol.mode=ID_java;
     symbol_table.add(local_symbol);
-    const auto &local_symexpr=local_symbol.symbol_expr();
+    const auto local_symexpr = local_symbol.symbol_expr();
 
     code_declt declare_cloned(local_symexpr);
 
@@ -863,12 +901,35 @@ void java_bytecode_convert_classt::add_array_types(symbol_tablet &symbol_table)
     location.set_function(local_name);
     side_effect_exprt java_new_array(
       ID_java_new_array, java_reference_type(struct_tag_type), location);
-    dereference_exprt old_array(this_symbol.symbol_expr(), struct_tag_type);
-    dereference_exprt new_array(local_symexpr, struct_tag_type);
+    dereference_exprt old_array{this_symbol.symbol_expr()};
+    dereference_exprt new_array{local_symexpr};
     member_exprt old_length(
       old_array, length_component.get_name(), length_component.type());
     java_new_array.copy_to_operands(old_length);
     code_assignt create_blank(local_symexpr, java_new_array);
+
+    codet copy_type_information = code_skipt();
+    if(l == 'a')
+    {
+      // Reference arrays carry additional type information in their classids
+      // which should be copied:
+      const auto &array_dimension_component =
+        class_type.get_component(JAVA_ARRAY_DIMENSION_FIELD_NAME);
+      const auto &array_element_classid_component =
+        class_type.get_component(JAVA_ARRAY_ELEMENT_CLASSID_FIELD_NAME);
+
+      member_exprt old_array_dimension(old_array, array_dimension_component);
+      member_exprt old_array_element_classid(
+        old_array, array_element_classid_component);
+
+      member_exprt new_array_dimension(new_array, array_dimension_component);
+      member_exprt new_array_element_classid(
+        new_array, array_element_classid_component);
+
+      copy_type_information = code_blockt{
+        {code_assignt(new_array_dimension, old_array_dimension),
+         code_assignt(new_array_element_classid, old_array_element_classid)}};
+    }
 
     member_exprt old_data(
       old_array, data_component.get_name(), data_component.type());
@@ -879,9 +940,8 @@ void java_bytecode_convert_classt::add_array_types(symbol_tablet &symbol_table)
       // TODO use this instead of a loop.
     codet array_copy;
     array_copy.set_statement(ID_array_copy);
-    array_copy.move_to_operands(new_data);
-    array_copy.move_to_operands(old_data);
-    clone_body.move_to_operands(array_copy);
+    array_copy.add_to_operands(std::move(new_data), std::move(old_data));
+    clone_body.add_to_operands(std::move(array_copy));
     */
 
     // Begin for-loop to replace:
@@ -899,29 +959,29 @@ void java_bytecode_convert_classt::add_array_types(symbol_tablet &symbol_table)
 
     code_declt declare_index(index_symexpr);
 
-    side_effect_exprt inc(ID_assign, typet(), location);
-    inc.operands().resize(2);
-    inc.op0()=index_symexpr;
-    inc.op1()=plus_exprt(index_symexpr, from_integer(1, index_symexpr.type()));
-
     dereference_exprt old_cell(
       plus_exprt(old_data, index_symexpr), old_data.type().subtype());
     dereference_exprt new_cell(
       plus_exprt(new_data, index_symexpr), new_data.type().subtype());
 
-    const code_fort copy_loop(
-      code_assignt(index_symexpr, from_integer(0, index_symexpr.type())),
-      binary_relation_exprt(index_symexpr, ID_lt, old_length),
-      std::move(inc),
-      code_assignt(std::move(new_cell), std::move(old_cell)));
+    const code_fort copy_loop = code_fort::from_index_bounds(
+      from_integer(0, index_symexpr.type()),
+      old_length,
+      index_symexpr,
+      code_assignt(std::move(new_cell), std::move(old_cell)),
+      location);
 
     member_exprt new_base_class(
       new_array, base_class_component.get_name(), base_class_component.type());
     address_of_exprt retval(new_base_class);
     code_returnt return_inst(retval);
 
-    const code_blockt clone_body(
-      {declare_cloned, create_blank, declare_index, copy_loop, return_inst});
+    const code_blockt clone_body({declare_cloned,
+                                  create_blank,
+                                  copy_type_information,
+                                  declare_index,
+                                  copy_loop,
+                                  return_inst});
 
     symbolt clone_symbol;
     clone_symbol.name=clone_name;
@@ -975,6 +1035,16 @@ bool java_bytecode_convert_class(
   return true;
 }
 
+static std::string get_final_name_component(const std::string &name)
+{
+  return name.substr(name.rfind("::") + 2);
+}
+
+static std::string get_without_final_name_component(const std::string &name)
+{
+  return name.substr(0, name.rfind("::"));
+}
+
 /// For a given generic type parameter, check if there is a parameter in the
 /// given vector of replacement parameters with a matching name. If yes,
 /// replace the identifier of the parameter at hand by the identifier of
@@ -994,39 +1064,31 @@ static void find_and_replace_parameter(
   // get the name of the parameter, e.g., `T` from `java::Class::T`
   const std::string &parameter_full_name =
     id2string(parameter.type_variable_ref().get_identifier());
-  const std::string &parameter_name =
-    parameter_full_name.substr(parameter_full_name.rfind("::") + 2);
+  const std::string parameter_name =
+    get_final_name_component(parameter_full_name);
 
   // check if there is a replacement parameter with the same name
-  const auto replacement_parameter_p = std::find_if(
+  const auto replacement_parameter_it = std::find_if(
     replacement_parameters.begin(),
     replacement_parameters.end(),
-    [&parameter_name](const java_generic_parametert &replacement_param)
-    {
-      const std::string &replacement_parameter_full_name =
-        id2string(replacement_param.type_variable().get_identifier());
-      return parameter_name.compare(
-               replacement_parameter_full_name.substr(
-                 replacement_parameter_full_name.rfind("::") + 2)) == 0;
+    [&parameter_name](const java_generic_parametert &replacement_param) {
+      return parameter_name ==
+             get_final_name_component(
+               id2string(replacement_param.type_variable().get_identifier()));
     });
+  if(replacement_parameter_it == replacement_parameters.end())
+    return;
 
-  // if a replacement parameter was found, update the identifier
-  if(replacement_parameter_p != replacement_parameters.end())
-  {
-    const std::string &replacement_parameter_full_name =
-      id2string(replacement_parameter_p->type_variable().get_identifier());
+  // A replacement parameter was found, update the identifier
+  const std::string &replacement_parameter_full_name =
+    id2string(replacement_parameter_it->type_variable().get_identifier());
 
-    // the replacement parameter is a viable one, i.e., it comes from an outer
-    // class
-    PRECONDITION(
-      parameter_full_name.substr(0, parameter_full_name.rfind("::"))
-        .compare(
-          replacement_parameter_full_name.substr(
-            0, replacement_parameter_full_name.rfind("::"))) > 0);
+  // Check the replacement parameter comes from an outer class
+  PRECONDITION(has_prefix(
+    replacement_parameter_full_name,
+    get_without_final_name_component(parameter_full_name)));
 
-    parameter.type_variable_ref().set_identifier(
-      replacement_parameter_full_name);
-  }
+  parameter.type_variable_ref().set_identifier(replacement_parameter_full_name);
 }
 
 /// Recursively find all generic type parameters of a given type and replace
@@ -1122,12 +1184,13 @@ void mark_java_implicitly_generic_class_type(
 {
   const std::string qualified_class_name = "java::" + id2string(class_name);
   PRECONDITION(symbol_table.has_symbol(qualified_class_name));
+  // This will have its type changed
   symbolt &class_symbol = symbol_table.get_writeable_ref(qualified_class_name);
-  java_class_typet &class_type = to_java_class_type(class_symbol.type);
+  const java_class_typet &class_type = to_java_class_type(class_symbol.type);
 
   // the class must be an inner non-static class, i.e., have a field this$*
   // TODO this should be simplified once static inner classes are marked
-  // during parsing
+  //   during parsing
   bool no_this_field = std::none_of(
     class_type.components().begin(),
     class_type.components().end(),
@@ -1144,7 +1207,7 @@ void mark_java_implicitly_generic_class_type(
   // the order from the outer-most inwards
   std::vector<java_generic_parametert> implicit_generic_type_parameters;
   std::string::size_type outer_class_delimiter =
-    qualified_class_name.rfind("$");
+    qualified_class_name.rfind('$');
   while(outer_class_delimiter != std::string::npos)
   {
     std::string outer_class_name =
@@ -1157,14 +1220,21 @@ void mark_java_implicitly_generic_class_type(
         to_java_class_type(outer_class_symbol.type);
       if(is_java_generic_class_type(outer_class_type))
       {
-        const auto &outer_generic_type_parameters =
-          to_java_generic_class_type(outer_class_type).generic_types();
-        implicit_generic_type_parameters.insert(
-          implicit_generic_type_parameters.begin(),
-          outer_generic_type_parameters.begin(),
-          outer_generic_type_parameters.end());
+        for(const java_generic_parametert &outer_generic_type_parameter :
+            to_java_generic_class_type(outer_class_type).generic_types())
+        {
+          // Create a new generic type parameter with name in the form:
+          // java::Outer$Inner::Outer::T
+          irep_idt identifier = qualified_class_name + "::" +
+                                id2string(strip_java_namespace_prefix(
+                                  outer_generic_type_parameter.get_name()));
+          java_generic_parameter_tagt bound = to_java_generic_parameter_tag(
+            outer_generic_type_parameter.subtype());
+          bound.type_variable_ref().set_identifier(identifier);
+          implicit_generic_type_parameters.emplace_back(identifier, bound);
+        }
       }
-      outer_class_delimiter = outer_class_name.rfind("$");
+      outer_class_delimiter = outer_class_name.rfind('$');
     }
     else
     {
@@ -1177,19 +1247,32 @@ void mark_java_implicitly_generic_class_type(
   // implicitly generic and update identifiers of type parameters used in fields
   if(!implicit_generic_type_parameters.empty())
   {
-    class_symbol.type = java_implicitly_generic_class_typet(
+    java_implicitly_generic_class_typet new_class_type(
       class_type, implicit_generic_type_parameters);
 
-    for(auto &field : class_type.components())
+    // Prepend existing parameters so choose those above any inherited
+    if(is_java_generic_class_type(class_type))
+    {
+      const java_generic_class_typet::generic_typest &class_type_params =
+        to_java_generic_class_type(class_type).generic_types();
+      implicit_generic_type_parameters.insert(
+        implicit_generic_type_parameters.begin(),
+        class_type_params.begin(),
+        class_type_params.end());
+    }
+
+    for(auto &field : new_class_type.components())
     {
       find_and_replace_parameters(
         field.type(), implicit_generic_type_parameters);
     }
 
-    for(auto &base : class_type.bases())
+    for(auto &base : new_class_type.bases())
     {
       find_and_replace_parameters(
         base.type(), implicit_generic_type_parameters);
     }
+
+    class_symbol.type = new_class_type;
   }
 }

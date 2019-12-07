@@ -12,7 +12,7 @@ Author: Diffblue Ltd.
 #include <testing-utils/message.h>
 #include <util/message.h>
 
-#include <testing-utils/catch.hpp>
+#include <testing-utils/use_catch.h>
 
 static void check_class_structure(
   const java_bytecode_parse_treet::classt &loaded_class)
@@ -41,8 +41,14 @@ static void check_class_structure(
 
   REQUIRE(method_f.is_public);
   REQUIRE(method_f.annotations.size() == 1);
+  REQUIRE(method_f.local_variable_table.size() == 2);
+  REQUIRE(method_f.local_variable_table[0].name == "this");
+  REQUIRE(method_f.local_variable_table[1].name == "y");
   REQUIRE(method_constructor.is_public);
   REQUIRE(method_constructor.annotations.size() == 0);
+  REQUIRE(method_f.local_variable_table.size() == 2);
+  REQUIRE(method_constructor.local_variable_table[0].name == "this");
+  REQUIRE(method_constructor.local_variable_table[1].name == "this$0");
 }
 
 SCENARIO(
@@ -51,11 +57,11 @@ SCENARIO(
 {
   WHEN("Loading a class without instructions")
   {
-    auto loaded =
-      java_bytecode_parse(
-        "./java_bytecode/java_bytecode_parser/Trivial$Inner.class",
-        null_message_handler,
-        true);
+    auto loaded = java_bytecode_parse(
+      "./java_bytecode/java_bytecode_parser/Trivial$Inner.class",
+      "Trivial$Inner",
+      null_message_handler,
+      true);
     THEN("Loading should succeed")
     {
       REQUIRE(loaded);
@@ -72,17 +78,23 @@ SCENARIO(
           REQUIRE(methodone.instructions.size() == 0);
           REQUIRE(methodtwo.instructions.size() == 0);
         }
+
+        THEN("Neither method should have an exception table")
+        {
+          REQUIRE(methodone.exception_table.empty());
+          REQUIRE(methodtwo.exception_table.empty());
+        }
       }
     }
   }
 
   WHEN("Loading the same class normally")
   {
-    auto loaded =
-      java_bytecode_parse(
-        "./java_bytecode/java_bytecode_parser/Trivial$Inner.class",
-        null_message_handler,
-        false);
+    auto loaded = java_bytecode_parse(
+      "./java_bytecode/java_bytecode_parser/Trivial$Inner.class",
+      "Trivial$Inner",
+      null_message_handler,
+      false);
     THEN("Loading should succeed")
     {
       REQUIRE(loaded);
@@ -98,6 +110,12 @@ SCENARIO(
         {
           REQUIRE(methodone.instructions.size() != 0);
           REQUIRE(methodtwo.instructions.size() != 0);
+        }
+
+        const auto &method_f = methodone.name == "f" ? methodone : methodtwo;
+        THEN("f should have an exception table")
+        {
+          REQUIRE(!method_f.exception_table.empty());
         }
       }
     }

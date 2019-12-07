@@ -4,16 +4,16 @@ include ../../src/config.inc
 include ../../src/common
 
 ifeq ($(BUILD_ENV_),MSVC)
-	exe=../../../src/goto-cc/goto-cl
+	exe=../../../src/goto-cc/goto-cl -X gcc-only
 else
 	exe=../../../src/goto-cc/goto-cc
 endif
 
 test:
-	@../test.pl -p -c $(exe)
+	@../test.pl -e -p -c $(exe)
 
 tests.log: ../test.pl
-	@../test.pl -p -c $(exe)
+	@../test.pl -e -p -c $(exe)
 
 show:
 	@for dir in *; do \

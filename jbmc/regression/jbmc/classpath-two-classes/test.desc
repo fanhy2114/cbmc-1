@@ -1,7 +1,8 @@
 CORE
-Test.class
+Test
 
 ^EXIT=10$
+^SIGNAL=0$
 ^VERIFICATION FAILED$
 --
 --

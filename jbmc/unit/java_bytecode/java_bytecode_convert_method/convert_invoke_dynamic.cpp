@@ -6,15 +6,15 @@ Author: Diffblue Ltd.
 
 \*******************************************************************/
 
-#include <testing-utils/catch.hpp>
+#include <goto-programs/class_hierarchy.h>
 #include <java-testing-utils/load_java_class.h>
 #include <java-testing-utils/require_goto_statements.h>
-#include <testing-utils/require_expr.h>
 #include <java-testing-utils/require_type.h>
-#include <testing-utils/run_test_with_compilers.h>
+#include <testing-utils/require_expr.h>
 #include <testing-utils/require_symbol.h>
+#include <testing-utils/run_test_with_compilers.h>
+#include <testing-utils/use_catch.h>
 #include <util/expr_iterator.h>
-#include <goto-programs/class_hierarchy.h>
 
 struct lambda_assignment_test_datat
 {
@@ -53,8 +53,7 @@ void validate_lambda_assignment(
   const typecast_exprt &rhs_value =
     require_expr::require_typecast(lambda_assignment.rhs());
 
-  const symbol_exprt &rhs_symbol =
-    require_expr::require_symbol(rhs_value.op0());
+  const symbol_exprt &rhs_symbol = require_expr::require_symbol(rhs_value.op());
 
   const irep_idt &tmp_object_symbol = rhs_symbol.get_identifier();
 
@@ -241,11 +240,11 @@ SCENARIO(
 
           symbol_exprt integer_param{"primitive", java_int_type()};
           symbol_exprt ref_param{"reference",
-                                 java_type_from_string("Ljava/lang/Object;")};
+                                 *java_type_from_string("Ljava/lang/Object;")};
           // NOLINTNEXTLINE(whitespace/braces)
           symbol_exprt generic_param{
             "specalisedGeneric",
-            java_type_from_string("LDummyGeneric<Ljava/lang/Interger;>;")};
+            *java_type_from_string("LDummyGeneric<Ljava/lang/Interger;>;")};
           test_data.expected_params = {integer_param, ref_param, generic_param};
           test_data.should_return_value = false;
 
@@ -267,14 +266,14 @@ SCENARIO(
             "java::LocalLambdas.lambda$test$2:"
             "[I[Ljava/lang/Object;[LDummyGeneric;)V";
 
-          symbol_exprt integer_param{"primitive", java_type_from_string("[I")};
+          symbol_exprt integer_param{"primitive", *java_type_from_string("[I")};
           symbol_exprt ref_param{"reference",
-                                 java_type_from_string("[Ljava/lang/Object;")};
+                                 *java_type_from_string("[Ljava/lang/Object;")};
 
           // NOLINTNEXTLINE(whitespace/braces)
           symbol_exprt generic_param{
             "specalisedGeneric",
-            java_type_from_string("[LDummyGeneric<Ljava/lang/Interger;>;")};
+            *java_type_from_string("[LDummyGeneric<Ljava/lang/Interger;>;")};
           test_data.expected_params = {integer_param, ref_param, generic_param};
           test_data.should_return_value = false;
 
@@ -429,11 +428,11 @@ SCENARIO(
 
           symbol_exprt integer_param{"primitive", java_int_type()};
           symbol_exprt ref_param{"reference", // NOLINT(whitespace/braces)
-                                 java_type_from_string("Ljava/lang/Object;")};
+                                 *java_type_from_string("Ljava/lang/Object;")};
           // NOLINTNEXTLINE(whitespace/braces)
           symbol_exprt generic_param{
             "specalisedGeneric",
-            java_type_from_string("LDummyGeneric<Ljava/lang/Interger;>;")};
+            *java_type_from_string("LDummyGeneric<Ljava/lang/Interger;>;")};
           test_data.expected_params = {integer_param, ref_param, generic_param};
 
           test_data.should_return_value = false;
@@ -452,13 +451,13 @@ SCENARIO(
             "java::MemberLambdas.lambda$new$2:"
             "([I[Ljava/lang/Object;[LDummyGeneric;)V";
 
-          symbol_exprt integer_param{"primitive", java_type_from_string("[I")};
+          symbol_exprt integer_param{"primitive", *java_type_from_string("[I")};
           symbol_exprt ref_param{"reference", // NOLINT(whitespace/braces)
-                                 java_type_from_string("[Ljava/lang/Object;")};
+                                 *java_type_from_string("[Ljava/lang/Object;")};
           // NOLINTNEXTLINE(whitespace/braces)
           symbol_exprt generic_param{
             "specalisedGeneric",
-            java_type_from_string("[LDummyGeneric<Ljava/lang/Interger;>;")};
+            *java_type_from_string("[LDummyGeneric<Ljava/lang/Interger;>;")};
           test_data.expected_params = {integer_param, ref_param, generic_param};
           test_data.should_return_value = false;
 
@@ -601,11 +600,11 @@ SCENARIO(
 
           symbol_exprt integer_param{"primitive", java_int_type()};
           symbol_exprt ref_param{"reference",
-                                 java_type_from_string("Ljava/lang/Object;")};
+                                 *java_type_from_string("Ljava/lang/Object;")};
           // NOLINTNEXTLINE(whitespace/braces)
           symbol_exprt generic_param{
             "specalisedGeneric",
-            java_type_from_string("LDummyGeneric<Ljava/lang/Interger;>;")};
+            *java_type_from_string("LDummyGeneric<Ljava/lang/Interger;>;")};
           test_data.expected_params = {integer_param, ref_param, generic_param};
 
           test_data.should_return_value = false;
@@ -624,13 +623,13 @@ SCENARIO(
             "java::StaticLambdas.lambda$static$2:"
             "([I[Ljava/lang/Object;[LDummyGeneric;)V";
 
-          symbol_exprt integer_param{"primitive", java_type_from_string("[I")};
+          symbol_exprt integer_param{"primitive", *java_type_from_string("[I")};
           symbol_exprt ref_param{"reference",
-                                 java_type_from_string("[Ljava/lang/Object;")};
+                                 *java_type_from_string("[Ljava/lang/Object;")};
           // NOLINTNEXTLINE(whitespace/braces)
           symbol_exprt generic_param{
             "specalisedGeneric",
-            java_type_from_string("[LDummyGeneric<Ljava/lang/Interger;>;")};
+            *java_type_from_string("[LDummyGeneric<Ljava/lang/Interger;>;")};
           test_data.expected_params = {integer_param, ref_param, generic_param};
           test_data.should_return_value = false;
 

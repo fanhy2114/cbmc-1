@@ -16,13 +16,6 @@ Author: Daniel Kroening, kroening@kroening.com
 
 #include <algorithm>
 
-bool to_integer(const exprt &expr, mp_integer &int_value)
-{
-  if(!expr.is_constant())
-    return true;
-  return to_integer(to_constant_expr(expr), int_value);
-}
-
 bool to_integer(const constant_exprt &expr, mp_integer &int_value)
 {
   const irep_idt &value=expr.get_value();
@@ -101,23 +94,6 @@ bool to_integer(const constant_exprt &expr, mp_integer &int_value)
   }
 
   return true;
-}
-
-/// convert a positive integer expression to an unsigned int
-/// \par parameters: a constant expression and a reference to an unsigned int
-/// \return an error flag
-bool to_unsigned_integer(const constant_exprt &expr, unsigned &uint_value)
-{
-  mp_integer i;
-  if(to_integer(expr, i))
-    return true;
-  if(i<0)
-    return true;
-  else
-  {
-    uint_value = numeric_cast_v<unsigned>(i);
-    return false;
-  }
 }
 
 constant_exprt from_integer(
@@ -231,7 +207,7 @@ mp_integer power(const mp_integer &base,
     case 2:
       {
         mp_integer result;
-        result.setPower2(exponent.to_ulong());
+        result.setPower2(numeric_cast_v<unsigned>(exponent));
         return result;
       }
     case 1: return 1;

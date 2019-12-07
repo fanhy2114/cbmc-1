@@ -18,7 +18,7 @@ void assert(_Bool assertion);
 The function **\_\_CPROVER\_assume** adds an expression as a constraint
 to the program. If the expression evaluates to false, the execution
 aborts without failure. More detail on the use of assumptions is in the
-section on [Assumptions](../modeling/assumptions/).
+section on [Assumptions](./modeling-assumptions.md).
 
 #### \_\_CPROVER\_r_ok, \_\_CPROVER\_w_ok
 
@@ -47,24 +47,6 @@ relative to the base address of the object. The function
 **\_\_CPROVER\_DYNAMIC\_OBJECT** returns true if the pointer passed as
 arguments points to a dynamically allocated object.
 
-#### \_\_CPROVER\_is\_zero\_string, \_\_CPROVER\_zero\_string\_length, \_\_CPROVER\_buffer\_size
-
-```C
-_Bool __CPROVER_is_zero_string(const void *);
-__CPROVER_size_t __CPROVER_zero_string_length(const void *);
-__CPROVER_size_t __CPROVER_buffer_size(const void *);
-```
-
-#### \_\_CPROVER\_initialize
-
-```C
-void __CPROVER_initialize(void);
-```
-
-The function **\_\_CPROVER\_initialize** computes the initial state of
-the program. It is called prior to calling the main procedure of the
-program.
-
 #### \_\_CPROVER\_input, \_\_CPROVER\_output
 
 ```C
@@ -76,9 +58,19 @@ The functions **\_\_CPROVER\_input** and **\_\_CPROVER\_output** are
 used to report an input or output value. Note that they do not generate
 input or output values. The first argument is a string constant to
 distinguish multiple inputs and outputs (inputs are typically generated
-using nondeterminism, as described [here](../modeling/nondeterminism/)). The
+using nondeterminism, as described [here](./modeling-nondeterminism.md)). The
 string constant is followed by an arbitrary number of values of
 arbitrary types.
+
+#### \_\_CPROVER\_printf
+
+```C
+void __CPROVER_printf(const char *format, ...);
+```
+
+The function **\_\_CPROVER\_printf** implements the C `printf` function (without
+any return value). The observable effect is that its output is shown within a
+counterexample trace.
 
 #### \_\_CPROVER\_cover
 
@@ -87,7 +79,7 @@ void __CPROVER_cover(_Bool condition);
 ```
 
 This statement defines a custom coverage criterion, for usage with the
-[test suite generation feature](cover.shtml).
+[test suite generation feature](../test-suite/).
 
 #### \_\_CPROVER\_isnan, \_\_CPROVER\_isfinite, \_\_CPROVER\_isinf, \_\_CPROVER\_isnormal, \_\_CPROVER\_sign
 
@@ -130,6 +122,22 @@ float __CPROVER_fabsf(float x);
 
 These functions return the absolute value of the given argument.
 
+#### \_\_CPROVER\_overflow\_minus, \_\_CPROVER\_overflow\_mult, \_\_CPROVER\_overflow\_plus, \_\_CPROVER\_overflow\_shl, \_\_CPROVER\_overflow\_unary\_minus
+
+```C
+__CPROVER_bool __CPROVER_overflow_minus();
+__CPROVER_bool __CPROVER_overflow_mult();
+__CPROVER_bool __CPROVER_overflow_plus();
+__CPROVER_bool __CPROVER_overflow_shl();
+__CPROVER_bool __CPROVER_overflow_unary_minus();
+```
+
+These functions take two (`__CPROVER_overflow_unary_minus` only takes one)
+arguments of any numeric type. They return true, if, and only if, the named
+operation would overflow when applied to the arguments. For example,
+`__CPROVER_overflow_plus(x, y)` returns true if `x + y` would result in an
+arithmetic overflow.
+
 #### \_\_CPROVER\_array\_equal, \_\_CPROVER\_array\_copy, \_\_CPROVER\_array\_set
 
 ```C
@@ -146,7 +154,7 @@ the array **dest** with the given value.
 
 #### Uninterpreted Functions
 
-Uninterpreted functions are documented \ref man_modelling-nondet "here".
+Uninterpreted functions are documented [here](./modeling-nondeterminism.md)).
 
 ### Predefined Types and Symbols
 

@@ -5,12 +5,12 @@ Module: Unit tests for instantiating generic classes.
 Author: Diffblue Ltd.
 
 \*******************************************************************/
-#include <testing-utils/catch.hpp>
 #include <java-testing-utils/load_java_class.h>
 #include <java-testing-utils/require_goto_statements.h>
-#include <util/config.h>
 #include <java-testing-utils/require_type.h>
 #include <testing-utils/require_symbol.h>
+#include <testing-utils/use_catch.h>
+#include <util/config.h>
 
 // NOTE: To inspect these tests at any point, use expr2java.
 // A good way to verify the validity of a test is to iterate
@@ -21,6 +21,8 @@ SCENARIO(
   "Instantiate generic parameters to methods or fields used within",
   "[core][goto_program_generics][generic_parameters_test]")
 {
+  config.ansi_c.set_LP64();
+
   GIVEN("A class with a generic field")
   {
     const symbol_tablet &symbol_table = load_java_class(
@@ -39,7 +41,7 @@ SCENARIO(
       //   this = &tmp_object_factory$1;
       const irep_idt &tmp_object_name =
         require_goto_statements::require_entry_point_argument_assignment(
-          "this", entry_point_code);
+          ID_this, entry_point_code);
 
       THEN("Object 'this' has field 'field_input' of type Wrapper")
       {
@@ -70,7 +72,7 @@ SCENARIO(
             field_input_name,
             {},
             "array_field",
-            "java::array[reference]",
+            JAVA_REFERENCE_ARRAY_CLASSID,
             entry_point_code,
             symbol_table);
         }
@@ -102,7 +104,7 @@ SCENARIO(
       // for, so we need to extract its identifier, and start looking for that.
       const auto &tmp_object_name =
         require_goto_statements::require_entry_point_argument_assignment(
-          "this", entry_point_code);
+          ID_this, entry_point_code);
 
       THEN("Type of multiple generic fields should be right")
       {
@@ -188,7 +190,7 @@ SCENARIO(
 
       const auto &tmp_object_name =
         require_goto_statements::require_entry_point_argument_assignment(
-          "this", entry_point_code);
+          ID_this, entry_point_code);
 
       THEN("Object 'this' has field 'field_input1' of type Wrapper")
       {
@@ -246,7 +248,7 @@ SCENARIO(
 
       const auto &tmp_object_name =
         require_goto_statements::require_entry_point_argument_assignment(
-          "this", entry_point_code);
+          ID_this, entry_point_code);
 
       THEN("Object 'this' has field 'field_input' of type PairWrapper")
       {
@@ -316,9 +318,9 @@ SCENARIO(
 
         // Trace the assignments back to the declaration of the generic type
         // and verify that it is what we expect.
-        const auto &tmp_object_struct =
-          to_struct_type(tmp_object_declaration.symbol().type());
-        REQUIRE(tmp_object_struct.get_tag() == "Wrapper");
+        const auto &tmp_object_struct_tag = to_struct_tag_type(
+          to_pointer_type(tmp_object_declaration.symbol().type()).subtype());
+        REQUIRE(tmp_object_struct_tag.get_identifier() == "java::Wrapper");
 
         THEN("Object 'v' has field 'field' of type IWrapper")
         {
@@ -366,9 +368,9 @@ SCENARIO(
 
         // Trace the assignments back to the declaration of the generic type
         // and verify that it is what we expect.
-        const auto &tmp_object_struct =
-          to_struct_type(tmp_object_declaration.symbol().type());
-        REQUIRE(tmp_object_struct.get_tag() == "Wrapper");
+        const auto &tmp_object_struct_tag = to_struct_tag_type(
+          to_pointer_type(tmp_object_declaration.symbol().type()).subtype());
+        REQUIRE(tmp_object_struct_tag.get_identifier() == "java::Wrapper");
 
         THEN(
           "Object 'v' has field 'field' of type Object (upper bound of the "
@@ -416,11 +418,11 @@ SCENARIO(
 
         // Trace the assignments back to the declaration of the generic type
         // and verify that it is what we expect.
-        const auto &tmp_object_struct =
-          to_struct_type(tmp_object_declaration.symbol().type());
+        const auto &tmp_object_struct_tag = to_struct_tag_type(
+          to_pointer_type(tmp_object_declaration.symbol().type()).subtype());
         REQUIRE(
-          tmp_object_struct.get_tag() ==
-          "GenericFields$GenericInnerOuter$Outer");
+          tmp_object_struct_tag.get_identifier() ==
+          "java::GenericFields$GenericInnerOuter$Outer");
 
         THEN("Object 'v' has field 'field' of type InnerClass")
         {
@@ -481,11 +483,11 @@ SCENARIO(
 
         // Trace the assignments back to the declaration of the generic type
         // and verify that it is what we expect.
-        const auto &tmp_object_struct =
-          to_struct_type(tmp_object_declaration.symbol().type());
+        const auto &tmp_object_struct_tag = to_struct_tag_type(
+          to_pointer_type(tmp_object_declaration.symbol().type()).subtype());
         REQUIRE(
-          tmp_object_struct.get_tag() ==
-          "GenericFields$GenericRewriteParameter$A");
+          tmp_object_struct_tag.get_identifier() ==
+          "java::GenericFields$GenericRewriteParameter$A");
 
         THEN("Object 'v' has field 'value' of type Integer")
         {
@@ -563,7 +565,7 @@ SCENARIO(
 
       const irep_idt &tmp_object_name =
         require_goto_statements::require_entry_point_argument_assignment(
-          "this", entry_point_code);
+          ID_this, entry_point_code);
 
       THEN("Object 'this' has field 'f' of type UnsupportedWrapper2")
       {
@@ -627,7 +629,7 @@ SCENARIO(
 
       const irep_idt &tmp_object_name =
         require_goto_statements::require_entry_point_argument_assignment(
-          "this", entry_point_code);
+          ID_this, entry_point_code);
 
       THEN("Object 'this' has field 'f' of type OpaqueWrapper")
       {

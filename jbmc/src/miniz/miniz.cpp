@@ -24,14 +24,22 @@
  *
  **************************************************************************/
 
-// this is imported code, don't impose formatting rules
-// clang-format off
-
 #ifdef _MSC_VER
+// conversion warnings
+#pragma warning(disable:4242)
+// possible loss of data
+#pragma warning(disable:4244)
+// possible loss of data
+#pragma warning(disable:4365)
+// signed/unsigned mismatch
 #pragma warning(disable:4548)
-  // expression before comma has no effect
+// expression before comma has no effect
 #pragma warning(disable:4061)
-  // enum case is not handled in switch
+// enum case is not handled in switch
+#pragma warning(disable:4334)
+// result of 32-bit shift implicitly converted to 64 bits
+#pragma warning(disable:5039)
+// pointer or reference to potentially throwing function passed to extern C
 #endif
 
 #include  "miniz.h"
@@ -7097,8 +7105,9 @@ const char *mz_zip_get_error_string(mz_zip_error mz_err)
             return "validation failed";
         case MZ_ZIP_WRITE_CALLBACK_FAILED:
             return "write calledback failed";
-        default:
-            break;
+        case MZ_ZIP_TOTAL_ERRORS:
+          // not an actual error, just the maximum index
+          break;
     }
 
     return "unknown error";
@@ -7197,4 +7206,3 @@ mz_bool mz_zip_end(mz_zip_archive *pZip)
 #ifdef __cplusplus
 }
 #endif
-// clang-format on

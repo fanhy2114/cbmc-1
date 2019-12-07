@@ -54,9 +54,9 @@ void cpp_typecheckt::typecheck()
   for(auto &item : cpp_parse_tree.items)
     convert(item);
 
-  typecheck_method_bodies();
-
   static_and_dynamic_initialization();
+
+  typecheck_method_bodies();
 
   do_not_typechecked();
 
@@ -156,7 +156,7 @@ void cpp_typecheckt::static_and_dynamic_initialization()
 
   for(const irep_idt &d_it : dynamic_initializations)
   {
-    const symbolt &symbol=*symbol_table.lookup(d_it);
+    const symbolt &symbol = symbol_table.lookup_ref(d_it);
 
     if(symbol.is_extern)
       continue;
@@ -195,8 +195,6 @@ void cpp_typecheckt::static_and_dynamic_initialization()
   }
 
   dynamic_initializations.clear();
-
-  // block_sini.move_to_operands(block_dini);
 
   // Create the dynamic initialization procedure
   symbolt init_symbol;
@@ -245,14 +243,14 @@ void cpp_typecheckt::do_not_typechecked()
         }
         else if(symbol.value.operands().size()==1)
         {
-          value = symbol.value.op0();
+          value = to_unary_expr(symbol.value).op();
           cont=true;
         }
         else
           UNREACHABLE; // Don't know what to do!
 
         symbolt &writable_symbol =
-          *symbol_table.get_writeable(named_symbol.first);
+          symbol_table.get_writeable_ref(named_symbol.first);
         writable_symbol.value.swap(value);
         convert_function(writable_symbol);
       }
@@ -278,13 +276,10 @@ void cpp_typecheckt::clean_up()
 
     const symbolt &symbol=cur_it->second;
 
-    // erase templates
-    if(symbol.type.get_bool(ID_is_template) ||
-       // Remove all symbols that have not been converted.
-       //   In particular this includes symbols created for functions
-       //   during template instantiation that are never called,
-       //   and hence, their bodies have not been converted.
-       contains_cpp_name(symbol.value))
+    // erase templates and all member functions that have not been converted
+    if(
+      symbol.type.get_bool(ID_is_template) ||
+      deferred_typechecking.find(symbol.name) != deferred_typechecking.end())
     {
       symbol_table.erase(cur_it);
       continue;
@@ -339,8 +334,11 @@ bool cpp_typecheckt::contains_cpp_name(const exprt &expr)
 {
   if(expr.id() == ID_cpp_name || expr.id() == ID_cpp_declaration)
     return true;
-  forall_operands(it, expr)
-    if(contains_cpp_name(*it))
+
+  for(const exprt &op : expr.operands())
+  {
+    if(contains_cpp_name(op))
       return true;
+  }
   return false;
 }

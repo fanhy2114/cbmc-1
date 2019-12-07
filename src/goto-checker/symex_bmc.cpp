@@ -23,8 +23,15 @@ symex_bmct::symex_bmct(
   const symbol_tablet &outer_symbol_table,
   symex_target_equationt &_target,
   const optionst &options,
-  path_storaget &path_storage)
-  : goto_symext(mh, outer_symbol_table, _target, options, path_storage),
+  path_storaget &path_storage,
+  guard_managert &guard_manager)
+  : goto_symext(
+      mh,
+      outer_symbol_table,
+      _target,
+      options,
+      path_storage,
+      guard_manager),
     record_coverage(!options.get_option("symex-coverage-report").empty()),
     symex_coverage(ns)
 {
@@ -69,7 +76,7 @@ void symex_bmct::symex_step(
     record_coverage &&
     // avoid an invalid iterator in state.source.pc
     (!cur_pc->is_end_function() ||
-     state.source.function != goto_functionst::entry_point()))
+     state.source.function_id != goto_functionst::entry_point()))
   {
     // forward goto will effectively be covered via phi function,
     // which does not invoke symex_step; as symex_step is called
@@ -87,13 +94,14 @@ void symex_bmct::symex_step(
 }
 
 void symex_bmct::merge_goto(
-  const statet::goto_statet &goto_state,
+  const symex_targett::sourcet &prev_source,
+  goto_statet &&goto_state,
   statet &state)
 {
-  const goto_programt::const_targett prev_pc = goto_state.source.pc;
+  const goto_programt::const_targett prev_pc = prev_source.pc;
   const guardt prev_guard = goto_state.guard;
 
-  goto_symext::merge_goto(goto_state, state);
+  goto_symext::merge_goto(prev_source, std::move(goto_state), state);
 
   PRECONDITION(prev_pc->is_goto());
   if(
@@ -107,10 +115,10 @@ void symex_bmct::merge_goto(
 
 bool symex_bmct::should_stop_unwind(
   const symex_targett::sourcet &source,
-  const goto_symex_statet::call_stackt &context,
+  const call_stackt &context,
   unsigned unwind)
 {
-  const irep_idt id = goto_programt::loop_id(*source.pc);
+  const irep_idt id = goto_programt::loop_id(source.function_id, *source.pc);
 
   tvt abort_unwind_decision;
   unsigned this_loop_limit = std::numeric_limits<unsigned>::max();

@@ -14,7 +14,7 @@ Author: Diffblue Ltd.
 #include <java_bytecode/java_object_factory.h>
 #include <java_bytecode/java_pointer_casts.h>
 
-#include <util/fresh_symbol.h>
+#include "java_utils.h"
 #include <util/invariant_utils.h>
 #include <util/namespace.h>
 #include <util/std_code.h>
@@ -108,7 +108,7 @@ void java_simple_method_stubst::create_method_stub_at(
   // If it's a constructor the thing we're constructing has already
   // been allocated by this point.
   if(is_constructor)
-    to_init = dereference_exprt(to_init, expected_base);
+    to_init = dereference_exprt(to_init);
 
   java_object_factory_parameterst parameters = object_factory_parameters;
   if(assume_non_null)
@@ -126,7 +126,8 @@ void java_simple_method_stubst::create_method_stub_at(
     lifetimet::DYNAMIC,
     parameters,
     update_in_place ? update_in_placet::MUST_UPDATE_IN_PLACE
-                    : update_in_placet::NO_UPDATE_IN_PLACE);
+                    : update_in_placet::NO_UPDATE_IN_PLACE,
+    message_handler);
 
   // Insert new_instructions into parent block.
   if(!new_instructions.statements().empty())
@@ -147,11 +148,28 @@ void java_simple_method_stubst::create_method_stub_at(
 void java_simple_method_stubst::create_method_stub(symbolt &symbol)
 {
   code_blockt new_instructions;
-  const java_method_typet &required_type = to_java_method_type(symbol.type);
+  java_method_typet &required_type = to_java_method_type(symbol.type);
 
   // synthetic source location that contains the opaque function name only
   source_locationt synthesized_source_location;
   synthesized_source_location.set_function(symbol.name);
+
+  // make sure all parameters are named
+  for(auto &parameter : required_type.parameters())
+  {
+    if(parameter.get_identifier().empty())
+    {
+      symbolt &parameter_symbol = fresh_java_symbol(
+        parameter.type(),
+        "#anon",
+        synthesized_source_location,
+        symbol.name,
+        symbol_table);
+      parameter_symbol.is_parameter = true;
+      parameter.set_base_name(parameter_symbol.base_name);
+      parameter.set_identifier(parameter_symbol.name);
+    }
+  }
 
   // Initialize the return value or `this` parameter under construction.
   // Note symbol.type is required_type, but with write access
@@ -161,12 +179,11 @@ void java_simple_method_stubst::create_method_stub(symbolt &symbol)
   {
     const auto &this_argument = required_type.parameters()[0];
     const typet &this_type = this_argument.type();
-    symbolt &init_symbol = get_fresh_aux_symbol(
+    symbolt &init_symbol = fresh_java_symbol(
       this_type,
-      id2string(symbol.name),
       "to_construct",
       synthesized_source_location,
-      ID_java,
+      symbol.name,
       symbol_table);
     const symbol_exprt &init_symbol_expression = init_symbol.symbol_expr();
     code_assignt get_argument(
@@ -187,14 +204,13 @@ void java_simple_method_stubst::create_method_stub(symbolt &symbol)
   else
   {
     const typet &required_return_type = required_type.return_type();
-    if(required_return_type != empty_typet())
+    if(required_return_type != java_void_type())
     {
-      symbolt &to_return_symbol = get_fresh_aux_symbol(
+      symbolt &to_return_symbol = fresh_java_symbol(
         required_return_type,
-        id2string(symbol.name),
         "to_return",
         synthesized_source_location,
-        ID_java,
+        symbol.name,
         symbol_table);
       const exprt &to_return = to_return_symbol.symbol_expr();
       if(to_return_symbol.type.id() != ID_pointer)
@@ -211,7 +227,8 @@ void java_simple_method_stubst::create_method_stub(symbolt &symbol)
           false,
           lifetimet::AUTOMATIC_LOCAL, // Irrelevant as type is primitive
           parameters,
-          update_in_placet::NO_UPDATE_IN_PLACE);
+          update_in_placet::NO_UPDATE_IN_PLACE,
+          message_handler);
       }
       else
         create_method_stub_at(
@@ -235,7 +252,7 @@ void java_simple_method_stubst::create_method_stub(symbolt &symbol)
 /// \param symname: Symbol name to consider stubbing
 void java_simple_method_stubst::check_method_stub(const irep_idt &symname)
 {
-  const symbolt &sym = *symbol_table.lookup(symname);
+  const symbolt &sym = symbol_table.lookup_ref(symname);
   if(!sym.is_type && sym.value.id() == ID_nil &&
     sym.type.id() == ID_code &&
     // do not stub internal locking calls as 'create_method_stub' does not
@@ -248,7 +265,7 @@ void java_simple_method_stubst::check_method_stub(const irep_idt &symname)
     sym.name !=
       "java::java.lang.Object.monitorexit:(Ljava/lang/Object;)V")
   {
-    create_method_stub(*symbol_table.get_writeable(symname));
+    create_method_stub(symbol_table.get_writeable_ref(symname));
   }
 }
 

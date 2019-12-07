@@ -15,12 +15,12 @@ Author: Reuben Thomas, reuben.thomas@diffblue.com
 #include <goto-programs/goto_model.h>
 #include <goto-programs/remove_skip.h>
 
-#include <util/fresh_symbol.h>
 #include <util/irep_ids.h>
 
 #include <memory>
 
 #include "java_object_factory.h" // gen_nondet_init
+#include "java_utils.h"
 
 /// Returns true if `expr` is a nondet pointer that isn't a function pointer or
 /// a void* pointer as these can be meaningfully non-det initialized.
@@ -57,7 +57,8 @@ static goto_programt get_gen_nondet_init_instructions(
     skip_classid,
     lifetimet::DYNAMIC,
     object_factory_parameters,
-    update_in_placet::NO_UPDATE_IN_PLACE);
+    update_in_placet::NO_UPDATE_IN_PLACE,
+    message_handler);
 
   goto_programt instructions;
   goto_convert(
@@ -68,6 +69,7 @@ static goto_programt get_gen_nondet_init_instructions(
 /// Checks an instruction to see whether it contains an assignment from
 /// side_effect_expr_nondet.  If so, replaces the instruction with a range of
 /// instructions to properly nondet-initialize the lhs.
+/// \param function_identifier: Name of the function containing \p target.
 /// \param goto_program: The goto program to modify.
 /// \param target: One of the steps in that goto program.
 /// \param symbol_table: The global symbol table.
@@ -78,6 +80,7 @@ static goto_programt get_gen_nondet_init_instructions(
 /// \return The next instruction to process with this function and a boolean
 ///   indicating whether any changes were made to the goto program.
 static std::pair<goto_programt::targett, bool> insert_nondet_init_code(
+  const irep_idt &function_identifier,
   goto_programt &goto_program,
   const goto_programt::targett &target,
   symbol_table_baset &symbol_table,
@@ -114,22 +117,16 @@ static std::pair<goto_programt::targett, bool> insert_nondet_init_code(
     //   target2: instruction containing op, with op replaced by aux_symbol
     //            dead aux_symbol
 
-    symbolt &aux_symbol = get_fresh_aux_symbol(
-      op.type(),
-      id2string(goto_programt::get_function_id(goto_program)),
-      "nondet_tmp",
-      source_loc,
-      ID_java,
-      symbol_table);
+    symbolt &aux_symbol = fresh_java_symbol(
+      op.type(), "nondet_tmp", source_loc, function_identifier, symbol_table);
 
     const symbol_exprt aux_symbol_expr = aux_symbol.symbol_expr();
     op = aux_symbol_expr;
 
     // Insert an instruction declaring `aux_symbol` before `target`, being
     // careful to preserve jumps to `target`
-    goto_programt::instructiont decl_aux_symbol;
-    decl_aux_symbol.make_decl(code_declt(aux_symbol_expr));
-    decl_aux_symbol.source_location = source_loc;
+    goto_programt::instructiont decl_aux_symbol =
+      goto_programt::make_decl(code_declt(aux_symbol_expr), source_loc);
     goto_program.insert_before_swap(target, decl_aux_symbol);
 
     // Keep track of the new location of the instruction containing op.
@@ -145,10 +142,8 @@ static std::pair<goto_programt::targett, bool> insert_nondet_init_code(
         mode);
     goto_program.destructive_insert(target2, gen_nondet_init_instructions);
 
-    goto_programt::targett dead_aux_symbol = goto_program.insert_after(target2);
-    dead_aux_symbol->make_dead();
-    dead_aux_symbol->code = code_deadt(aux_symbol_expr);
-    dead_aux_symbol->source_location = source_loc;
+    goto_program.insert_after(
+      target2, goto_programt::make_dead(aux_symbol_expr, source_loc));
 
     // In theory target could have more than one operand which should be
     // replaced by convert_nondet, so we return target2 so that it
@@ -162,25 +157,32 @@ static std::pair<goto_programt::targett, bool> insert_nondet_init_code(
 /// For each instruction in the goto program, checks if it is an assignment from
 /// nondet and replaces it with the appropriate composite initialization code if
 /// so.
+/// \param function_identifier: Name of the function \p goto_program.
 /// \param goto_program: The goto program to modify.
 /// \param symbol_table: The global symbol table.
 /// \param message_handler: Handles logging.
-/// \param object_factory_parameters: Parameters for the generation of nondet
-///   objects.
+/// \param user_object_factory_parameters: Parameters for the generation of
+///   nondet objects.
 /// \param mode: Language mode
 void convert_nondet(
+  const irep_idt &function_identifier,
   goto_programt &goto_program,
   symbol_table_baset &symbol_table,
   message_handlert &message_handler,
-  const java_object_factory_parameterst &object_factory_parameters,
+  const java_object_factory_parameterst &user_object_factory_parameters,
   const irep_idt &mode)
 {
+  java_object_factory_parameterst object_factory_parameters =
+    user_object_factory_parameters;
+  object_factory_parameters.function_id = function_identifier;
+
   bool changed = false;
   auto instruction_iterator = goto_program.instructions.begin();
 
   while(instruction_iterator != goto_program.instructions.end())
   {
     auto ret = insert_nondet_init_code(
+      function_identifier,
       goto_program,
       instruction_iterator,
       symbol_table,
@@ -203,13 +205,12 @@ void convert_nondet(
   const java_object_factory_parameterst &object_factory_parameters,
   const irep_idt &mode)
 {
-  java_object_factory_parameterst parameters = object_factory_parameters;
-  parameters.function_id = function.get_function_id();
   convert_nondet(
+    function.get_function_id(),
     function.get_goto_function().body,
     function.get_symbol_table(),
     message_handler,
-    parameters,
+    object_factory_parameters,
     mode);
 
   function.compute_location_numbers();
@@ -229,9 +230,8 @@ void convert_nondet(
 
     if(symbol.mode==ID_java)
     {
-      java_object_factory_parameterst parameters = object_factory_parameters;
-      parameters.function_id = f_it.first;
       convert_nondet(
+        f_it.first,
         f_it.second.body,
         symbol_table,
         message_handler,

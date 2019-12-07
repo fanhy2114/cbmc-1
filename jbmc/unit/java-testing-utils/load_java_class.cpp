@@ -9,15 +9,15 @@ Author: Diffblue Ltd.
 #include "load_java_class.h"
 
 #include <iostream>
-#include <testing-utils/catch.hpp>
 #include <testing-utils/free_form_cmdline.h>
 #include <testing-utils/message.h>
+#include <testing-utils/use_catch.h>
 
 #include <util/config.h>
 #include <util/options.h>
 #include <util/suffix.h>
 
-#include <goto-programs/lazy_goto_model.h>
+#include <java_bytecode/lazy_goto_model.h>
 
 #include <java_bytecode/java_bytecode_language.h>
 #include <util/file_util.h>
@@ -110,6 +110,7 @@ goto_modelt load_goto_model_from_java_class(
   config.java.classpath.clear();
   config.java.classpath.push_back(class_path);
   config.main = main;
+  config.java.main_class = java_class_name;
 
   // Add the language to the model
   language_filet &lf=lazy_goto_model.add_language_file(filename);
@@ -170,13 +171,27 @@ symbol_tablet load_java_class(
   free_form_cmdlinet command_line;
   command_line.add_flag("no-lazy-methods");
   command_line.add_flag("no-refine-strings");
-  // TODO(tkiley): This doesn't do anything as "java-cp-include-files" is an
-  // TODO(tkiley): unknown argument. This could be changed by using the
-  // TODO(tkiley): free_form_cmdlinet however this causes some tests to fail.
-  // TODO(tkiley): TG-2708 to investigate and fix
-  command_line.set("java-cp-include-files", class_path);
   return load_java_class(
     java_class_name, class_path, main, std::move(java_lang), command_line);
+}
+
+goto_modelt load_goto_model_from_java_class(
+  const std::string &java_class_name,
+  const std::string &class_path,
+  const std::vector<std::string> &command_line_flags,
+  const std::unordered_map<std::string, std::string> &command_line_options,
+  const std::string &main)
+{
+  free_form_cmdlinet command_line;
+  for(const auto &flag : command_line_flags)
+    command_line.add_flag(flag);
+  for(const auto &option : command_line_options)
+    command_line.add_option(option.first, option.second);
+
+  std::unique_ptr<languaget> lang = new_java_bytecode_language();
+
+  return load_goto_model_from_java_class(
+    java_class_name, class_path, main, std::move(lang), command_line);
 }
 
 /// See \ref load_goto_model_from_java_class
@@ -187,12 +202,10 @@ goto_modelt load_goto_model_from_java_class(
   const std::string &class_path,
   const std::string &main)
 {
-  free_form_cmdlinet command_line;
-  command_line.add_flag("no-lazy-methods");
-  command_line.add_flag("no-refine-strings");
-
-  std::unique_ptr<languaget> lang = new_java_bytecode_language();
-
   return load_goto_model_from_java_class(
-    java_class_name, class_path, main, std::move(lang), command_line);
+    java_class_name,
+    class_path,
+    {"no-lazy-methods", "no-refine-strings"},
+    {},
+    main);
 }

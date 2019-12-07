@@ -40,7 +40,7 @@ void parse_flags(
         curtok.flags.push_back(format_tokent::flag_typet::SIGN); break;
       default:
         throw unsupported_operation_exceptiont(
-          std::string("unsupported format specifier flag: `") + *it + "'");
+          std::string("unsupported format specifier flag: '") + *it + "'");
     }
     it++;
   }
@@ -179,7 +179,7 @@ void parse_conversion_specifier(
 
     default:
       throw unsupported_operation_exceptiont(
-        std::string("unsupported format conversion specifier: `") + *it + "'");
+        std::string("unsupported format conversion specifier: '") + *it + "'");
   }
   it++;
 }
@@ -226,7 +226,7 @@ format_token_listt parse_format_string(const std::string &arg_string)
   return token_list;
 }
 
-typet get_type(const format_tokent &token)
+optionalt<typet> get_type(const format_tokent &token)
 {
   switch(token.type)
   {
@@ -257,7 +257,10 @@ typet get_type(const format_tokent &token)
       else
         return unsigned_long_long_int_type();
 
-    default:
+    case format_tokent::length_modifierst::LEN_t:
+    case format_tokent::length_modifierst::LEN_j:
+    case format_tokent::length_modifierst::LEN_L:
+    case format_tokent::length_modifierst::LEN_undef:
       if(token.representation==format_tokent::representationt::SIGNED_DEC)
         return signed_int_type();
       else
@@ -269,14 +272,27 @@ typet get_type(const format_tokent &token)
     {
     case format_tokent::length_modifierst::LEN_l: return double_type();
     case format_tokent::length_modifierst::LEN_L: return long_double_type();
-    default: return float_type();
+    case format_tokent::length_modifierst::LEN_h:
+    case format_tokent::length_modifierst::LEN_hh:
+    case format_tokent::length_modifierst::LEN_j:
+    case format_tokent::length_modifierst::LEN_ll:
+    case format_tokent::length_modifierst::LEN_t:
+    case format_tokent::length_modifierst::LEN_undef:
+      return float_type();
     }
 
   case format_tokent::token_typet::CHAR:
     switch(token.length_modifier)
     {
     case format_tokent::length_modifierst::LEN_l: return wchar_t_type();
-    default: return char_type();
+    case format_tokent::length_modifierst::LEN_h:
+    case format_tokent::length_modifierst::LEN_hh:
+    case format_tokent::length_modifierst::LEN_j:
+    case format_tokent::length_modifierst::LEN_L:
+    case format_tokent::length_modifierst::LEN_ll:
+    case format_tokent::length_modifierst::LEN_t:
+    case format_tokent::length_modifierst::LEN_undef:
+      return char_type();
     }
 
   case format_tokent::token_typet::POINTER:
@@ -287,11 +303,19 @@ typet get_type(const format_tokent &token)
     {
     case format_tokent::length_modifierst::LEN_l:
       return array_typet(wchar_t_type(), nil_exprt());
-    default: return array_typet(char_type(), nil_exprt());
+    case format_tokent::length_modifierst::LEN_h:
+    case format_tokent::length_modifierst::LEN_hh:
+    case format_tokent::length_modifierst::LEN_j:
+    case format_tokent::length_modifierst::LEN_L:
+    case format_tokent::length_modifierst::LEN_ll:
+    case format_tokent::length_modifierst::LEN_t:
+    case format_tokent::length_modifierst::LEN_undef:
+      return array_typet(char_type(), nil_exprt());
     }
 
-  default:
-    return nil_typet();
+  case format_tokent::token_typet::TEXT:
+  case format_tokent::token_typet::UNKNOWN:
+    return {};
   }
 
   UNREACHABLE;

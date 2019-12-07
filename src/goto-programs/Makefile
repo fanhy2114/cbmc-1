@@ -4,9 +4,10 @@ SRC = adjust_float_expressions.cpp \
       class_identifier.cpp \
       compute_called_functions.cpp \
       destructor.cpp \
+      destructor_tree.cpp \
       elf_reader.cpp \
+      ensure_one_backedge_per_target.cpp \
       format_strings.cpp \
-      generate_function_bodies.cpp \
       goto_asm.cpp \
       goto_clean_expr.cpp \
       goto_convert.cpp \
@@ -27,20 +28,18 @@ SRC = adjust_float_expressions.cpp \
       interpreter_evaluate.cpp \
       json_expr.cpp \
       json_goto_trace.cpp \
-      lazy_goto_model.cpp \
       link_goto_model.cpp \
       link_to_library.cpp \
       loop_ids.cpp \
       mm_io.cpp \
+      name_mangler.cpp \
       osx_fat_reader.cpp \
       parameter_assignments.cpp \
       pointer_arithmetic.cpp \
       printf_formatter.cpp \
-      property_checker.cpp \
       read_bin_goto_object.cpp \
       read_goto_binary.cpp \
       rebuild_goto_start_function.cpp \
-      remove_asm.cpp \
       remove_calls_no_body.cpp \
       remove_complex.cpp \
       remove_const_function_pointers.cpp \
@@ -52,7 +51,6 @@ SRC = adjust_float_expressions.cpp \
       remove_vector.cpp \
       remove_virtual_functions.cpp \
       rewrite_union.cpp \
-      replace_calls.cpp \
       resolve_inherited_component.cpp \
       safety_checker.cpp \
       set_properties.cpp \
@@ -65,6 +63,7 @@ SRC = adjust_float_expressions.cpp \
       string_abstraction.cpp \
       string_instrumentation.cpp \
       system_library_symbols.cpp \
+      validate_goto_model.cpp \
       vcd_goto_trace.cpp \
       wp.cpp \
       write_goto_binary.cpp \
