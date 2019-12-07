@@ -4525,7 +4525,7 @@ void smt2_convt::convert_type(const typet &type)
   {
     if(use_datatypes)
     {
-      out << datatype_map.at(type);
+		out << datatype_map.at(type);
     }
     else
     {
@@ -4838,7 +4838,15 @@ void smt2_convt::find_symbols_rec(
   {
     const auto &struct_tag = to_struct_tag_type(type);
     const irep_idt &id = struct_tag.get_identifier();
-
+    
+    // __FHY_ADD_BEGIN__
+    if(use_datatypes && datatype_map.find(struct_tag)==datatype_map.end()){
+    	const std::string smt_typename =
+    			"struct." + std::to_string(datatype_map.size());
+    	datatype_map[struct_tag] = smt_typename;
+    }
+    // __FHY_ADD_END__
+    
     if(recstack.find(id) == recstack.end())
     {
       recstack.insert(id);
