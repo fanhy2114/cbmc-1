@@ -23,6 +23,7 @@ Author: Daniel Kroening, kroening@kroening.com
 #include <util/string_constant.h>
 #include <util/symbol_table.h>
 #include <util/symbol_table_builder.h>
+#include <langapi/language_util.h>
 
 #include "goto_convert_class.h"
 #include "destructor.h"

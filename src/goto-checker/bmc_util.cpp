@@ -139,6 +139,13 @@ void convert_symex_target_equation(
   messaget msg(message_handler);
   msg.status() << "converting SSA" << messaget::eom;
 
+  //// __FHY_ADD_BEGIN__
+//  for(auto ssa_step: equation.SSA_steps)
+//  {
+//      ssa_step.output(std::cout);
+//  }
+  //// __FHY_ADD_END__
+
   // convert SSA
   equation.convert(prop_conv);
 }
@@ -177,6 +184,10 @@ void setup_symex(
 
   symex.unwindset.parse_unwind(options.get_option("unwind"));
   symex.unwindset.parse_unwindset(options.get_option("unwindset"));
+
+  //// __FHY_ADD_BEGIN__
+  std::cout << "--unwind " << symex.unwindset.get_global_limit() << "\n";
+  //// __FHY_ADD_END__
 }
 
 void slice(

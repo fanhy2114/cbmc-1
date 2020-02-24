@@ -254,8 +254,10 @@ solver_factoryt::get_smt2(smt2_dect::solvert solver)
       "QF_AUFBV",
       solver);
 
-    if(options.get_bool_option("fpa"))
+    //// __FHY_ADD_BEGIN__
+//    if(options.get_bool_option("fpa"))
       smt2_dec->use_FPA_theory = true;
+      //// __FHY_ADD_END__
 
     return util_make_unique<solvert>(std::move(smt2_dec));
   }
@@ -269,8 +271,10 @@ solver_factoryt::get_smt2(smt2_dect::solvert solver)
       solver,
       std::cout);
 
-    if(options.get_bool_option("fpa"))
+//    if(options.get_bool_option("fpa"))
+    //// __FHY_ADD_BEGIN__
       smt2_conv->use_FPA_theory = true;
+      //// __FHY_ADD_END__
 
     smt2_conv->set_message_handler(message_handler);
 
@@ -298,8 +302,11 @@ solver_factoryt::get_smt2(smt2_dect::solvert solver)
       solver,
       *out);
 
-    if(options.get_bool_option("fpa"))
+//    if(options.get_bool_option("fpa"))
+//      smt2_conv->use_FPA_theory = true;
+    //// __FHY_ADD_BEGIN__
       smt2_conv->use_FPA_theory = true;
+      //// __FHY_ADD_END__
 
     smt2_conv->set_message_handler(message_handler);
 

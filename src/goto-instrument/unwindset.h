@@ -39,6 +39,10 @@ public:
   // read unwindset directives from a file
   void parse_unwindset_file(const std::string &file_name);
 
+  //// __FHY_ADD_BEGIN__
+  unsigned get_global_limit() const;
+  //// __FHY_ADD_END__
+
 protected:
   optionalt<unsigned> global_limit;
 

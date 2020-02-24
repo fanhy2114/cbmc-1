@@ -202,9 +202,9 @@ void goto_symex_statet::assignment(
   }
 
   // see #305 on GitHub for a simple example and possible discussion
-  if(is_shared && lhs.type().id() == ID_pointer && !allow_pointer_unsoundness)
-    throw unsupported_operation_exceptiont(
-      "pointer handling for concurrency is unsound");
+//  if(is_shared && lhs.type().id() == ID_pointer && !allow_pointer_unsoundness)
+//    throw unsupported_operation_exceptiont(
+//      "pointer handling for concurrency is unsound");
 
   // for value propagation -- the RHS is L2
 

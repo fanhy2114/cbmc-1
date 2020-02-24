@@ -97,3 +97,12 @@ void unwindsett::parse_unwindset_file(const std::string &file_name)
   buffer << file.rdbuf();
   parse_unwindset(buffer.str());
 }
+
+//// __FHY_ADD_BEGIN__
+unsigned unwindsett::get_global_limit() const
+{
+  if(global_limit.has_value())
+    return global_limit.value();
+  return -1;
+}
+//// __FHY_ADD_END__

@@ -97,7 +97,9 @@ public:
     case solvert::Z3:
       use_array_of_bool=true;
       emit_set_logic=false;
-      use_datatypes=true;
+      //// __FHY_ADD_BEGIN__
+      use_datatypes=false;
+      //// __FHY_ADD_END__
       break;
     }
 

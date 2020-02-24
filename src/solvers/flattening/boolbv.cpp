@@ -584,6 +584,9 @@ bool boolbvt::boolbv_set_equality_to_true(const equal_exprt &expr)
     const irep_idt &identifier=
       to_symbol_expr(expr.lhs()).get_identifier();
 
+//      printf("type: %s\n", type.id_string().c_str());
+//      printf("bv identifier: %s      rhs: %s\n\n", id2string(identifier).c_str(), id2string(expr.rhs().id()).c_str());
+
     map.set_literals(identifier, type, bv1);
 
     if(freeze_all)
